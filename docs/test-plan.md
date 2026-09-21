@@ -1,9 +1,12 @@
 # Test plan
 
-Everything below was written while the game could not be run, so **none of the in-game behaviour has been seen yet**
-except what is marked "already verified". What was tested without the game: the plugin compiles against the game's
-real assemblies, and the dashboard was exercised against a fake file (`tools/sample-live.ps1`) in every state
-(live, stowed truck, no vehicle, main menu, stale, no file) at 2560 x 1440.
+> **Status (2026-09-21):** this plan was written before the game could be run. The first real run has since happened:
+> every section arrived with no plugin warnings, the rocket multipliers matched the wiki maths, the vehicle position
+> matched a save, and the dashboard looked right against real data. Items below are still worth ticking off
+> individually (many need a specific action in the game); untested ones are the open questions.
+>
+> What was tested without the game: the plugin compiles against the game's real assemblies, and the dashboard was
+> exercised against a fake file (`tools/sample-live.ps1`) in every state at 2560 x 1440.
 
 Work top to bottom. Each item says what to do and what should happen. Tick them off; anything that does not match is
 a bug or a wrong assumption, so write down what you saw. A few PowerShell snippets are at the end.

@@ -60,7 +60,7 @@ To try the dashboard **without the game**, generate a fake live file:
 
 ## Testing
 
-**Read [docs/test-plan.md](docs/test-plan.md).** Everything in the plugin was written without being able to run the
+**Read [docs/handoff.md](docs/handoff.md)** for where things stand and what is next, and **[docs/test-plan.md](docs/test-plan.md)** for what to check in the game. The plugin was written without being able to run the
 game; the plan lists what to check in the game, what should happen, and which assumptions are the likely places for surprises.
 
 ## Modules
@@ -73,10 +73,10 @@ Built one at a time.
 | 1 | **Install and verify**: BepInEx in the game, plugin loads | done: loads on Unity 6000.3.2 |
 | 2 | **Discovery**: decompile the game's code and record the API in `docs/game-notes.md` | done for everything used so far |
 | 3 | **Player**: position, yaw, vitals | done and verified in the game (position matches a save exactly) |
-| 4 | **Inventories and vehicle**: backpack, gear, vehicle position, trunk, gear | written; builds; **not yet run in the game** |
-| 5 | **Planet**: world-unit values and live rates, power and generators, rockets | written; builds; **not yet run in the game** |
-| 6 | **Dashboard**: one page for Player, Planet, Vehicle; Launch PC | written; **tested against fake data only** (all states, 2560 x 1440) |
-| 7 | **Base and Extractors** | later |
+| 4 | **Inventories and vehicle**: backpack, gear, vehicle position, trunk, gear | done: run in the game, all sections arrive (vehicle position matches the save); detailed checks still open in the test plan |
+| 5 | **Planet**: world-unit values and live rates, power and generators, rockets | done: run in the game; rocket multipliers match the wiki maths exactly, power and generators plausible; screen comparisons still open |
+| 6 | **Dashboard**: one page for Player, Planet, Vehicle; Launch PC | done: fake data in every state at 2560 x 1440, then live with the real game (the owner: "beautiful") |
+| 7 | **Base and Extractors**: base data and maps (compact on the Player card, big on a Base tab), extractor data and tab | next; see docs/handoff.md |
 | 8 | **Optional**: drones, local HTTP feed, in-game overlay | later |
 
 ## License
