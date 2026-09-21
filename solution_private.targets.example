@@ -1,0 +1,9 @@
+<!--
+  Copy this file to solution_private.targets (which git ignores) and edit the paths for your machine.
+  Directory.Build.props picks it up automatically.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <GameDir>C:\Program Files (x86)\Steam\steamapps\common\The Planet Crafter\</GameDir>
+  </PropertyGroup>
+</Project>

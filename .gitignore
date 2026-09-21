@@ -1,0 +1,18 @@
+## Build output
+bin/
+obj/
+*.user
+.vs/
+
+## Machine-specific paths (copy solution_private.targets.example to make yours)
+solution_private.targets
+
+## The game's own files are never redistributed. Any local copy used for reference stays out of git.
+lib/
+ref/
+*.dll
+!tools/**/*.dll
+
+## Scratch
+*.log
+.claude/

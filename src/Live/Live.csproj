@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The game runs Unity 6 on Mono, so plugins target netstandard2.1 (see docs/game-notes.md). -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>RRSOS.PCC.Live</AssemblyName>
+    <RootNamespace>RRSOS.PCC.Live</RootNamespace>
+    <Description>Live game data for the RRSOS Planet Crafter companion</Description>
+    <Version>0.0.1</Version>
+    <LangVersion>latest</LangVersion>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" />
+  </ItemGroup>
+
+  <!-- The game's own assemblies. Referenced in place and never copied or committed. -->
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(GameManaged)Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(GameManaged)UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(GameManaged)UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- After a build, drop the plugin into the game's BepInEx\plugins folder, but only once BepInEx is installed there. -->
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="Exists('$(PluginsFolder)')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginsFolder)RRSOS-PCC-Live\" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) to $(PluginsFolder)RRSOS-PCC-Live\" />
+  </Target>
+
+</Project>
