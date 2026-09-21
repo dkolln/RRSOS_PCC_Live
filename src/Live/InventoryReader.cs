@@ -44,7 +44,7 @@ namespace RRSOS.PCC.Live
             return json.EndArray().End().ToString();
         }
 
-        private static string NameOf(string id, Group group)
+        internal static string NameOf(string id, Group group)
         {
             if (Names.TryGetValue(id, out var cached))
                 return cached;

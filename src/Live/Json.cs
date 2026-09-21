@@ -99,6 +99,38 @@ namespace RRSOS.PCC.Live
             return this;
         }
 
+        /// <summary>A list of whole numbers, as {"name":[1,2,3]}. A null list is written as null.</summary>
+        public Json IntList(string name, System.Collections.Generic.IEnumerable<int> values)
+        {
+            Key(name);
+
+            if (values == null)
+            {
+                _sb.Append("null");
+            }
+            else
+            {
+                _sb.Append('[');
+                var first = true;
+                foreach (var value in values)
+                {
+                    if (!first) _sb.Append(',');
+                    _sb.Append(value.ToString(CultureInfo.InvariantCulture));
+                    first = false;
+                }
+                _sb.Append(']');
+            }
+
+            _needComma = true;
+            return this;
+        }
+
+        /// <summary>A world position as {"x":..,"y":..,"z":..}, rounded to two decimals (a hundredth of a metre is plenty and keeps the file small).</summary>
+        public Json Point(string name, float x, float y, float z)
+        {
+            return Begin(name).Num("x", Math.Round(x, 2)).Num("y", Math.Round(y, 2)).Num("z", Math.Round(z, 2)).End();
+        }
+
         /// <summary>A number that may be missing: written as null when it is.</summary>
         public Json OptNum(string name, float? value)
         {

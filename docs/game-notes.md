@@ -87,6 +87,30 @@ game's code); only names and signatures are recorded here. Everything is in `nam
 had to rebuild them from tables and multipliers. The game already knows all of them, including the effect of every
 machine, optimizer and rocket. Reading `WorldUnit` rates would replace most of that reconstruction.
 
+## Discovered API (module 7: bases and extractors, from the decompiled code, build 25296421)
+
+Read from the decompile only; **none of this has been run in the game yet** (see the test plan, section 9).
+
+| Want | Where | Notes |
+|---|---|---|
+| Every object | `WorldObjectsHandler.Instance.GetAllWorldObjects()` (`Dictionary<int, WorldObject>`) | Copy the values before walking them across frames |
+| Placed things | `GetConstructedWorldObjects()` (`HashSet<WorldObject>`) | Holds every `GroupConstructible`, and buildable `GroupItem`s, whose id is not a scene id. **Includes ones not placed** (crafted, sitting in an inventory), so also check `GetIsPlaced()` |
+| Is it in the world | `WorldObject.GetIsPlaced()` | True when the position is not (0,0,0). An object put in an inventory has its position reset, and the save then has no `pos` |
+| Scene objects | `WorldObjectsIdHandler.IsWorldObjectFromScene(id)` | True for ids below 200,000,000: the landscape's own objects (rocks, wreck loot and containers). Things the player builds or drops get ids of 200,000,000 or more |
+| Which planet | `WorldObject.GetPlanetHash()` against `PlanetLoader.GetCurrentPlanetData().GetPlanetHash()` | The game itself compares these two to decide what to show. `GetPlanetHash()` is 0 for an object that is not placed |
+| Pod panels | `WorldObject.GetPanelsId()` (`List<int>`), values of `DataConfig.BuildPanelSubType` | 0 WallNull, 1 WallPlain, **2 WallCorridor** (a connection), 3 WallGlass, **4 WallDoor** (the entrance), 5 FloorLight, 6 FloorGlass, 7 FloorPlain, 8 FloorLab, 9 WallLab, 10 FloorNoLight, 11 WallInside, 12 None, 13 WallWaterLife, 14 to 16 the angled floors. The same numbers are in the save's `pnls`, and match what RRSOS-PCC's `PanelParser` uses |
+| Pod group ids | seen in a save: `pod`, `Pod4x`, `Pod9xC`, `EscapePod` | The crash pod, `EscapePod`, has no panels in the save. RRSOS-PCC only treats `pod` (and, by a case-sensitive match that misses `EscapePod`, `Escapepod`) as candidates for bases |
+| Sign text | `WorldObject.GetText()` on a group whose id is `Sign` | |
+| Storage | `HasLinkedInventory()` and `GetLinkedInventoryId()`, `GetSecondaryInventoriesId()` (a list), then `InventoriesHandler.Instance.GetInventoryById(id)`; `Inventory.GetSize()` and `GetInsideWorldObjects()` | A grower keeps its plants in the *secondary* inventory. Ore and gas extractors and water collectors use the linked one, and algae generators the secondary one (as in the save's `liId` and `siIds`) |
+| What an extractor produces | `WorldObject.GetLinkedGroups()` (`List<Group>`) | The save's `liGrps`. The first group is the product |
+| A plant's growth | `WorldObject.GetGrowth()` (0 to 100) | 100 is fully grown, as the save's `grwth` |
+| Extractor group ids | seen in a save: `OreExtractor2`, `OreExtractor3`, `GasExtractor2`, `WaterCollector1`, `WaterCollector2`, `AlgaeGenerator1`, `AlgaeGenerator2`, `GeneticExtractor1` | Matched by prefix. The plugin reads ore, gas, water and algae; the genetic extractor and the water-life collector are left out |
+| Loose items | a placed `GroupItem` that is not from the scene | What the dashboard calls the "boneyard" |
+
+Plugin cost: the world pass walks the game's placed objects (thousands) and then every object (tens of thousands), about every
+5 seconds, on the main thread. It stops after roughly 2 ms per frame and carries on next frame; the pass reports its own
+`scan.workMs` and `scan.worstFrameMs` in the file so the cost can be read off after a real session.
+
 ## Open questions
 
 - How do `WorldUnitEnergy`'s increase and decrease map to power produced and power used? (module 5)

@@ -87,6 +87,68 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
 
 ## Changes
 
+- **World file, schema 1** (plugin 0.3.0): new file `live-world.json` (see above). `live.json` is unchanged.
 - **Schema 1** (plugin 0.2.0): the string `planet` became `planetId` (it clashed with the `planet` object);
   added `vitalsMax`, `backpack`, `equipment`, `planet`, `vehicle`.
 - **Schema 0** (plugin 0.1.0): position, yaw and vitals only.
+
+## The world file (`live-world.json`, schema 1)
+
+Bases, containers and extractors change slowly and there can be thousands of them, so they are **not** in `live.json`.
+The plugin (0.3.0 and later) writes them to a second file beside it. The dashboard watches both.
+
+- Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\live-world.json`
+- Written about every 5 seconds while a world is loaded (the pass itself is spread over several frames, at most about
+  2 ms of work each, so it never shows up as a stutter). Written atomically, like `live.json`.
+- Out of a world it is written **once** as `{"schemaVersion":1,"pluginVersion":...,"updatedAt":...,"inWorld":false}`.
+- Same rules as `live.json`: numbers the game gives as NaN are `null`, fields are only ever added within a schema
+  version, readers ignore fields they do not know. An empty list is `[]`, never missing, when the pass ran.
+- The plugin reports **raw facts**. Deciding what a base is, naming it and working out which container belongs to
+  which base all happen in the dashboard (see "What a base is" below).
+
+```json
+{
+  "schemaVersion": 1, "pluginVersion": "0.3.0", "updatedAt": "2026-09-21T12:00:05Z", "inWorld": true, "planetId": "Prime",
+  "scan": { "objectsVisited": 31240, "frames": 9, "workMs": 14.2, "worstFrameMs": 2.1 },
+  "pods": [
+    { "id": 204266353, "group": "pod", "position": { "x": 803, "y": 35, "z": 613.5 }, "panels": [4, 2, 3, 3, 5, 7] }
+  ],
+  "signs": [ { "id": 202057317, "position": { "x": 800.38, "y": 37.26, "z": 617.63 }, "text": "Main" } ],
+  "containers": [
+    { "id": 204236051, "group": "VegetableGrower2", "position": { "x": 772.25, "y": 36.04, "z": 579.75 },
+      "items":     [ { "id": "Fertilizer1", "name": "Fertilizer", "count": 4 } ],
+      "secondary": [ { "id": "Vegetable3Growable", "name": "Mushroom Plant", "count": 6, "ready": 4 } ] }
+  ],
+  "loose": [ { "id": "Iron", "name": "Iron", "position": { "x": 812, "y": 34, "z": 604 }, "count": 3 } ],
+  "extractors": [
+    { "id": 205746819, "kind": "ore", "group": "OreExtractor3", "position": { "x": 932, "y": 23, "z": 551 },
+      "product": "Titanium", "productName": "Titanium", "size": 8, "count": 8, "productCount": 8, "ready": 0,
+      "items": [ { "id": "Titanium", "name": "Titanium", "count": 8 } ] }
+  ]
+}
+```
+
+### Fields
+
+| Field | Meaning |
+|---|---|
+| `scan` | How much work the last pass took: objects looked at, frames it was spread over, total work and the longest single chunk, in milliseconds. A check that reading the world costs the game nothing; the dashboard does not use it |
+| `pods[]` | Every living compartment on this planet (group id starting `pod`, or `EscapePod`). `panels` is what fills each of its sides, in the game's `BuildPanelSubType` numbers: **4 is a door (entrance), 2 a connection (corridor)**, 3 a window, 1 plain wall, 5 to 7 floors. The order is the game's (east, west, north, south, top, bottom). A list, `null` when the game has none for that object |
+| `signs[]` | Every placed sign and what it says (`text`). Base names come from signs |
+| `containers[]` | Placed objects with storage that hold something, within 120 m of some pod. `items` is the main storage, `secondary` any secondary storage (a grower keeps its plants there). Items are counted by kind. `ready` (only when above zero) counts plants in `secondary` that have finished growing (growth 100) |
+| `loose[]` | Items lying on the ground within 120 m of some pod, merged when they are the same kind within 4 m (`count`). Only things with an object id of 200,000,000 or more, so the landscape's own rocks and wreck loot are not listed. At most 4000 entries |
+| `extractors[]` | Ore, gas, water and algae machines. `kind` is `ore`, `gas`, `water` or `algae`. `product` and `productName` are what an ore or gas extractor is set to produce (null for water and algae). `size` is its slot count, `count` how many items it holds, `productCount` how many of those are the product, `ready` (algae) how many have finished growing. `items` is everything in it, by kind |
+| `position` | Raw world position, two decimals. Compass conventions belong to the reader, as in `live.json` |
+
+Everything is limited to the planet the player is on.
+
+### What a base is (the dashboard's rules, ported from RRSOS-PCC)
+
+- A **base** is a pod (group `pod` or `EscapePod`) with a **door** in its `panels` (a 4). With a **connection** (a 2) as
+  well it is shown as a *Base*; with only a door it is an *Outpost*. Larger modules (`Pod4x`, `Pod9xC`) are not bases.
+- A base's name is the text of the nearest sign within 6 m; else the name saved for its pod id; else the next unused
+  name from a list (Greek names for bases, NATO letters for outposts), which is then saved. Names are kept in the
+  dashboard's own `basedata.json` beside the live files, keyed by the game's id for the pod.
+- A container or a loose item belongs to the nearest base within **100 m** (flat distance). Machines and building parts
+  (by RRSOS-PCC's table of item types) are not listed as stored items or loose items.
+- **Ready to harvest** is the crops with `ready` in the planting tray of a grower (`VegetableGrower*`, `Farm1`).

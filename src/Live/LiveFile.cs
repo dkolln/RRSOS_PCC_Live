@@ -15,19 +15,24 @@ namespace RRSOS.PCC.Live
 
         public static readonly string FilePath = Path.Combine(Folder, "live.json");
 
+        /// <summary>The slow file: bases, containers and extractors (see <see cref="WorldPoller"/>).</summary>
+        public static readonly string WorldFilePath = Path.Combine(Folder, "live-world.json");
+
         private static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(false);
 
-        public static void Write(string json)
+        public static void Write(string json) => Write(FilePath, json);
+
+        public static void Write(string path, string json)
         {
             Directory.CreateDirectory(Folder);
 
-            var temp = FilePath + ".tmp";
+            var temp = path + ".tmp";
             File.WriteAllText(temp, json, Utf8NoBom);
 
-            if (File.Exists(FilePath))
-                File.Replace(temp, FilePath, null);
+            if (File.Exists(path))
+                File.Replace(temp, path, null);
             else
-                File.Move(temp, FilePath);
+                File.Move(temp, path);
         }
     }
 }
