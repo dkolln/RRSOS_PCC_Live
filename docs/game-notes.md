@@ -81,7 +81,7 @@ game's code); only names and signatures are recorded here. Everything is in `nam
 | Any placed thing | `WorldObjectsHandler.Instance`, then `WorldObject` | `GetId()`, `GetGroup()`, `GetPosition()`, `GetRotation()`, `GetGameObject()` (the live scene object), `GetLinkedInventoryId()`, `GetPlanetHash()`, `GetEnergy()`, `GetUnitGeneration(type)`, `GetUnitMultiplier(type)` |
 | Rocket multipliers | `WorldUnitMultiplierViaInventory` and `WorldUnitGenerationViaInventory` (components tied to an inventory) | The game applies rocket bonuses itself; the live rates already include them |
 | Drones | `Drone` is a `MonoBehaviour` (find with `Object.FindObjectsByType<Drone>`) | Live `transform.position`; `GetDroneInventory()`, `GetLogisticTask()`, `GetDronePlanetHash()`. `MachineDroneStation` is the station |
-| The vehicle | not found yet | Candidates: `VehicleShareData`, `VehicleEquipment`, `VehicleJetpack`. Module 4 |
+| The vehicle | `VehicleController`, a `MonoBehaviour` from the third-party physics asset in `EVP5.dll` (Edy's Vehicle Physics; the game's `ActionTakeControl` uses it to enter a vehicle) | Should give a live `transform.position` and speed for the vehicle in the scene, found with `Object.FindObjectsByType`. Needs a reference to `EVP5.dll`. Related game classes: `VehicleShareData`, `VehicleEquipment`, `VehicleJetpack`, `VehicleBackToGarage` (the recall). **Unverified:** the exact namespace, and whether the object exists while the vehicle is stowed (module 4) |
 
 **Why this matters for the dashboard:** the save file cannot hold power, TI rates or live positions, so RRSOS-PCC has
 had to rebuild them from tables and multipliers. The game already knows all of them, including the effect of every
@@ -90,6 +90,6 @@ machine, optimizer and rocket. Reading `WorldUnit` rates would replace most of t
 ## Open questions
 
 - How do `WorldUnitEnergy`'s increase and decrease map to power produced and power used? (module 5)
-- Where is the vehicle's live position? (module 4)
+- Is the vehicle object present in the scene while stowed in the pocket, or only when deployed? (module 4)
 - Is the `Drone` component only present while a drone is airborne? (module 4)
 - Multiplayer: `playersControllers` may hold several players. Use `GetActivePlayerController()` (the local one).

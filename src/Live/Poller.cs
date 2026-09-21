@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
@@ -6,16 +7,15 @@ namespace RRSOS.PCC.Live
 {
     /// <summary>
     /// Once a second, reads the game and rewrites the live file. Polling (instead of patching game code)
-    /// keeps this read-only and means a game update cannot silently break a hook.
+    /// keeps this read-only and means a game update cannot silently break a hook. Every section is read
+    /// on its own, so one that fails becomes null and the others still arrive.
     /// </summary>
     internal sealed class Poller : MonoBehaviour
     {
         private const float IntervalSeconds = 1f;
-        private const int MaxLoggedErrors = 5;
 
         private float _nextTick;
         private bool? _wasInWorld;
-        private int _errors;
 
         private void Update()
         {
@@ -24,6 +24,22 @@ namespace RRSOS.PCC.Live
 
             _nextTick = Time.unscaledTime + IntervalSeconds;
             Tick();
+        }
+
+        // Closing the game while in a world would leave "inWorld: true" behind. Say it is over.
+        private void OnApplicationQuit()
+        {
+            if (_wasInWorld != true)
+                return;
+
+            try
+            {
+                LiveFile.Write(Build(null));
+            }
+            catch (Exception)
+            {
+                // The game is closing; readers fall back on updatedAt going stale.
+            }
         }
 
         private void Tick()
@@ -47,16 +63,14 @@ namespace RRSOS.PCC.Live
             }
             catch (Exception e)
             {
-                // Never let a reading problem reach the game. Say so a few times, then stay quiet.
-                if (_errors++ < MaxLoggedErrors)
-                    Plugin.Log.LogWarning($"Could not update the live file: {e.GetType().Name}: {e.Message}");
+                Plugin.LogOnce("tick", $"Could not update the live file: {e.GetType().Name}: {e.Message}");
             }
         }
 
         private static string Build(PlayerState player)
         {
             var json = new Json().Begin()
-                .Int("schemaVersion", 0)
+                .Int("schemaVersion", 1)
                 .Str("pluginVersion", Plugin.Version)
                 .Str("gameVersion", Application.version)
                 .Str("updatedAt", DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture))
@@ -65,24 +79,48 @@ namespace RRSOS.PCC.Live
             if (player != null)
             {
                 json.Str("planet", player.Planet)
-                    .Begin("player")
-                        .Str("name", player.Name)
-                        .Begin("position")
-                            .Num("x", player.Position.x)
-                            .Num("y", player.Position.y)
-                            .Num("z", player.Position.z)
-                        .End()
-                        .Num("yawDegrees", player.YawDegrees)
-                        .Begin("vitals")
-                            .Num("oxygen", player.Oxygen)
-                            .Num("health", player.Health)
-                            .Num("thirst", player.Thirst)
-                            .Num("toxic", player.Toxic)
-                        .End()
-                    .End();
+                    .Raw("player", Section("player", () => PlayerSection(player)))
+                    .Raw("planet", Section("planet", PlanetReader.Fragment))
+                    .Raw("vehicle", Section("vehicle", VehicleReader.Fragment));
             }
 
             return json.End().ToString();
+        }
+
+        private static string PlayerSection(PlayerState player)
+        {
+            return new Json().Begin()
+                .Str("name", player.Name)
+                .Begin("position")
+                    .Num("x", player.Position.x)
+                    .Num("y", player.Position.y)
+                    .Num("z", player.Position.z)
+                .End()
+                .Num("yawDegrees", player.YawDegrees)
+                .Begin("vitals")
+                    .Num("oxygen", player.Oxygen)
+                    .Num("health", player.Health)
+                    .Num("thirst", player.Thirst)
+                    .Num("toxic", player.Toxic)
+                .End()
+                .Raw("backpack", Section("backpack", () => PlayerReader.BackpackFragment(player)))
+                .Raw("equipment", Section("equipment", () => PlayerReader.EquipmentFragment(player)))
+                .End()
+                .ToString();
+        }
+
+        /// <summary>Runs one section's reader. A failure is logged (once per kind) and the section becomes null.</summary>
+        private static string Section(string name, Func<string> read)
+        {
+            try
+            {
+                return read();
+            }
+            catch (Exception e)
+            {
+                Plugin.LogOnce("section:" + name, $"Could not read '{name}': {e.GetType().Name}: {e.Message}");
+                return null;
+            }
         }
     }
 }

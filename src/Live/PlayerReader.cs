@@ -6,6 +6,7 @@ namespace RRSOS.PCC.Live
     /// <summary>What the game says about the local player right now.</summary>
     internal sealed class PlayerState
     {
+        public PlayerMainController Controller;
         public string Name;
         public string Planet;
         public Vector3 Position;
@@ -41,6 +42,7 @@ namespace RRSOS.PCC.Live
 
             return new PlayerState
             {
+                Controller = player,
                 Name = player.playerName,
                 Planet = ReadPlanetId(),
                 Position = transform.position,
@@ -50,6 +52,20 @@ namespace RRSOS.PCC.Live
                 Thirst = gauges.GetPlayerThirstValue(),
                 Toxic = gauges.GetPlayerToxicValue()
             };
+        }
+
+        /// <summary>The backpack, as an inventory fragment (see <see cref="InventoryReader"/>).</summary>
+        public static string BackpackFragment(PlayerState player)
+        {
+            var backpack = player.Controller.GetPlayerBackpack();
+            return backpack == null ? null : InventoryReader.Fragment(backpack.GetInventory());
+        }
+
+        /// <summary>Worn gear (boots, jetpack, chips and so on), as an inventory fragment.</summary>
+        public static string EquipmentFragment(PlayerState player)
+        {
+            var equipment = player.Controller.GetPlayerEquipment();
+            return equipment == null ? null : InventoryReader.Fragment(equipment.GetInventory());
         }
 
         private static string ReadPlanetId()

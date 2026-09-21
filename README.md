@@ -34,10 +34,10 @@ Built one at a time; each one is small enough to test in the game before the nex
 
 | # | Module | State |
 |---|---|---|
-| 0 | **Skeleton**: repo, solution, plugin that builds against the game's assemblies and logs a line | done (builds; not yet loaded in the game) |
+| 0 | **Skeleton**: repo, solution, plugin that builds against the game's assemblies and logs a line | done |
 | 1 | **Install and verify**: put BepInEx into the game, see the plugin's log line, check whether saves get flagged as modded | done: loads on Unity 6000.3.2; saves are flagged `modded` while `BepInEx\plugins` is non-empty (cosmetic, see game-notes) |
 | 2 | **Discovery**: decompile the game's assembly and record the types and members we need in `docs/game-notes.md` | done for player, vitals, planet rates, power, world objects, drones; the vehicle is left for module 4 |
-| 3 | **Player**: position, heading, vitals written to the live file about once a second | |
+| 3 | **Player**: position, heading, vitals written to the live file about once a second | done: verified in the game (position and yaw match a save exactly; vitals match apart from normal drain) |
 | 4 | **Vehicle and drones**: where they are right now | |
 | 5 | **World**: planet levels, launched rockets, power | |
 | 6 | **Contract v1**: freeze the file format and add a reader to RRSOS-PCC (in that repo) | |

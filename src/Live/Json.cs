@@ -72,6 +72,33 @@ namespace RRSOS.PCC.Live
             return this;
         }
 
+        public Json BeginArray(string name)
+        {
+            Key(name);
+            _sb.Append('[');
+            _needComma = false;
+            return this;
+        }
+
+        public Json EndArray()
+        {
+            _sb.Append(']');
+            _needComma = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Inserts JSON that was built elsewhere (a whole section). Sections are built separately so that
+        /// one failing to read can be replaced by null without breaking the rest of the file.
+        /// </summary>
+        public Json Raw(string name, string jsonFragment)
+        {
+            Key(name);
+            _sb.Append(string.IsNullOrEmpty(jsonFragment) ? "null" : jsonFragment);
+            _needComma = true;
+            return this;
+        }
+
         public Json Null(string name)
         {
             Key(name);
