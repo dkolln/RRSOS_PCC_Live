@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using SpaceCraft;
+using Unity.Netcode;
 using UnityEngine;
 
 namespace RRSOS.PCC.Live
@@ -18,6 +22,9 @@ namespace RRSOS.PCC.Live
         public float Health;
         public float Thirst;
         public float Toxic;
+
+        /// <summary>The top of each gauge (the game keeps these in private fields). Null when they could not be read.</summary>
+        public float? OxygenMax, HealthMax, ThirstMax, ToxicMax;
     }
 
     /// <summary>Read-only access to the local player. Returns null when no world is loaded.</summary>
@@ -50,7 +57,11 @@ namespace RRSOS.PCC.Live
                 Oxygen = gauges.GetPlayerOxygenValue(),
                 Health = gauges.GetPlayerHealthValue(),
                 Thirst = gauges.GetPlayerThirstValue(),
-                Toxic = gauges.GetPlayerToxicValue()
+                Toxic = gauges.GetPlayerToxicValue(),
+                OxygenMax = MaxOf(gauges, "_oxygenMaxValue"),
+                HealthMax = MaxOf(gauges, "_healthMaxValue"),
+                ThirstMax = MaxOf(gauges, "_thirstMaxValue"),
+                ToxicMax = MaxOf(gauges, "_toxicMaxValue")
             };
         }
 
@@ -66,6 +77,29 @@ namespace RRSOS.PCC.Live
         {
             var equipment = player.Controller.GetPlayerEquipment();
             return equipment == null ? null : InventoryReader.Fragment(equipment.GetInventory());
+        }
+
+        // The gauge maximums are private network variables on the game's gauge handler.
+        private static readonly Dictionary<string, FieldInfo> MaxFields = new Dictionary<string, FieldInfo>();
+
+        private static float? MaxOf(PlayerGaugesHandler gauges, string fieldName)
+        {
+            try
+            {
+                if (!MaxFields.TryGetValue(fieldName, out var field))
+                {
+                    field = typeof(PlayerGaugesHandler).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+                    MaxFields[fieldName] = field;
+                }
+
+                var variable = field == null ? null : field.GetValue(gauges) as NetworkVariable<float>;
+                return variable == null ? (float?)null : variable.Value;
+            }
+            catch (Exception e)
+            {
+                Plugin.LogOnce("max:" + fieldName, $"Could not read {fieldName}: {e.GetType().Name}: {e.Message}");
+                return null;
+            }
         }
 
         private static string ReadPlanetId()

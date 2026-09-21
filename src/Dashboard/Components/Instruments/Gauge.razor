@@ -1,0 +1,192 @@
+<div class="gauge @StateClass"
+     role="meter"
+     aria-label="@Label"
+     aria-valuemin="@(Centered ? -100 : 0)"
+     aria-valuemax="100"
+     aria-valuenow="@AriaNow"
+     aria-valuetext="@(DisplayText ?? $"{Percent} percent"), @StatusText">
+    <svg viewBox="0 0 140 100" aria-hidden="true">
+        <!-- Dial face -->
+        <path class="gauge-face" d="M 6 100 L 6 70 A 64 64 0 0 1 134 70 L 134 100 Z" />
+
+        @if (Centered)
+        {
+            <!-- Centre-zero dial: a plain track, and a coloured arc from the centre out to the needle. -->
+            <path class="gauge-track" d="@Arc(0f, 1f)" />
+
+            @if (CenteredArc is { } arc)
+            {
+                <path class="gauge-arc zone-@Status" d="@arc" />
+            }
+        }
+        else
+        {
+            <!-- Green / yellow / red zones. The one the needle is in lights up. -->
+            @foreach (var zone in Zones)
+            {
+                <path class="gauge-zone zone-@zone.Name @(zone.Name == Status ? "active" : "")" d="@Arc(zone.From, zone.To)" />
+            }
+        }
+
+        @foreach (var tick in Ticks)
+        {
+            <line class="gauge-tick @(tick.Major ? "major" : "")" x1="@tick.X1" y1="@tick.Y1" x2="@tick.X2" y2="@tick.Y2" />
+        }
+
+        <text class="gauge-scale" x="22" y="84">@MinLabel</text>
+        <text class="gauge-scale" x="118" y="84">@MaxLabel</text>
+
+        <g class="gauge-needle" style="transform: rotate(@Angle)">
+            <polygon points="68.5,76 70,24 71.5,76" />
+        </g>
+        <circle class="gauge-hub" cx="70" cy="70" r="5" />
+
+        <text class="gauge-value" x="70" y="95">@(Unknown ? "--" : DisplayText ?? $"{Percent}%")</text>
+    </svg>
+
+    <!-- Status lamps: green = normal, yellow = warning, red (flashing) = danger. -->
+    <div class="gauge-lamps" aria-hidden="true">
+        <span class="lamp lamp-good @(Status == "good" ? "on" : "")"></span>
+        <span class="lamp lamp-warn @(Status == "warn" ? "on" : "")"></span>
+        <span class="lamp lamp-crit @(Status == "crit" ? "on" : "")"></span>
+    </div>
+
+    <div class="gauge-label">@Label</div>
+</div>
+
+@code {
+    private const float CenterX = 70f;
+    private const float CenterY = 70f;
+    private const float ZoneRadius = 48f;
+
+    private static readonly (string X1, string Y1, string X2, string Y2, bool Major)[] Ticks = BuildTicks();
+
+    private readonly record struct Zone(string Name, float From, float To);
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>Needle position from 0 to 1. Out-of-range or non-numeric values are clamped.</summary>
+    [Parameter]
+    public float Value { get; set; }
+
+    /// <summary>Where the yellow zone starts (from the good end of the scale).</summary>
+    [Parameter]
+    public float WarnAt { get; set; } = 0.5f;
+
+    /// <summary>Where the red zone starts (from the good end of the scale).</summary>
+    [Parameter]
+    public float CritAt { get; set; } = 0.2f;
+
+    /// <summary>True when a high reading is bad (toxicity); false when a low one is (oxygen, health, thirst).</summary>
+    [Parameter]
+    public bool HigherIsWorse { get; set; }
+
+    /// <summary>Text in the centre of the dial instead of the percentage, e.g. "12.4 kW".</summary>
+    [Parameter]
+    public string? DisplayText { get; set; }
+
+    /// <summary>Scale labels at the left and right ends of the dial.</summary>
+    [Parameter]
+    public string MinLabel { get; set; } = "0";
+
+    [Parameter]
+    public string MaxLabel { get; set; } = "100";
+
+    /// <summary>No reading available: the needle rests at zero and no zone or lamp lights up.</summary>
+    [Parameter]
+    public bool Unknown { get; set; }
+
+    /// <summary>
+    /// Centre-zero dial: <see cref="Value"/> runs from -1 to +1 and the needle points straight up at 0.
+    /// The colour comes from <see cref="StatusOverride"/>, not from thresholds. With no reading the
+    /// needle parks at the far left, so an empty dial can never be mistaken for "exactly on target".
+    /// </summary>
+    [Parameter]
+    public bool Centered { get; set; }
+
+    /// <summary>"good", "warn" or "crit": colours the dial regardless of where the needle is.</summary>
+    [Parameter]
+    public string? StatusOverride { get; set; }
+
+    private float Fraction => Unknown || !float.IsFinite(Value) ? 0f : Math.Clamp(Value, 0f, 1f);
+
+    private float Signed => Unknown || !float.IsFinite(Value) ? -1f : Math.Clamp(Value, -1f, 1f);
+
+    private int Percent => (int)MathF.Round(Fraction * 100f);
+
+    private int AriaNow => Centered ? (int)MathF.Round(Signed * 100f) : Percent;
+
+    // The needle is drawn pointing straight up: 0% swings it fully left, 100% fully right.
+    // A centre-zero dial keeps 0 at the top and swings 90 degrees either way.
+    private string Angle => Centered
+        ? Inv($"{Signed * 90f:0.##}deg")
+        : Inv($"{-90f + Fraction * 180f:0.##}deg");
+
+    // The coloured stretch between the top of a centre-zero dial and the needle.
+    private string? CenteredArc
+    {
+        get
+        {
+            if (Unknown)
+                return null;
+
+            var end = 0.5f + Signed / 2f;
+            return MathF.Abs(end - 0.5f) < 0.005f ? null : Arc(MathF.Min(end, 0.5f), MathF.Max(end, 0.5f));
+        }
+    }
+
+    // Same comparisons as the vitals view model's warning flags, so the colours agree with them.
+    private bool Critical => HigherIsWorse ? Fraction > CritAt : Fraction < CritAt;
+
+    private bool Warning => HigherIsWorse ? Fraction > WarnAt : Fraction < WarnAt;
+
+    // One status drives the value colour, the lit zone and the lamps, so they can never disagree.
+    private string Status => Unknown ? "unknown" : StatusOverride ?? (Critical ? "crit" : Warning ? "warn" : "good");
+
+    private string StatusText => Status switch { "crit" => "danger", "warn" => "warning", "unknown" => "no data", _ => "normal" };
+
+    // A centre-zero dial paints its readout green too; the others keep the calm default for "normal".
+    private string StateClass => Status switch
+    {
+        "good" => Centered ? "is-good" : "",
+        _ => "is-" + Status
+    };
+
+    private Zone[] Zones => HigherIsWorse
+        ? new[] { new Zone("good", 0f, WarnAt), new Zone("warn", WarnAt, CritAt), new Zone("crit", CritAt, 1f) }
+        : new[] { new Zone("crit", 0f, CritAt), new Zone("warn", CritAt, WarnAt), new Zone("good", WarnAt, 1f) };
+
+    private static string Arc(float from, float to)
+    {
+        var (x1, y1) = OnCircle(ZoneRadius, from);
+        var (x2, y2) = OnCircle(ZoneRadius, to);
+        return Inv($"M {x1:0.##} {y1:0.##} A {ZoneRadius} {ZoneRadius} 0 0 1 {x2:0.##} {y2:0.##}");
+    }
+
+    // Fraction 0 is the left end of the semicircle, 1 the right end.
+    private static (float X, float Y) OnCircle(float radius, float fraction)
+    {
+        var theta = MathF.PI * (1f - fraction);
+        return (CenterX + radius * MathF.Cos(theta), CenterY - radius * MathF.Sin(theta));
+    }
+
+    private static (string, string, string, string, bool)[] BuildTicks()
+    {
+        var ticks = new (string, string, string, string, bool)[11];
+
+        for (var i = 0; i < ticks.Length; i++)
+        {
+            var major = i % 5 == 0;
+            var f = i / 10f;
+            var (x1, y1) = OnCircle(55f, f);
+            var (x2, y2) = OnCircle(major ? 60f : 58f, f);
+
+            ticks[i] = (Inv($"{x1:0.##}"), Inv($"{y1:0.##}"), Inv($"{x2:0.##}"), Inv($"{y2:0.##}"), major);
+        }
+
+        return ticks;
+    }
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}

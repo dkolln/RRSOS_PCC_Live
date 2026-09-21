@@ -1,0 +1,112 @@
+.rel-map {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.rel-map svg {
+    width: 100%;
+    max-width: 170px;
+    height: auto;
+    overflow: visible;
+}
+
+.rel-face {
+    fill: #0e1520;
+    stroke: #24384d;
+    stroke-width: 1.5;
+}
+
+.rel-ring {
+    fill: none;
+    stroke: #16263a;
+    stroke-width: 1;
+}
+
+.rel-cross {
+    stroke: #1d3046;
+    stroke-width: 1;
+}
+
+.rel-north,
+.rel-east,
+.rel-range {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: bold;
+}
+
+.rel-north {
+    fill: #ff6b6b;
+}
+
+.rel-east {
+    fill: #5f7d99;
+    text-anchor: end;
+}
+
+.rel-range {
+    x: 130px;
+    y: 130px;
+    fill: #5f7d99;
+    font-size: 7px;
+    text-anchor: end;
+}
+
+/* You */
+.rel-turn {
+    transform-origin: 70px 70px;
+    transition: transform 1100ms cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.rel-you {
+    fill: #e6f2ff;
+    stroke: #4fd18b;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 0 3px #4fd18b);
+}
+
+/* The vehicle glides to its new place as you move */
+.rel-slide {
+    transition: transform 1100ms cubic-bezier(0.3, 1, 0.5, 1);
+}
+
+.rel-target {
+    fill: #ffb347;
+    stroke: #0e1520;
+    stroke-width: 0.8;
+    filter: drop-shadow(0 0 3px #ffb347);
+}
+
+.rel-target-halo {
+    fill: none;
+    stroke: #ffb347;
+    stroke-width: 1;
+    opacity: 0.5;
+}
+
+.rel-caption {
+    min-height: 1.3em;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #ffb347;
+    text-align: center;
+}
+
+.rel-caption.is-stowed {
+    color: #7f9db9;
+    font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rel-turn,
+    .rel-slide {
+        transition: none;
+    }
+}
+
+/* No position for the target: just you, dimmed */
+.rel-map.is-unknown svg {
+    opacity: 0.5;
+}

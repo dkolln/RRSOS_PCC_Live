@@ -1,0 +1,142 @@
+@using System.Globalization
+
+@* One little picture for one power generator. Drawn as SVG so it can be sized and animated. *@
+<svg class="pi pi-@Name @(Dim ? "is-dim" : "")" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="@Style">
+    @switch (Name)
+    {
+        case "windmill":
+            <path class="pi-tower" d="M11.2 22 L12 11 L12.8 22 Z" />
+            <g class="pi-rotor">
+                <path d="M12 10 L10.8 2.2 Q12 0.8 13.2 2.2 Z" />
+                <path d="M12 10 L10.8 2.2 Q12 0.8 13.2 2.2 Z" transform="rotate(120 12 10)" />
+                <path d="M12 10 L10.8 2.2 Q12 0.8 13.2 2.2 Z" transform="rotate(240 12 10)" />
+            </g>
+            <circle class="pi-hub" cx="12" cy="10" r="1.7" />
+            break;
+
+        case "sun":
+        case "sun-large":
+            <g class="pi-rays">
+                @foreach (var ray in Rays(Large ? 12 : 8, Large ? 7.4 : 6.2, Large ? 11 : 8.6))
+                {
+                    <line x1="@ray.X1" y1="@ray.Y1" x2="@ray.X2" y2="@ray.Y2" />
+                }
+            </g>
+            <circle class="pi-core" cx="12" cy="12" r="@(Large ? "5" : "3.6")" />
+            break;
+
+        case "atom":
+            <g class="pi-orbits">
+                <ellipse cx="12" cy="12" rx="10.5" ry="4" />
+                <ellipse cx="12" cy="12" rx="10.5" ry="4" transform="rotate(60 12 12)" />
+                <ellipse cx="12" cy="12" rx="10.5" ry="4" transform="rotate(120 12 12)" />
+            </g>
+            <circle class="pi-core" cx="12" cy="12" r="2" />
+            break;
+
+        case "atoms":
+            @* Three small atoms in a triangle. The outer group only positions; the inner one spins. *@
+            @foreach (var (cx, cy) in AtomCentres)
+            {
+                <g transform="translate(@Num(cx) @Num(cy)) scale(0.4) translate(-12 -12)">
+                    <g class="pi-orbits">
+                        <ellipse cx="12" cy="12" rx="10.5" ry="4" />
+                        <ellipse cx="12" cy="12" rx="10.5" ry="4" transform="rotate(60 12 12)" />
+                        <ellipse cx="12" cy="12" rx="10.5" ry="4" transform="rotate(120 12 12)" />
+                    </g>
+                    <circle class="pi-core" cx="12" cy="12" r="2.8" />
+                </g>
+            }
+            break;
+
+        case "starburst":
+            <g class="pi-burst">
+                <polygon class="pi-star" points="@StarPoints" />
+                <circle class="pi-flare" cx="12" cy="12" r="3.2" />
+            </g>
+            break;
+
+        default:
+            <path class="pi-bolt" d="M13.4 2 L5.5 13 H10.4 L9.4 22 L18.5 10.4 H13 Z" />
+            break;
+    }
+</svg>
+
+@code {
+    private static readonly (double X, double Y)[] AtomCentres = { (12, 6.4), (6.2, 17), (17.8, 17) };
+
+    private static readonly IReadOnlyDictionary<string, int> Sizes = new Dictionary<string, int>
+    {
+        ["windmill"] = 22,
+        ["sun"] = 18,
+        ["sun-large"] = 28,
+        ["atom"] = 22,
+        ["atoms"] = 28,
+        ["starburst"] = 28
+    };
+
+    /// <summary>"windmill", "sun", "sun-large", "atom", "atoms" or "starburst"; anything else draws a plain bolt.</summary>
+    [Parameter]
+    public string? Kind { get; set; }
+
+    /// <summary>Position in its row. Only used to keep neighbouring animations out of step.</summary>
+    [Parameter]
+    public int Index { get; set; }
+
+    /// <summary>Drawn faded, for machines that exist but whose output is not known.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    private string Name => Kind is not null && (Sizes.ContainsKey(Kind) || Kind == "bolt") ? Kind : "bolt";
+
+    private bool Large => Name == "sun-large";
+
+    private string Style
+    {
+        get
+        {
+            var size = Sizes.TryGetValue(Name, out var s) ? s : 20;
+
+            // Blades and orbits turn at slightly different speeds and start at different angles,
+            // so a row of them looks alive and not like one picture copied.
+            var delay = -(Index * 0.83 % 5);
+            var spin = 4.6 + Index % 4 * 0.55;
+
+            return $"--pi-size: {size}px; --pi-delay: {Num(delay)}s; --pi-spin: {Num(spin)}s";
+        }
+    }
+
+    private static string Num(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static IEnumerable<(string X1, string Y1, string X2, string Y2)> Rays(int count, double inner, double outer)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var angle = Math.PI * 2 * i / count;
+            var (sin, cos) = (Math.Sin(angle), Math.Cos(angle));
+
+            // Every other ray is shorter so a big sun looks like a sun and not a cog.
+            var length = count > 8 && i % 2 == 1 ? outer - 1.6 : outer;
+
+            yield return (Num(12 + inner * cos), Num(12 + inner * sin), Num(12 + length * cos), Num(12 + length * sin));
+        }
+    }
+
+    private static string StarPoints
+    {
+        get
+        {
+            const int spikes = 8;
+            var points = new List<string>();
+
+            for (var i = 0; i < spikes * 2; i++)
+            {
+                var radius = i % 2 == 0 ? 11.4 : 4.7;
+                var angle = Math.PI * i / spikes - Math.PI / 2;
+                points.Add($"{Num(12 + radius * Math.Cos(angle))},{Num(12 + radius * Math.Sin(angle))}");
+            }
+
+            return string.Join(" ", points);
+        }
+    }
+}

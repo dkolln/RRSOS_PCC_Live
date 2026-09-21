@@ -1,0 +1,102 @@
+@* One dial per terraformation stat: how far it is from an equal share of the total. Under each: its total, what
+   the launched rockets multiply it by, and its live rate. The rates come from the game, already including every machine and rocket. *@
+<div class="ti @(Dim ? "is-dim" : "")">
+    @if (Data is null || Categories.Count == 0)
+    {
+        <div class="ti-empty">no planet data</div>
+    }
+    else
+    {
+        <div class="ti-gauges">
+            @foreach (var category in Categories)
+            {
+                var key = category.Name.ToLowerInvariant();
+                Data.Rockets.TryGetValue(key, out var rocket);
+                Data.Units.TryGetValue(key, out var unit);
+
+                <div class="ti-gauge @(category.Status == TiStatus.Idle ? "is-idle" : "")" title="@Tooltip(category)">
+                    <Gauge Label="@category.Name"
+                           Centered="true"
+                           Value="@(category.Deviation / TiBalance.ScalePoints)"
+                           Unknown="@(category.Status == TiStatus.Idle)"
+                           StatusOverride="@StatusName(category.Status)"
+                           DisplayText="@Signed(category.Deviation)"
+                           MinLabel="@Scale("−")"
+                           MaxLabel="@Scale("+")" />
+                    <div class="ti-value">@Compass.Abbreviate(category.Value)</div>
+
+                    @if (unit is not null)
+                    {
+                        <div class="ti-rate" title="Gained per second, as the game reports it">▲ @Compass.Abbreviate(unit.IncreasePerSec)/s</div>
+                    }
+
+                    @if (rocket is { Count: > 0 })
+                    {
+                        <div class="ti-rockets" title="@RocketTooltip(category.Name, rocket)">🚀 @rocket.Count · ×@rocket.Multiplier.ToString("0.##")</div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="ti-total">
+            <span class="label">» Total TI</span>
+            <span class="value">@Total.ToString("N0")</span>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] Names = { "Oxygen", "Heat", "Pressure", "Plants", "Insects", "Animals" };
+
+    [Parameter]
+    public PlanetData? Data { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    private IReadOnlyList<TiCategory> Categories =>
+        Data is null
+            ? Array.Empty<TiCategory>()
+            : TiBalance.Evaluate(Names
+                .Select(n => (n, Data.Units.TryGetValue(n.ToLowerInvariant(), out var u) ? (float)u.Value : 0f))
+                .ToList());
+
+    private double Total => Data is null
+        ? 0
+        : Names.Sum(n => Data.Units.TryGetValue(n.ToLowerInvariant(), out var u) ? u.Value : 0);
+
+    private static string? StatusName(TiStatus status) => status switch
+    {
+        TiStatus.Good => "good",
+        TiStatus.Warn => "warn",
+        TiStatus.Crit => "crit",
+        _ => null
+    };
+
+    // Signed whole points in the middle of the dial: -21, +3, or a plain 0 when exactly fair.
+    private static string Signed(float deviation)
+    {
+        var rounded = (int)Math.Round(deviation);
+        return rounded == 0 ? "0" : (rounded < 0 ? "−" : "+") + Math.Abs(rounded);
+    }
+
+    private static string Scale(string sign) => sign + TiBalance.ScalePoints.ToString("0");
+
+    private static string Tooltip(TiCategory category)
+    {
+        if (category.Status == TiStatus.Idle)
+            return $"{category.Name}: not started yet";
+
+        var direction = category.Deviation < 0 ? "below" : "above";
+        var text = $"{category.Name}: {category.Share:0.0}% of the total. " +
+                   $"{Math.Abs(category.Deviation):0.0} points {direction} an equal share " +
+                   $"({category.FairShare:0.0}%, split across {category.ActiveCount} categories).";
+
+        return category.Balanced ? text + " The planet is balanced, so nothing is flagged." : text;
+    }
+
+    private static string RocketTooltip(string stat, RocketData rocket) =>
+        $"{stat}: {rocket.Count} rocket(s) launched, so {stat.ToLowerInvariant()} generation is x{rocket.Multiplier:0.##} " +
+        "what the machines alone would make (the game's own figure).";
+}

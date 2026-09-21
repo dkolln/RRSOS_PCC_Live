@@ -1,0 +1,99 @@
+.power.is-dim {
+    opacity: 0.5;
+}
+
+.power-title {
+    padding: 0 2px 3px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #1a2a3a;
+    color: #7ab8ff;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.power-empty {
+    color: #5f7d99;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.power-main {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 14px;
+}
+
+.power-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 230px;
+}
+
+.power-side {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 6px 10px;
+    min-width: 0;
+}
+
+.power-side-left {
+    justify-content: flex-end;
+}
+
+.power-side-right {
+    justify-content: flex-start;
+}
+
+.power-gen-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: 4px 6px;
+    border: 1px solid #14202e;
+    border-radius: 4px;
+    background: #0d1420;
+}
+
+.power-gen-more {
+    align-self: center;
+    font-size: 0.75rem;
+    color: #7f9db9;
+}
+
+.power-figure {
+    margin-top: 2px;
+    text-align: center;
+}
+
+.power-figure .num {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: bold;
+}
+
+.power-figure .lbl {
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #7f9db9;
+}
+
+.power-figure.left .num {
+    color: #4fd18b;
+}
+
+.power-figure.short .num {
+    color: #ff6b6b;
+}
+
+.power-detail {
+    display: flex;
+    gap: 14px;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: #7f9db9;
+}

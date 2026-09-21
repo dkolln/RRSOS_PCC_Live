@@ -1,0 +1,107 @@
+.pi {
+    width: var(--pi-size, 22px);
+    height: var(--pi-size, 22px);
+    flex: none;
+    overflow: visible;
+    fill: currentColor;
+    filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 55%, transparent));
+}
+
+.pi.is-dim {
+    opacity: 0.4;
+    filter: none;
+}
+
+/* Colours: cool blue wind, warm sun, green atoms, white-hot fusion. */
+.pi-windmill  { color: #7ab8ff; }
+.pi-sun       { color: #ffd86b; }
+.pi-sun-large { color: #ffb347; }
+.pi-atom      { color: #4fd18b; }
+.pi-atoms     { color: #37d6c4; }
+.pi-starburst { color: #dff0ff; filter: drop-shadow(0 0 4px #7ab8ff); }
+.pi-bolt      { color: #c8e4ff; }
+
+/* Wind turbine */
+.pi-tower { opacity: 0.6; }
+.pi-hub   { fill: #0b0f17; stroke: currentColor; stroke-width: 1.2; }
+
+.pi-rotor {
+    transform-origin: 12px 10px;
+    animation: pi-spin var(--pi-spin, 5s) linear infinite;
+    animation-delay: var(--pi-delay, 0s);
+}
+
+/* Sun */
+.pi-rays line {
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+}
+
+.pi-rays {
+    transform-origin: 12px 12px;
+    animation: pi-spin 32s linear infinite;
+    animation-delay: var(--pi-delay, 0s);
+}
+
+.pi-sun-large .pi-core {
+    animation: pi-glow 3.2s ease-in-out infinite;
+    animation-delay: var(--pi-delay, 0s);
+}
+
+/* Atoms: orbits drawn as outlines, the nucleus filled */
+.pi-orbits ellipse {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.15;
+}
+
+.pi-atoms .pi-orbits ellipse {
+    stroke-width: 2.6;
+}
+
+.pi-orbits {
+    transform-origin: 12px 12px;
+    animation: pi-spin 14s linear infinite reverse;
+    animation-delay: var(--pi-delay, 0s);
+}
+
+/* Fusion starburst */
+.pi-star {
+    fill: currentColor;
+    opacity: 0.9;
+}
+
+.pi-flare {
+    fill: #7ab8ff;
+}
+
+.pi-burst {
+    transform-origin: 12px 12px;
+    animation: pi-pulse 2.4s ease-in-out infinite;
+    animation-delay: var(--pi-delay, 0s);
+}
+
+@keyframes pi-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pi-pulse {
+    0%, 100% { transform: scale(0.92); }
+    50%      { transform: scale(1.08); }
+}
+
+@keyframes pi-glow {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pi-rotor,
+    .pi-rays,
+    .pi-orbits,
+    .pi-burst,
+    .pi-sun-large .pi-core {
+        animation: none;
+    }
+}

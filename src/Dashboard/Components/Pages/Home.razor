@@ -1,0 +1,186 @@
+@page "/"
+@implements IDisposable
+@inject LiveFileService Live
+@inject PCLauncherService Launcher
+
+@{
+    // One snapshot for the whole render, so a new reading arriving mid-render cannot mix two of them.
+    var data = Live.Data;
+    var status = Live.Status;
+    var player = data?.Player;
+    var vehicle = data?.Vehicle;
+    var running = Launcher.IsRunning();
+    var dim = status != LiveStatus.Live;
+}
+
+<div class="app">
+
+    <header class="topbar">
+        <div class="brand">RRSOS PCC <span>LIVE</span></div>
+
+        <div class="status status-@status.ToString().ToLowerInvariant()">
+            <span class="dot">●</span>
+            <span class="status-text">@StatusText(status, data, running)</span>
+            <span class="status-sub">@StatusSub(status, data, running)</span>
+        </div>
+
+        <div class="spacer"></div>
+
+        <button class="launch" disabled="@running" @onclick="LaunchGame"
+                title="@(running ? "Planet Crafter is already running" : "Start Planet Crafter through Steam")">
+            @(running ? "PLANET CRAFTER RUNNING" : "LAUNCH PC")
+        </button>
+    </header>
+
+    <main class="grid">
+
+        <!-- PLAYER -->
+        <section class="card">
+            <h2>Player <span class="who">@player?.Name</span></h2>
+
+            @if (player is null)
+            {
+                <div class="empty">@EmptyText(status)</div>
+            }
+            else
+            {
+                @if (player.Position is { } position)
+                {
+                    <NavDisplay Position="@(new Vector3((float)position.X, (float)position.Y, (float)position.Z))"
+                                Heading="@Compass.HeadingFromYaw(player.YawDegrees)" />
+                }
+
+                <div class="vitals">
+                    @if (player.Vitals is { } vitals)
+                    {
+                        <Gauge Label="Oxygen" Value="@Fraction(vitals.Oxygen, player.VitalsMax?.Oxygen, vitals.Oxygen)"
+                               MaxLabel="@Max(player.VitalsMax?.Oxygen ?? vitals.Oxygen)" WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Oxygen is null)" />
+                        <Gauge Label="Health" Value="@Fraction(vitals.Health, player.VitalsMax?.Health, 100)"
+                               WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Health is null)" />
+                        <Gauge Label="Thirst" Value="@Fraction(vitals.Thirst, player.VitalsMax?.Thirst, 100)"
+                               WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Thirst is null)" />
+                        <Gauge Label="Toxicity" Value="@Fraction(vitals.Toxic, player.VitalsMax?.Toxic, 100)"
+                               HigherIsWorse="true" WarnAt="0.5f" CritAt="0.8f" Unknown="@(vitals.Toxic is null)" />
+                    }
+                </div>
+
+                <div class="fill">
+                    <ItemList Title="Backpack" Data="@player.Backpack" Columns="4" Dim="@dim" />
+                </div>
+
+                <ItemList Title="Gear" Data="@player.Equipment" Columns="3" Dim="@dim" />
+            }
+        </section>
+
+        <!-- PLANET -->
+        <section class="card">
+            <h2>Planet <span class="who">@data?.PlanetId</span></h2>
+
+            @if (data?.Planet is not { } planet)
+            {
+                <div class="empty">@EmptyText(status)</div>
+            }
+            else
+            {
+                <PlanetDials Data="@planet" Dim="@dim" />
+                <PowerCard Data="@planet.Power" Dim="@dim" />
+            }
+        </section>
+
+        <!-- VEHICLE -->
+        <section class="card">
+            <h2>Vehicle</h2>
+
+            @if (data is null)
+            {
+                <div class="empty">@EmptyText(status)</div>
+            }
+            else if (vehicle is null)
+            {
+                <div class="empty">@(data.InWorld ? "No vehicle yet." : EmptyText(status))</div>
+            }
+            else
+            {
+                @* With a position: the vehicle drawn relative to the player. Without one it is stowed (pocket or portal). *@
+                <NavDisplay Position="@(vehicle.Position is { } v ? new Vector3((float)v.X, (float)v.Y, (float)v.Z) : default)"
+                            Heading="@Compass.HeadingFromYaw(vehicle.YawDegrees ?? 0)"
+                            Known="@(vehicle.Position is not null)"
+                            AroundFlat="@(player?.Position is { } p ? new Vector2((float)p.X, (float)p.Z) : null)"
+                            AroundHeading="@(player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees))" />
+
+                <div class="fill">
+                    <ItemList Title="Trunk" Data="@vehicle.Trunk" Columns="3" Dim="@dim" />
+                </div>
+
+                <ItemList Title="Gear" Data="@vehicle.Gear" Columns="3" Dim="@dim" />
+            }
+        </section>
+
+    </main>
+</div>
+
+@code {
+    private Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        Live.Changed += OnChanged;
+
+        // The game starting or stopping changes the Launch button even before any data arrives.
+        var wasRunning = Launcher.IsRunning();
+        _timer = new Timer(_ =>
+        {
+            var now = Launcher.IsRunning();
+            if (now != wasRunning)
+            {
+                wasRunning = now;
+                _ = InvokeAsync(StateHasChanged);
+            }
+        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void LaunchGame()
+    {
+        Launcher.Launch();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Live.Changed -= OnChanged;
+        _timer?.Dispose();
+    }
+
+    private static string StatusText(LiveStatus status, LiveData? data, bool running) => status switch
+    {
+        LiveStatus.Live => "LIVE",
+        LiveStatus.Menu => "GAME AT THE MAIN MENU",
+        LiveStatus.Stale when data is not null && running => "NO RECENT DATA FROM THE GAME",
+        LiveStatus.Stale when data is not null => "GAME NOT RUNNING",
+        _ => "WAITING FOR THE GAME"
+    };
+
+    private static string StatusSub(LiveStatus status, LiveData? data, bool running) => status switch
+    {
+        LiveStatus.Live => data?.Planet is null && data?.PlanetId is null ? "" : $"plugin {data!.PluginVersion}",
+        LiveStatus.Menu => "load a world to see it here",
+        LiveStatus.Stale when data?.UpdatedAt is { } at && running => $"the plugin has stopped reporting (loading screen?); last reading {at.ToLocalTime():HH:mm:ss}",
+        LiveStatus.Stale when data?.UpdatedAt is { } at => $"showing the last reading, from {at.ToLocalTime():HH:mm:ss}",
+        _ => "start Planet Crafter with the RRSOS PCC Live plugin; open this page before or after"
+    };
+
+    private static string EmptyText(LiveStatus status) => status == LiveStatus.Menu
+        ? "No world loaded."
+        : "Waiting for live data.";
+
+    // A gauge value from 0 to 1. Without a maximum from the game, fall back on a sensible one.
+    private static float Fraction(double? value, double? max, double? fallbackMax)
+    {
+        var top = max is > 0 ? max.Value : fallbackMax ?? 100;
+        return value is null || top <= 0 ? 0f : (float)Math.Clamp(value.Value / top, 0, 1);
+    }
+
+    private static string Max(double? max) => max is null ? "100" : max.Value.ToString("0.#");
+}

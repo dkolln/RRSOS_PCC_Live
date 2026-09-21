@@ -1,0 +1,103 @@
+@* Power straight from the game: what is produced and used, with a picture per generator. *@
+<div class="power @(Dim ? "is-dim" : "")">
+    <div class="power-title">Power</div>
+
+    @if (Data is null)
+    {
+        <div class="power-empty">no data</div>
+    }
+    else
+    {
+        <div class="power-main">
+            <div class="power-side power-side-left">@GroupList(LeftGroups)</div>
+
+            <div class="power-center">
+                <Gauge Label="Power load"
+                       Value="@Load"
+                       Unknown="@(Data.ProducedKw <= 0)"
+                       DisplayText="@LoadText"
+                       MaxLabel="@Compass.Abbreviate(Data.ProducedKw)"
+                       HigherIsWorse="true"
+                       WarnAt="0.75f"
+                       CritAt="0.9f" />
+
+                <div class="power-figure @(Short ? "short" : "left")">
+                    <span class="num">@Kw(Math.Abs(Data.ProducedKw - Data.UsedKw))</span>
+                    <span class="lbl">@(Short ? "Short" : "Left")</span>
+                </div>
+
+                <div class="power-detail">
+                    <span title="Power being produced">▲ @Kw(Data.ProducedKw)</span>
+                    <span title="Power being used">▼ @Kw(Data.UsedKw)</span>
+                </div>
+            </div>
+
+            <div class="power-side power-side-right">@GroupList(RightGroups)</div>
+        </div>
+    }
+</div>
+
+@code {
+    // A base with dozens of one kind would otherwise fill the card.
+    private const int MaxIconsPerGroup = 40;
+
+    // What each generator id is and which little picture draws it. Anything else gets a plain bolt.
+    private static readonly Dictionary<string, (string Icon, string Name)> Known = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["EnergyGenerator1"] = ("windmill", "Wind Turbine"),
+        ["EnergyGenerator2"] = ("sun", "Solar Panel T1"),
+        ["EnergyGenerator3"] = ("sun-large", "Solar Panel T2"),
+        ["EnergyGenerator4"] = ("atom", "Nuclear Reactor T1"),
+        ["EnergyGenerator5"] = ("atoms", "Nuclear Reactor T2"),
+        ["EnergyGenerator6"] = ("starburst", "Fusion Generator")
+    };
+
+    // Wind and solar go left of the dial; nuclear, fusion and unknown go right.
+    private static readonly HashSet<string> LeftIcons = new(StringComparer.OrdinalIgnoreCase) { "windmill", "sun", "sun-large" };
+
+    [Parameter]
+    public PowerData? Data { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    private bool Short => Data is not null && Data.UsedKw > Data.ProducedKw;
+
+    private float Load => Data is null || Data.ProducedKw <= 0 ? 0f : (float)Math.Clamp(Data.UsedKw / Data.ProducedKw, 0, 1);
+
+    private string LoadText => Data is null || Data.ProducedKw <= 0 ? "--" : $"{Data.UsedKw / Data.ProducedKw:P0}";
+
+    private sealed record Group(string Icon, int Count, string Title);
+
+    private IEnumerable<Group> Groups => Data is null
+        ? Enumerable.Empty<Group>()
+        : Data.Generators.Select(g =>
+        {
+            var known = Known.TryGetValue(g.Id, out var k);
+            var name = known ? k.Name : g.Id;
+            return new Group(known ? k.Icon : "bolt", g.Count, $"{name} ×{g.Count}: {Kw(g.Kw)}");
+        });
+
+    private IEnumerable<Group> LeftGroups => Groups.Where(g => LeftIcons.Contains(g.Icon));
+
+    private IEnumerable<Group> RightGroups => Groups.Where(g => !LeftIcons.Contains(g.Icon));
+
+    private RenderFragment GroupList(IEnumerable<Group> groups) => @<text>
+        @foreach (var group in groups)
+        {
+            <div class="power-gen-group" title="@group.Title" role="img" aria-label="@group.Title">
+                @for (var i = 0; i < Math.Min(group.Count, MaxIconsPerGroup); i++)
+                {
+                    <PowerIcon Kind="@group.Icon" Index="@i" />
+                }
+                @if (group.Count > MaxIconsPerGroup)
+                {
+                    <span class="power-gen-more">+@(group.Count - MaxIconsPerGroup)</span>
+                }
+            </div>
+        }
+    </text>;
+
+    private static string Kw(double kw) => $"{kw:N1} kW";
+}

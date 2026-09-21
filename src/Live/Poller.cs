@@ -78,7 +78,7 @@ namespace RRSOS.PCC.Live
 
             if (player != null)
             {
-                json.Str("planet", player.Planet)
+                json.Str("planetId", player.Planet)
                     .Raw("player", Section("player", () => PlayerSection(player)))
                     .Raw("planet", Section("planet", PlanetReader.Fragment))
                     .Raw("vehicle", Section("vehicle", VehicleReader.Fragment));
@@ -102,6 +102,12 @@ namespace RRSOS.PCC.Live
                     .Num("health", player.Health)
                     .Num("thirst", player.Thirst)
                     .Num("toxic", player.Toxic)
+                .End()
+                .Begin("vitalsMax")
+                    .OptNum("oxygen", player.OxygenMax)
+                    .OptNum("health", player.HealthMax)
+                    .OptNum("thirst", player.ThirstMax)
+                    .OptNum("toxic", player.ToxicMax)
                 .End()
                 .Raw("backpack", Section("backpack", () => PlayerReader.BackpackFragment(player)))
                 .Raw("equipment", Section("equipment", () => PlayerReader.EquipmentFragment(player)))

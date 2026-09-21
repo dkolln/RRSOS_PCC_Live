@@ -99,6 +99,12 @@ namespace RRSOS.PCC.Live
             return this;
         }
 
+        /// <summary>A number that may be missing: written as null when it is.</summary>
+        public Json OptNum(string name, float? value)
+        {
+            return value.HasValue ? Num(name, value.Value) : Null(name);
+        }
+
         public Json Null(string name)
         {
             Key(name);

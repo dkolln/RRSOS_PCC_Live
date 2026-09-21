@@ -1,0 +1,17 @@
+/* One dark page sized for a 2560 x 1440 monitor: nothing scrolls, everything is on screen. */
+html, body {
+    margin: 0;
+    height: 100%;
+    background: #0b0f17;
+    color: #d6e6ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    overflow: hidden;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+button {
+    font-family: inherit;
+}

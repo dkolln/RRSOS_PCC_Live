@@ -1,0 +1,66 @@
+.ti.is-dim {
+    opacity: 0.5;
+}
+
+.ti-empty {
+    color: #5f7d99;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.ti-gauges {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px 8px;
+}
+
+.ti-gauge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+}
+
+.ti-value {
+    margin-top: -1px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #c8e4ff;
+}
+
+.ti-gauge.is-idle .ti-value {
+    color: #5f7d99;
+}
+
+.ti-rate {
+    font-size: 0.75rem;
+    color: #7f9db9;
+    white-space: nowrap;
+}
+
+.ti-rockets {
+    margin-top: 1px;
+    font-size: 0.78rem;
+    color: #9ac7ff;
+    white-space: nowrap;
+}
+
+.ti-gauge.is-idle .ti-rate,
+.ti-gauge.is-idle .ti-rockets {
+    color: #5f7d99;
+}
+
+.ti-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #14202e;
+    font-size: 0.95rem;
+}
+
+.ti-total .label {
+    color: #7ab8ff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}

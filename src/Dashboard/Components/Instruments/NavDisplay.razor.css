@@ -1,0 +1,255 @@
+.nav-row {
+    --nav-accent: #7ab8ff;
+    --nav-sweep: 1100ms;
+
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 12px 10px;
+    padding: 6px 0 2px;
+}
+
+.nav-panel {
+    flex: 1 1 130px;
+    max-width: 170px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.nav-panel-tall {
+    flex: 0 1 90px;
+}
+
+.nav-panel svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.nav-face {
+    fill: #0e1520;
+    stroke: #24384d;
+    stroke-width: 1.5;
+}
+
+/* Things that turn or slide get the same slow, slightly overshooting settle as the gauge needles. */
+.nav-turn {
+    transform-origin: 70px 70px;
+    transition: transform var(--nav-sweep) cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.nav-turn-local {
+    transform-origin: 0 0;
+}
+
+.nav-slide {
+    transition: transform var(--nav-sweep) cubic-bezier(0.3, 1, 0.5, 1);
+}
+
+.nav-tick {
+    stroke: #4b6580;
+    stroke-width: 1;
+}
+
+.nav-tick.major {
+    stroke: #9ac7ff;
+    stroke-width: 1.5;
+}
+
+/* Compass */
+.nav-mark {
+    fill: #5f7d99;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 7px;
+    text-anchor: middle;
+}
+
+.nav-mark.cardinal {
+    fill: #9ac7ff;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.nav-mark.north {
+    fill: #ff6b6b;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.nav-lubber {
+    fill: #ffd86b;
+    filter: drop-shadow(0 0 2px #ffd86b);
+}
+
+.nav-readout {
+    fill: var(--nav-accent);
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 19px;
+    font-weight: bold;
+    text-anchor: middle;
+}
+
+.nav-sub {
+    fill: #5f7d99;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-anchor: middle;
+}
+
+/* Map */
+.nav-ring {
+    stroke: #16263a;
+    stroke-width: 1;
+}
+
+.nav-cross {
+    stroke: #24384d;
+    stroke-width: 1;
+}
+
+.nav-north,
+.nav-east {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: bold;
+}
+
+.nav-north {
+    fill: #ff6b6b;
+    text-anchor: start;
+}
+
+.nav-east {
+    fill: #5f7d99;
+    text-anchor: end;
+}
+
+.nav-range {
+    fill: #5f7d99;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 7px;
+    text-anchor: end;
+}
+
+.nav-trail-line {
+    fill: none;
+    stroke: var(--nav-accent);
+    stroke-width: 1;
+    stroke-opacity: 0.3;
+    stroke-linejoin: round;
+}
+
+.nav-trail-dot {
+    fill: var(--nav-accent);
+}
+
+.nav-you {
+    fill: #e6f2ff;
+    stroke: #4fd18b;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 0 3px #4fd18b);
+}
+
+.nav-ping {
+    fill: none;
+    stroke: #4fd18b;
+    stroke-width: 1;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: nav-ping 2.4s ease-out infinite;
+}
+
+@keyframes nav-ping {
+    0% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(3.2);
+    }
+}
+
+/* Altimeter */
+.nav-tape-label {
+    fill: #7f9db9;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 7px;
+    text-anchor: end;
+}
+
+.nav-pointer-line {
+    stroke: #ffd86b;
+    stroke-width: 1;
+    stroke-opacity: 0.55;
+}
+
+.nav-pointer {
+    fill: #ffd86b;
+    filter: drop-shadow(0 0 2px #ffd86b);
+}
+
+.nav-box {
+    fill: #0a0f18;
+    stroke: #ffd86b;
+    stroke-width: 1;
+}
+
+.nav-box-text {
+    fill: #e6f2ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: bold;
+    text-anchor: middle;
+}
+
+/* Labels under each instrument */
+.nav-label {
+    margin-top: 2px;
+    font-size: 0.8rem;
+    color: #7ab8ff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.nav-caption {
+    margin-top: 2px;
+    min-height: 1.1em;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #9ac7ff;
+    white-space: pre;
+}
+
+.nav-caption.up {
+    color: #4fd18b;
+}
+
+.nav-caption.down {
+    color: #ffd86b;
+}
+
+/* No position in the save: the instruments stay, but dimmed and empty. */
+.nav-row.is-unknown svg {
+    opacity: 0.45;
+}
+
+.nav-row.is-unknown .nav-readout {
+    fill: #5f7d99;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-row {
+        --nav-sweep: 0ms;
+    }
+
+    .nav-ping {
+        animation: none;
+        opacity: 0;
+    }
+}

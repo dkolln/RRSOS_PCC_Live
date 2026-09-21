@@ -1,0 +1,116 @@
+@using System.Numerics
+
+@* A small map with the player in the middle and one thing (the vehicle) placed relative to them.
+   North is up, as on the base map. The range grows to the next round number that holds the target. *@
+<div class="rel-map @(Known ? "" : "is-unknown")">
+
+    <svg viewBox="0 0 140 140" role="img" aria-label="@Caption">
+        <defs>
+            <linearGradient id="rel-cone-fade-@_uid" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stop-color="#7ab8ff" stop-opacity="0.6" />
+                <stop offset="1" stop-color="#7ab8ff" stop-opacity="0" />
+            </linearGradient>
+        </defs>
+
+        <rect class="rel-face" x="6" y="6" width="128" height="128" rx="6" />
+        <circle class="rel-ring" cx="70" cy="70" r="32" />
+        <circle class="rel-ring" cx="70" cy="70" r="64" />
+        <line class="rel-cross" x1="70" y1="6" x2="70" y2="134" />
+        <line class="rel-cross" x1="6" y1="70" x2="134" y2="70" />
+        <text class="rel-north" x="76" y="17">N</text>
+        <text class="rel-east" x="128" y="66">E</text>
+
+        <g class="rel-turn" style="transform: rotate(@Inv($"{_turn:0.##}")deg)">
+            <path d="M 70 70 L 57.26 38.47 A 34 34 0 0 1 82.74 38.47 Z" fill="url(#rel-cone-fade-@_uid)" />
+        </g>
+        <circle class="rel-you" cx="70" cy="70" r="3.2" />
+
+        @if (Known)
+        {
+            <g class="rel-slide" style="transform: translate(@Inv($"{TargetX:0.##}")px, @Inv($"{TargetY:0.##}")px)">
+                <title>@Caption</title>
+                <circle class="rel-target-halo" r="6" />
+                <rect class="rel-target" x="-3.2" y="-3.2" width="6.4" height="6.4" rx="1.2" />
+            </g>
+        }
+
+        <text class="rel-range">@Range m</text>
+    </svg>
+
+    <div class="rel-caption @(Known ? "" : "is-stowed")">@Caption</div>
+</div>
+
+@code {
+    private const float MapHalf = 64f;
+    private static readonly int[] RangeSteps = { 50, 100, 250, 500, 1000, 2000, 3000, 5000, 10000, 20000 };
+
+    /// <summary>Where the player stands (raw world X, Z).</summary>
+    [Parameter]
+    public Vector2 PlayerFlat { get; set; }
+
+    /// <summary>Which way the player faces, in compass degrees.</summary>
+    [Parameter]
+    public float PlayerHeading { get; set; }
+
+    /// <summary>Where the thing to plot is (raw world X, Z).</summary>
+    [Parameter]
+    public Vector2 TargetFlat { get; set; }
+
+    /// <summary>False when the target has no position (a stowed vehicle): only the player is drawn.</summary>
+    [Parameter]
+    public bool Known { get; set; } = true;
+
+    [Parameter]
+    public string Name { get; set; } = "Vehicle";
+
+    // Several of these could share a page, and SVG ids are page-wide.
+    private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
+
+    private float _heading;
+    private float _turn;
+    private bool _started;
+
+    protected override void OnParametersSet()
+    {
+        var heading = float.IsFinite(PlayerHeading) ? PlayerHeading : 0f;
+
+        if (!_started)
+        {
+            _started = true;
+            _turn = heading;
+        }
+        else
+        {
+            // Turn by the shortest way round, so 359 to 2 degrees is a small nudge and not a full spin.
+            _turn += ((heading - _heading + 540f) % 360f) - 180f;
+        }
+
+        _heading = heading;
+    }
+
+    private float Distance => Vector2.Distance(PlayerFlat, TargetFlat);
+
+    // The smallest round radius that holds the target with a little room to spare.
+    private int Range => RangeSteps.FirstOrDefault(step => Distance * 1.15f <= step, RangeSteps[^1]);
+
+    // The target, north up and pinned to the edge on its bearing if it is off the scale.
+    private Vector2 Offset
+    {
+        get
+        {
+            var offset = Compass.ToEastNorth(TargetFlat - PlayerFlat) * (MapHalf / Range);
+            var length = offset.Length();
+            return length > MapHalf ? offset * (MapHalf / length) : offset;
+        }
+    }
+
+    private float TargetX => 70f + Offset.X;
+
+    private float TargetY => 70f - Offset.Y;
+
+    private string Caption => Known
+        ? $"{Name} {(int)Distance} m {Compass.GetCompassDirection(PlayerFlat, TargetFlat)}"
+        : "no position (pocket or portal)";
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}

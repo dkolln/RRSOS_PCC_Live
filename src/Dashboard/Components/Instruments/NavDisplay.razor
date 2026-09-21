@@ -1,0 +1,363 @@
+@using System.Numerics
+
+<div class="nav-row @(Known ? "" : "is-unknown")">
+
+    <!-- Compass: the ring turns so your heading is always under the marker at the top. -->
+    <div class="nav-panel" title="Heading @HeadingText @CardinalText">
+        <svg viewBox="0 0 140 140" role="img" aria-label="Heading @HeadingText @CardinalText">
+            <circle class="nav-face" cx="70" cy="70" r="64" />
+
+            <g class="nav-turn" style="transform: rotate(@Inv($"{-_turn:0.##}")deg)">
+                @foreach (var tick in CompassTicks)
+                {
+                    <line class="nav-tick @(tick.Major ? "major" : "")" x1="@tick.X1" y1="@tick.Y1" x2="@tick.X2" y2="@tick.Y2" />
+                }
+
+                @foreach (var mark in CompassMarks)
+                {
+                    <g transform="rotate(@mark.Angle 70 70)">
+                        <text class="nav-mark @(mark.Name == "N" ? "north" : mark.Major ? "cardinal" : "")" x="70" y="@(mark.Major ? 33 : 34)">@mark.Name</text>
+                    </g>
+                }
+            </g>
+
+            <polygon class="nav-lubber" points="64,3 76,3 70,14" />
+
+            <text class="nav-readout" x="70" y="76">@HeadingText</text>
+            <text class="nav-sub" x="70" y="92">@CardinalText</text>
+        </svg>
+        <div class="nav-label">Heading</div>
+    </div>
+
+    <!-- Map: a fixed square with the world origin (0, 0) in the middle and north up. The scale grows to fit how far out you have been. -->
+    <div class="nav-panel" title="Position @PositionText">
+        @if (AroundFlat is not null)
+        {
+            @* The vehicle card: the player in the middle, the vehicle placed relative to them (only if it has a position). *@
+            <RelativeMap PlayerFlat="@AroundFlat.Value" PlayerHeading="@AroundHeading"
+                         TargetFlat="@(new Vector2(Position.X, Position.Z))" Known="@Known" />
+        }
+        else
+        {
+        <svg viewBox="0 0 140 140" role="img" aria-label="Position @PositionText">
+            <defs>
+                <linearGradient id="nav-cone-fade-@_uid" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0" stop-color="#7ab8ff" stop-opacity="0.65" />
+                    <stop offset="1" stop-color="#7ab8ff" stop-opacity="0" />
+                </linearGradient>
+                <clipPath id="nav-map-clip-@_uid">
+                    <rect x="6" y="6" width="128" height="128" rx="6" />
+                </clipPath>
+            </defs>
+
+            <rect class="nav-face" x="6" y="6" width="128" height="128" rx="6" />
+            <line class="nav-ring" x1="38" y1="6" x2="38" y2="134" />
+            <line class="nav-ring" x1="102" y1="6" x2="102" y2="134" />
+            <line class="nav-ring" x1="6" y1="38" x2="134" y2="38" />
+            <line class="nav-ring" x1="6" y1="102" x2="134" y2="102" />
+            <line class="nav-cross" x1="70" y1="6" x2="70" y2="134" />
+            <line class="nav-cross" x1="6" y1="70" x2="134" y2="70" />
+            <text class="nav-north" x="76" y="17">N</text>
+            <text class="nav-east" x="128" y="66">E</text>
+
+            @if (TrailPoints.Length > 1)
+            {
+                <polyline class="nav-trail-line" points="@TrailLine" />
+            }
+
+            @foreach (var dot in TrailPoints)
+            {
+                <circle class="nav-trail-dot" cx="@dot.X" cy="@dot.Y" r="1.8" style="opacity: @dot.Opacity" />
+            }
+
+            @if (Known)
+            {
+                <g clip-path="url(#nav-map-clip-@_uid)">
+                    <g class="nav-slide" style="transform: translate(@Inv($"{MarkerX:0.##}")px, @Inv($"{MarkerY:0.##}")px)">
+                        <g class="nav-turn nav-turn-local" style="transform: rotate(@Inv($"{_turn:0.##}")deg)">
+                            <path class="nav-cone" d="M 0 0 L -12.74 -31.53 A 34 34 0 0 1 12.74 -31.53 Z" fill="url(#nav-cone-fade-@_uid)" />
+                        </g>
+                        <circle class="nav-ping" cx="0" cy="0" r="4" />
+                        <circle class="nav-you" cx="0" cy="0" r="3.5" />
+                    </g>
+                </g>
+            }
+
+            <text class="nav-range" x="130" y="130">@RangeText</text>
+        </svg>
+        }
+        <div class="nav-label">Position</div>
+        <div class="nav-caption">@PositionText</div>
+    </div>
+
+    <!-- Altimeter: a tape that scrolls past a fixed pointer, like an aircraft instrument. -->
+    <div class="nav-panel nav-panel-tall" title="Elevation @ElevationText">
+        <svg viewBox="0 0 84 140" role="img" aria-label="Elevation @ElevationText">
+            <defs>
+                <clipPath id="nav-tape-clip-@_uid">
+                    <rect x="2" y="6" width="80" height="128" rx="6" />
+                </clipPath>
+            </defs>
+
+            <rect class="nav-face" x="2" y="6" width="80" height="128" rx="6" />
+
+            <g clip-path="url(#nav-tape-clip-@_uid)">
+                @if (Known)
+                {
+                    <g class="nav-slide" style="transform: translateY(@Inv($"{_elevation * TapePxPerMetre:0.##}")px)">
+                        @foreach (var tick in TapeTicks)
+                        {
+                            <g @key="tick.Metres">
+                                <line class="nav-tick @(tick.Major ? "major" : "")" x1="@(tick.Major ? 64 : 71)" y1="@tick.Y" x2="80" y2="@tick.Y" />
+                                @if (tick.Major)
+                                {
+                                    <g>
+                                        <text class="nav-tape-label" x="61" y="@Inv($"{tick.YValue + 2.5f:0.##}")">@tick.Metres</text>
+                                    </g>
+                                }
+                            </g>
+                        }
+                    </g>
+                }
+
+                <line class="nav-pointer-line" x1="42" y1="70" x2="80" y2="70" />
+            </g>
+
+            <polygon class="nav-pointer" points="42,63 51,70 42,77" />
+            <rect class="nav-box" x="4" y="60" width="38" height="20" rx="3" />
+            <text class="nav-box-text" x="23" y="74.5">@ElevationText</text>
+        </svg>
+        <div class="nav-label">Elevation</div>
+        <div class="nav-caption @TrendClass">@TrendText</div>
+    </div>
+
+</div>
+
+@code {
+    private const float TapePxPerMetre = 3f;
+    private const int TapeReachMetres = 100;
+    private const int MaxTrail = 24;
+    private const float MinStep = 1f;
+    private const float JumpReset = 1500f;
+    private const float MapHalf = 64f;
+    private static readonly int[] RangeSteps = { 500, 1000, 1500, 2000, 3000, 4000, 5000, 7500, 10000, 20000 };
+    private static readonly string[] Points16 =
+        { "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
+
+    private static readonly (string X1, string Y1, string X2, string Y2, bool Major)[] CompassTicks = BuildCompassTicks();
+    private static readonly (string Name, int Angle, bool Major)[] CompassMarks = BuildCompassMarks();
+
+    private readonly record struct Dot(string X, string Y, string Opacity);
+    private readonly record struct TapeTick(int Metres, string Y, float YValue, bool Major);
+
+    /// <summary>Where the player is in the world (raw X, Y up, Z).</summary>
+    [Parameter]
+    public Vector3 Position { get; set; }
+
+    /// <summary>Compass heading in degrees, 0 = north (see Compass.ToEastNorth).</summary>
+    [Parameter]
+    public float Heading { get; set; }
+
+    /// <summary>
+    /// When given, the position map has this player (raw world X, Z) in the middle and <see cref="Position"/>
+    /// placed relative to them. Used by the vehicle card. When null it is the plain map with 0, 0 in the middle.
+    /// </summary>
+    [Parameter]
+    public Vector2? AroundFlat { get; set; }
+
+    /// <summary>The player's compass heading, for the cone on the relative map (only used with <see cref="AroundFlat"/>).</summary>
+    [Parameter]
+    public float AroundHeading { get; set; }
+
+    /// <summary>False when the save holds no position, which for the truck means it is stowed in the player's pocket: nothing is plotted and the readouts show dashes.</summary>
+    [Parameter]
+    public bool Known { get; set; } = true;
+
+    // Several of these can share a page (player, vehicle), and SVG ids are page-wide.
+    private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
+    private readonly List<Vector2> _trail = new();
+    private Vector2 _here;
+    private float _reach;
+    private float _elevation;
+    private float _elevationBefore;
+    private float _heading;
+    private float _turn;
+    private bool _started;
+
+    protected override void OnParametersSet()
+    {
+        if (!Known)
+        {
+            // Forget the old trail so a position that turns up later starts clean.
+            _trail.Clear();
+            _started = false;
+            return;
+        }
+
+        if (!float.IsFinite(Position.X) || !float.IsFinite(Position.Y) || !float.IsFinite(Position.Z))
+            return;
+
+        var heading = float.IsFinite(Heading) ? Heading : 0f;
+        var here = new Vector2(Position.X, Position.Z);
+
+        if (!_started)
+        {
+            _started = true;
+            _turn = heading;
+            _elevation = _elevationBefore = Position.Y;
+        }
+        else
+        {
+            // Turn by the shortest way round, so 359 to 2 degrees is a small nudge and not a full spin.
+            _turn += ((heading - _heading + 540f) % 360f) - 180f;
+
+            // This runs on every refresh, so only a changed elevation counts as a new reading.
+            if (MathF.Abs(Position.Y - _elevation) > 0.001f)
+            {
+                _elevationBefore = _elevation;
+                _elevation = Position.Y;
+            }
+        }
+
+        _heading = heading;
+
+        // A load of another save puts you somewhere else entirely: start a fresh trail.
+        if (_trail.Count > 0 && Vector2.Distance(_trail[^1], here) > JumpReset)
+            _trail.Clear();
+
+        if (_trail.Count == 0 || Vector2.Distance(_trail[^1], here) >= MinStep)
+        {
+            _trail.Add(here);
+
+            if (_trail.Count > MaxTrail)
+                _trail.RemoveAt(0);
+        }
+
+        _here = here;
+        _reach = MathF.Max(_reach, MathF.Max(MathF.Abs(here.X), MathF.Abs(here.Y)));
+    }
+
+    private string HeadingText => Known ? Inv($"{_heading:0}°") : "--";
+
+    private string CardinalText => Known ? Points16[(int)MathF.Round(_heading / 22.5f) % 16] : "";
+
+
+    private string PositionText => Known ? Inv($"X {_here.X:F1}   Z {_here.Y:F1}") : "stowed";
+
+    private string ElevationText => Known ? Inv($"{_elevation:F1}") : "--";
+
+    private float ElevationChange => Known ? _elevation - _elevationBefore : 0f;
+
+    private string TrendText => !Known ? ""
+        : MathF.Abs(ElevationChange) < 0.05f ? "level"
+        : Inv($"{(ElevationChange > 0 ? "▲" : "▼")} {MathF.Abs(ElevationChange):F1} m");
+
+    private string TrendClass => MathF.Abs(ElevationChange) < 0.05f ? "" : ElevationChange > 0 ? "up" : "down";
+
+    // Half the width of the map in world units: the smallest round number that holds every position seen so far.
+    // It only ever grows, so the map does not shrink back and make the trail jump around.
+    private int Range
+    {
+        get
+        {
+            var needed = _reach * 1.1f;
+
+            foreach (var step in RangeSteps)
+            {
+                if (needed <= step)
+                    return step;
+            }
+
+            return RangeSteps[^1];
+        }
+    }
+
+    private string RangeText => Inv($"±{Range}");
+
+    private float MarkerX => ToMap(_here).X;
+
+    private float MarkerY => ToMap(_here).Y;
+
+    private Dot[] TrailPoints
+    {
+        get
+        {
+            var dots = new Dot[_trail.Count];
+
+            for (var i = 0; i < dots.Length; i++)
+            {
+                var (x, y) = ToMap(_trail[i]);
+                var age = dots.Length == 1 ? 1f : i / (float)(dots.Length - 1);
+                dots[i] = new Dot(Inv($"{x:0.##}"), Inv($"{y:0.##}"), Inv($"{0.15f + 0.6f * age:0.##}"));
+            }
+
+            return dots;
+        }
+    }
+
+    // The line runs on from the newest stored point to where you are now.
+    private string TrailLine =>
+        string.Join(' ', _trail.Append(_here).Select(ToMap).Select(p => Inv($"{p.X:0.##},{p.Y:0.##}")));
+
+    // World (X, Z) to the square with the game's north up (see Compass.ToEastNorth): 0, 0 is the middle.
+    // Anything past the edge is pinned to it.
+    private (float X, float Y) ToMap(Vector2 world)
+    {
+        var scale = MapHalf / Range;
+        var eastNorth = Compass.ToEastNorth(world);
+        var x = Math.Clamp(eastNorth.X * scale, -MapHalf, MapHalf);
+        var y = Math.Clamp(eastNorth.Y * scale, -MapHalf, MapHalf);
+        return (70f + x, 70f - y);
+    }
+
+    private TapeTick[] TapeTicks
+    {
+        get
+        {
+            var from = (int)MathF.Floor((_elevation - TapeReachMetres) / 2f) * 2;
+            var to = (int)MathF.Ceiling((_elevation + TapeReachMetres) / 2f) * 2;
+            var ticks = new List<TapeTick>();
+
+            for (var m = from; m <= to; m += 2)
+            {
+                var y = 70f - m * TapePxPerMetre;
+                ticks.Add(new TapeTick(m, Inv($"{y:0.##}"), y, m % 10 == 0));
+            }
+
+            return ticks.ToArray();
+        }
+    }
+
+    private static (string, string, string, string, bool)[] BuildCompassTicks()
+    {
+        var ticks = new List<(string, string, string, string, bool)>();
+
+        for (var deg = 0; deg < 360; deg += 10)
+        {
+            var major = deg % 30 == 0;
+            var (x1, y1) = OnRing(major ? 52f : 55f, deg);
+            var (x2, y2) = OnRing(60f, deg);
+            ticks.Add((Inv($"{x1:0.##}"), Inv($"{y1:0.##}"), Inv($"{x2:0.##}"), Inv($"{y2:0.##}"), major));
+        }
+
+        return ticks.ToArray();
+    }
+
+    private static (string, int, bool)[] BuildCompassMarks()
+    {
+        var marks = new List<(string, int, bool)>();
+
+        for (var i = 0; i < 8; i++)
+            marks.Add((Points16[i * 2], i * 45, i % 2 == 0));
+
+        return marks.ToArray();
+    }
+
+    private static (float X, float Y) OnRing(float radius, float degrees)
+    {
+        var theta = degrees * MathF.PI / 180f;
+        return (70f + radius * MathF.Sin(theta), 70f - radius * MathF.Cos(theta));
+    }
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}

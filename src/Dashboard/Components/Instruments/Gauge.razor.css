@@ -1,0 +1,187 @@
+.gauge {
+    --zone-good: #4fd18b;
+    --zone-warn: #ffd86b;
+    --zone-crit: #ff6b6b;
+    --gauge-color: #7ab8ff;
+    --gauge-sweep: 1100ms;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+}
+
+.gauge.is-warn {
+    --gauge-color: var(--zone-warn);
+}
+
+.gauge.is-crit {
+    --gauge-color: var(--zone-crit);
+}
+
+.gauge svg {
+    width: 100%;
+    max-width: 170px;
+    height: auto;
+    overflow: visible;
+}
+
+.gauge-face {
+    fill: #0e1520;
+    stroke: #24384d;
+    stroke-width: 1.5;
+}
+
+.gauge-zone {
+    fill: none;
+    stroke-width: 8;
+    opacity: 0.3;
+    transition: opacity 400ms ease;
+}
+
+.gauge-zone.active {
+    opacity: 1;
+}
+
+.zone-good { stroke: var(--zone-good); }
+.zone-warn { stroke: var(--zone-warn); }
+.zone-crit { stroke: var(--zone-crit); }
+
+.gauge-zone.active.zone-good { filter: drop-shadow(0 0 3px var(--zone-good)); }
+.gauge-zone.active.zone-warn { filter: drop-shadow(0 0 3px var(--zone-warn)); }
+.gauge-zone.active.zone-crit { filter: drop-shadow(0 0 3px var(--zone-crit)); }
+
+.gauge-tick {
+    stroke: #4b6580;
+    stroke-width: 1;
+}
+
+.gauge-tick.major {
+    stroke: #9ac7ff;
+    stroke-width: 1.5;
+}
+
+.gauge-scale {
+    fill: #5f7d99;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 8px;
+    text-anchor: middle;
+}
+
+.gauge-needle {
+    transform-origin: 70px 70px;
+    /* A little overshoot so the needle settles like a real one. */
+    transition: transform var(--gauge-sweep) cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.gauge-needle polygon {
+    fill: #e6f2ff;
+    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.8));
+}
+
+.gauge-hub {
+    fill: #24384d;
+    stroke: #9ac7ff;
+    stroke-width: 1.5;
+}
+
+.gauge-value {
+    fill: var(--gauge-color);
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: bold;
+    text-anchor: middle;
+    transition: fill 300ms ease;
+}
+
+.gauge-label {
+    margin-top: 2px;
+    font-size: 0.8rem;
+    color: #7ab8ff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.gauge-lamps {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 3px 5px;
+    background: #0a0f18;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+}
+
+/* Console-style lamps: dim when off, solid colour with a glow when lit. */
+.lamp {
+    --lamp-color: #888;
+    width: 20px;
+    height: 9px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--lamp-color) 14%, #0a0f18);
+    border: 1px solid color-mix(in srgb, var(--lamp-color) 30%, #0a0f18);
+    transition: background 200ms ease, box-shadow 200ms ease;
+}
+
+.lamp-good { --lamp-color: var(--zone-good); }
+.lamp-warn { --lamp-color: var(--zone-warn); }
+.lamp-crit { --lamp-color: var(--zone-crit); }
+
+.lamp.on {
+    background: var(--lamp-color);
+    border-color: var(--lamp-color);
+    box-shadow: 0 0 6px var(--lamp-color), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+
+.lamp-crit.on {
+    animation: lamp-flash 0.8s steps(1, end) infinite;
+}
+
+@keyframes lamp-flash {
+    50% {
+        background: color-mix(in srgb, var(--lamp-color) 14%, #0a0f18);
+        border-color: color-mix(in srgb, var(--lamp-color) 30%, #0a0f18);
+        box-shadow: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gauge {
+        --gauge-sweep: 0ms;
+    }
+
+    .lamp-crit.on {
+        animation: none;
+    }
+}
+
+/* Centre-zero dial (planet balance) */
+.gauge.is-good {
+    --gauge-color: var(--zone-good);
+}
+
+.gauge-track {
+    fill: none;
+    stroke: #14202e;
+    stroke-width: 8;
+}
+
+.gauge-arc {
+    fill: none;
+    stroke-width: 8;
+}
+
+.gauge-arc.zone-good { filter: drop-shadow(0 0 3px var(--zone-good)); }
+.gauge-arc.zone-warn { filter: drop-shadow(0 0 3px var(--zone-warn)); }
+.gauge-arc.zone-crit { filter: drop-shadow(0 0 3px var(--zone-crit)); }
+
+/* Nothing to show yet: everything dims and the needle rests. */
+.gauge.is-unknown .gauge-needle polygon {
+    fill: #4b6580;
+}
+
+.gauge.is-unknown .gauge-value,
+.gauge.is-unknown .gauge-label {
+    color: #5f7d99;
+    fill: #5f7d99;
+}

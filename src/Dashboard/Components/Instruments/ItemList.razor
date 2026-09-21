@@ -1,0 +1,59 @@
+@* A titled list of items and counts, packed into columns so a big backpack still fits on screen. *@
+<div class="items @(Dim ? "is-dim" : "")">
+    <div class="items-title">
+        <span>@Title</span>
+        <span class="items-count" title="@(Data is null ? "" : $"{Kinds} kinds of item, {Total} in all")">
+            @if (Data is null)
+            {
+                @:--
+            }
+            else
+            {
+                @:@Total@(Data.Size > 0 ? $" / {Data.Size}" : "")
+            }
+        </span>
+    </div>
+
+    @if (Data is null)
+    {
+        <div class="items-empty">no data</div>
+    }
+    else if (Data.Items.Count == 0)
+    {
+        <div class="items-empty">empty</div>
+    }
+    else
+    {
+        <div class="items-columns" style="column-count: @Columns">
+            @foreach (var item in Sorted)
+            {
+                <div class="item" title="@item.Id">
+                    <span class="item-name">@item.Label</span>
+                    <span class="item-count">@item.Count</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public InventoryData? Data { get; set; }
+
+    /// <summary>How many columns to pack the items into.</summary>
+    [Parameter]
+    public int Columns { get; set; } = 3;
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    private IEnumerable<ItemData> Sorted => Data!.Items.OrderBy(i => i.Label, StringComparer.CurrentCultureIgnoreCase);
+
+    private int Kinds => Data?.Items.Count ?? 0;
+
+    private int Total => Data?.Items.Sum(i => i.Count) ?? 0;
+}
