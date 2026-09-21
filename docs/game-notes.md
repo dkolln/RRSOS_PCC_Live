@@ -42,10 +42,54 @@ Sections separated by `@`, records by `|`. Facts that matter to a live feed:
 - Launched rockets sit in hidden `SpaceMultiplier*` containers at position -500,-500,-500.
 - Drones docked in a station have no position; airborne ones do.
 - A world object with no `pos` is inside an inventory, or "away" (pocket, portal, space).
-- The save has a `modded` flag. Whether running a plugin changes it is **not yet known** (module 1 finds out).
+- The save has a `modded` flag (see "The modded flag" below for what sets it).
+
+## Module 1 results (2026-09-21)
+
+- **BepInEx 5.4.23.4 works on Unity 6000.3.2.** The log reads "Running under Unity v6000.3.2.11106207", the chainloader
+  started, and our plugin loaded and logged its line.
+- The game itself shows a red "Mods Detected - mods are not officially supported..." notice on the main menu. That is
+  expected and cosmetic.
+- BepInEx logs `[Error] Unable to start Unity log writer` at startup. It only means Unity's own log is not mirrored
+  into `LogOutput.log`; plugins are unaffected. Ignore unless a later module needs Unity's log.
+- Saves untouched by simply loading a world and quitting without saving.
+
+## The "modded" flag (answered 2026-09-21)
+
+A save written with the plugin installed got `"modded": true` (checked on a real save). The game decides this in
+`ModHelper.GetIsModded()`: it is true when the folder `BepInEx\plugins` exists next to the game and is **not empty**.
+It has nothing to do with whether any plugin code runs, and `doorstop_config.ini` `enabled = false` does not change it.
+
+What the flag does, as far as the decompiled code shows: it is written into the save (`JSONExport`), the HUD debug text
+gets " - Modded", a few "hide if not modded" UI bits appear, and the in-game feedback form sends it along with bug
+reports. It does not change gameplay. Emptying `BepInEx\plugins` makes the next save `false` again.
+
+## Discovered API (module 2, build 25296421)
+
+Found by decompiling `Assembly-CSharp.dll` with `ilspycmd`. Decompiled source is kept out of this repo (it is the
+game's code); only names and signatures are recorded here. Everything is in `namespace SpaceCraft`.
+
+**All the wiki's hook names exist:** `PlanetLoader` (`HandleDataAfterLoad`, `GetIsLoaded`), `UiWindowPause.OnQuit`,
+`Intro`, `Managers.GetManager<T>()`, `WorldObjectsHandler`, `GroupsHandler`.
+
+| Want | Where | Notes |
+|---|---|---|
+| The player | `Managers.GetManager<PlayersManager>().GetActivePlayerController()` returns `PlayerMainController` | A `MonoBehaviour`, so `.transform.position` and `.rotation` are live. `PlayersManager.playersControllers` lists all players (multiplayer). `RegisterToLocalPlayerStarted(Action)` fires when the local player exists |
+| Vitals | `PlayerMainController.GetPlayerGaugesHandler()` | `GetPlayerOxygenValue()`, `GetPlayerThirstValue()`, `GetPlayerHealthValue()`, `GetPlayerToxicValue()`, `GetPlayerIsDying()` |
+| Planet stats and their live rates | `Managers.GetManager<WorldUnitsHandler>().GetUnit(DataConfig.WorldUnitType.X)` returns `WorldUnit` | `GetValue()`, `GetIncreaseValuePersSec()`, `GetDecreaseValuePersSec()`, `GetCurrentValuePersSec()`, `IsIncreasing()`. Types: Oxygen, Energy, Heat, Pressure, Terraformation, Biomass, Plants, Insects, Animals, SystemTerraformation, Purification |
+| Power | the `Energy` unit (`WorldUnitEnergy`, label `kW`) | To confirm in module 5: how increase and decrease map to production and use |
+| Any placed thing | `WorldObjectsHandler.Instance`, then `WorldObject` | `GetId()`, `GetGroup()`, `GetPosition()`, `GetRotation()`, `GetGameObject()` (the live scene object), `GetLinkedInventoryId()`, `GetPlanetHash()`, `GetEnergy()`, `GetUnitGeneration(type)`, `GetUnitMultiplier(type)` |
+| Rocket multipliers | `WorldUnitMultiplierViaInventory` and `WorldUnitGenerationViaInventory` (components tied to an inventory) | The game applies rocket bonuses itself; the live rates already include them |
+| Drones | `Drone` is a `MonoBehaviour` (find with `Object.FindObjectsByType<Drone>`) | Live `transform.position`; `GetDroneInventory()`, `GetLogisticTask()`, `GetDronePlanetHash()`. `MachineDroneStation` is the station |
+| The vehicle | not found yet | Candidates: `VehicleShareData`, `VehicleEquipment`, `VehicleJetpack`. Module 4 |
+
+**Why this matters for the dashboard:** the save file cannot hold power, TI rates or live positions, so RRSOS-PCC has
+had to rebuild them from tables and multipliers. The game already knows all of them, including the effect of every
+machine, optimizer and rocket. Reading `WorldUnit` rates would replace most of that reconstruction.
 
 ## Open questions
 
-- Does BepInEx 5.4.23.4 work on Unity 6000.3? (The wiki was written for older Unity versions.)
-- Does a modded session flag saves as modded, and does that matter for anything?
-- Which classes hold the player's position, heading and vitals? (module 2)
+- How do `WorldUnitEnergy`'s increase and decrease map to power produced and power used? (module 5)
+- Where is the vehicle's live position? (module 4)
+- Is the `Drone` component only present while a drone is airborne? (module 4)
+- Multiplayer: `playersControllers` may hold several players. Use `GetActivePlayerController()` (the local one).

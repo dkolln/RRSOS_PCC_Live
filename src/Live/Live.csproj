@@ -29,6 +29,11 @@
       <HintPath>$(GameManaged)UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- The player and manager classes derive from the game's networking types. -->
+    <Reference Include="Unity.Netcode.Runtime">
+      <HintPath>$(GameManaged)Unity.Netcode.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <!-- After a build, drop the plugin into the game's BepInEx\plugins folder, but only once BepInEx is installed there. -->
