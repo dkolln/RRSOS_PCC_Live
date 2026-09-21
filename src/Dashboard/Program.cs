@@ -11,6 +11,12 @@ builder.Services.AddSingleton<LiveFileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveFileService>());
 builder.Services.AddSingleton<PCLauncherService>();
 
+// The slower second file (bases, containers, extractors), plus what it needs: an item catalog and the base names.
+builder.Services.AddSingleton<ItemCatalog>();
+builder.Services.AddSingleton<BaseNames>();
+builder.Services.AddSingleton<WorldFileService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<WorldFileService>());
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

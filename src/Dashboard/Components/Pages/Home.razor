@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject LiveFileService Live
 @inject PCLauncherService Launcher
+@inject WorldFileService World
 
 @{
     // One snapshot for the whole render, so a new reading arriving mid-render cannot mix two of them.
@@ -11,12 +12,25 @@
     var vehicle = data?.Vehicle;
     var running = Launcher.IsRunning();
     var dim = status != LiveStatus.Live;
+    var world = World.Data;
+    var extractors = world?.Extractors ?? new List<ExtractorData>();
 }
 
 <div class="app">
 
     <header class="topbar">
         <div class="brand">RRSOS PCC <span>LIVE</span></div>
+
+        @* Every tab stays in the page and the inactive ones are only hidden, so nothing resets when you switch
+           (the player's map trail keeps recording, the selected base and open lists are kept). *@
+        <nav class="tabs" role="tablist">
+            <button class="tab @(_tab == HomeTab.Main ? "active" : "")" role="tab" aria-selected="@(_tab == HomeTab.Main)"
+                    @onclick="() => _tab = HomeTab.Main">Main</button>
+            <button class="tab @(_tab == HomeTab.Base ? "active" : "")" role="tab" aria-selected="@(_tab == HomeTab.Base)"
+                    @onclick="() => _tab = HomeTab.Base">Base@(_views.Count > 0 ? $" ({_views.Count})" : "")</button>
+            <button class="tab @(_tab == HomeTab.Extractors ? "active" : "")" role="tab" aria-selected="@(_tab == HomeTab.Extractors)"
+                    @onclick="() => _tab = HomeTab.Extractors">Extractors@(extractors.Count > 0 ? $" ({extractors.Count})" : "")</button>
+        </nav>
 
         <div class="status status-@status.ToString().ToLowerInvariant()">
             <span class="dot">●</span>
@@ -32,7 +46,7 @@
         </button>
     </header>
 
-    <main class="grid">
+    <main class="grid @PaneClass(HomeTab.Main)">
 
         <!-- PLAYER -->
         <section class="card">
@@ -47,7 +61,13 @@
                 @if (player.Position is { } position)
                 {
                     <NavDisplay Position="@(new Vector3((float)position.X, (float)position.Y, (float)position.Z))"
-                                Heading="@Compass.HeadingFromYaw(player.YawDegrees)" />
+                                Heading="@Compass.HeadingFromYaw(player.YawDegrees)">
+                        <Extra>
+                            @* The bases around you. Click one to open it on the Base tab. *@
+                            <BaseMap Compact="true" Bases="@_views" PlayerFlat="@_playerFlat" PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                     SelectedId="@_selectedBaseId" PinnedId="@_pinnedBaseId" OnSelect="ShowBase" Dim="@dim" EmptyText="no bases" />
+                        </Extra>
+                    </NavDisplay>
                 }
 
                 <div class="vitals">
@@ -117,14 +137,75 @@
         </section>
 
     </main>
+
+    <!-- BASE: every base on a big map, and what the chosen one holds -->
+    <main class="grid grid-base @PaneClass(HomeTab.Base)">
+
+        <section class="card">
+            <h2>Bases <span class="who">@BaseCountText()</span></h2>
+
+            <div class="scroll">
+                <BaseMap Bases="@_views" PlayerFlat="@_playerFlat" PlayerHeading="@PlayerHeading(player)"
+                         SelectedId="@_selectedBaseId" PinnedId="@_pinnedBaseId" OnSelect="TogglePin" Dim="@dim"
+                         EmptyText="@BasesEmptyText(status, world)" />
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Base contents <span class="who">@world?.PlanetId</span></h2>
+
+            <div class="scroll">
+                <BaseContents SelectedBase="@SelectedBase" AllBases="@_views" IsPinned="@(_pinnedBaseId is not null)" OnFollowNearest="Unpin"
+                              Dim="@dim" EmptyText="@BasesEmptyText(status, world)" />
+            </div>
+        </section>
+
+    </main>
+
+    <!-- EXTRACTORS -->
+    <main class="grid grid-single @PaneClass(HomeTab.Extractors)">
+
+        <section class="card">
+            <h2>Extractors <span class="who">@world?.PlanetId</span></h2>
+
+            <div class="scroll">
+                <ExtractorList Data="@extractors" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim"
+                               EmptyText="@(world is null || !world.InWorld ? EmptyText(status) : "No extractors found.")" />
+            </div>
+        </section>
+
+    </main>
 </div>
 
 @code {
+    private enum HomeTab { Main, Base, Extractors }
+
+    private HomeTab _tab = HomeTab.Main;
+
+    // Inactive tabs are hidden with CSS, not removed, so they keep their state.
+    private string PaneClass(HomeTab tab) => _tab == tab ? "" : "pane-hidden";
+
+    // How much closer another base must be before the contents switch to it.
+    private const float BaseSwitchThreshold = 15f;
+
+    // The bases as seen from where the player stands, nearest first. Refreshed whenever a new reading arrives.
+    private IReadOnlyList<BaseView> _views = Array.Empty<BaseView>();
+    private Vector2 _playerFlat;
+
+    private long? _selectedBaseId;
+
+    // Set by clicking a base on the big map or the small one; null means "show the nearest".
+    private long? _pinnedBaseId;
+
+    private BaseView? SelectedBase => _views.FirstOrDefault(b => b.Id == _selectedBaseId);
+
     private Timer? _timer;
 
     protected override void OnInitialized()
     {
         Live.Changed += OnChanged;
+        World.Changed += OnChanged;
+        Refresh();
 
         // The game starting or stopping changes the Launch button even before any data arrives.
         var wasRunning = Launcher.IsRunning();
@@ -139,7 +220,60 @@
         }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
-    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+    // Readings arrive on a background thread; hop onto the renderer's own thread before touching this page's state.
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        Refresh();
+        StateHasChanged();
+    });
+
+    // Works out where the bases are relative to the player, and which one the Base tab shows.
+    private void Refresh()
+    {
+        var bases = World.Bases.Bases;
+
+        if (Live.Data?.Player?.Position is { } position && bases.Count > 0)
+        {
+            _playerFlat = new Vector2((float)position.X, (float)position.Z);
+            _views = bases.Select(b => new BaseView(b, _playerFlat)).OrderBy(v => v.Distance).ToList();
+        }
+        else
+        {
+            _views = Array.Empty<BaseView>();
+        }
+
+        UpdateSelection();
+    }
+
+    // A base picked by hand wins; otherwise the contents follow the nearest one (see BaseSelector).
+    private void UpdateSelection()
+    {
+        if (_pinnedBaseId is long pin && _views.All(b => b.Id != pin))
+            _pinnedBaseId = null; // the pinned base is gone (other save, base removed)
+
+        _selectedBaseId = _pinnedBaseId ?? BaseSelector.Choose(_views, _selectedBaseId, BaseSwitchThreshold);
+    }
+
+    // Clicking a base on the big map pins it; clicking the pinned one again goes back to following the nearest.
+    private void TogglePin(long id)
+    {
+        _pinnedBaseId = _pinnedBaseId == id ? null : id;
+        UpdateSelection();
+    }
+
+    // Clicking a base on the Player card's small map: pin it and go to the Base tab to see it.
+    private void ShowBase(long id)
+    {
+        _pinnedBaseId = id;
+        UpdateSelection();
+        _tab = HomeTab.Base;
+    }
+
+    private void Unpin()
+    {
+        _pinnedBaseId = null;
+        UpdateSelection();
+    }
 
     private void LaunchGame()
     {
@@ -150,8 +284,20 @@
     public void Dispose()
     {
         Live.Changed -= OnChanged;
+        World.Changed -= OnChanged;
         _timer?.Dispose();
     }
+
+    private static float PlayerHeading(PlayerData? player) => player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees);
+
+    private string BaseCountText()
+    {
+        var bases = World.Bases.Bases;
+        return bases.Count == 0 ? "" : $"{bases.Count(b => b.Kind == BaseKind.Base)} bases, {bases.Count(b => b.Kind == BaseKind.Outpost)} outposts";
+    }
+
+    private static string BasesEmptyText(LiveStatus status, WorldData? world) =>
+        world is null || !world.InWorld ? EmptyText(status) : "No bases found.";
 
     private static string StatusText(LiveStatus status, LiveData? data, bool running) => status switch
     {

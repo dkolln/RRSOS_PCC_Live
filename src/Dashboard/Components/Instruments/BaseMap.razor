@@ -1,0 +1,222 @@
+@* A map of the bases with you in the middle and the game's north up. Click a base to pick it. The full version (Base tab)
+   has zoom and Fit; the compact one (Player card) only reaches as far as the full map's inner ring. Ported from RRSOS-PCC. *@
+<div class="base-map @(Compact ? "compact" : "") @(Dim ? "is-dim" : "")">
+
+    @if (Bases.Count == 0)
+    {
+        <div class="map-empty">@EmptyText</div>
+    }
+    else
+    {
+        <svg viewBox="0 0 140 140" role="group" aria-label="Map of the bases around you">
+            <defs>
+                <linearGradient id="map-cone-fade-@_uid" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0" stop-color="#7ab8ff" stop-opacity="0.6" />
+                    <stop offset="1" stop-color="#7ab8ff" stop-opacity="0" />
+                </linearGradient>
+            </defs>
+
+            <rect class="map-face" x="6" y="6" width="128" height="128" rx="6" />
+            <circle class="map-ring-line" cx="70" cy="70" r="32" />
+            <circle class="map-ring-line" cx="70" cy="70" r="64" />
+            <line class="map-cross" x1="70" y1="6" x2="70" y2="134" />
+            <line class="map-cross" x1="6" y1="70" x2="134" y2="70" />
+            <text class="map-north" x="76" y="17">N</text>
+            <text class="map-east" x="128" y="66">E</text>
+
+            @* Where you are and which way you face *@
+            <g class="map-turn" style="transform: rotate(@Inv($"{_turn:0.##}")deg)">
+                <path d="M 70 70 L 57.26 38.47 A 34 34 0 0 1 82.74 38.47 Z" fill="url(#map-cone-fade-@_uid)" />
+            </g>
+            <circle class="map-you" cx="70" cy="70" r="3.2" />
+
+            @* The base being shown is drawn last so nothing sits on top of it. *@
+            @foreach (var b in ShownBases.OrderBy(b => b.Id == SelectedId))
+            {
+                var (x, y) = Place(b);
+
+                <g class="map-pip @(b.Kind == BaseKind.Base ? "is-base" : "is-outpost") @(b.Id == SelectedId ? "selected" : "") @(b.Id == PinnedId ? "pinned" : "") @(b.Distance > Range ? "far" : "")"
+                   transform="translate(@Inv($"{x:0.##} {y:0.##}"))"
+                   role="button" aria-label="@PipLabel(b)"
+                   @onclick="() => OnSelect.InvokeAsync(b.Id)"
+                   @onmouseenter="() => _hoverId = b.Id"
+                   @onmouseleave="() => _hoverId = null">
+                    <title>@PipLabel(b)</title>
+                    <circle class="map-hit" r="6" />
+
+                    @if (b.Kind == BaseKind.Base)
+                    {
+                        <rect class="map-dot" x="-2.8" y="-2.8" width="5.6" height="5.6" transform="rotate(45)" />
+                    }
+                    else
+                    {
+                        <circle class="map-dot" r="2.6" />
+                    }
+
+                    <circle class="map-select" r="6" />
+                </g>
+            }
+
+            <text class="map-range" x="130" y="130">@Range m</text>
+        </svg>
+
+        @if (!Compact)
+        {
+            <div class="map-controls">
+                <button class="map-btn" @onclick="ZoomOut" title="Zoom out">−</button>
+                <button class="map-btn" @onclick="ZoomIn" title="Zoom in">+</button>
+                <button class="map-btn @(_range is null ? "active" : "")" @onclick="Fit" title="Fit every base">Fit</button>
+                <span class="map-legend">◆ base &nbsp;● outpost &nbsp;○ shown &nbsp;┄ pinned</span>
+            </div>
+        }
+        else
+        {
+            <div class="map-label">Bases</div>
+        }
+
+        @* The name of the base under the mouse, or else the one being shown. Kept off the map so it never covers anything. *@
+        <div class="map-caption @(_hoverId is not null && _hoverId != SelectedId ? "is-hover" : "")" aria-live="polite">
+            @if (LabelBase is { } label)
+            {
+                <span class="map-caption-name">@label.Name@(label.Id == PinnedId ? " 🔒" : "")</span>
+                <span class="map-caption-meta">@label.DisplayDistance @label.Direction · @(label.Kind == BaseKind.Outpost ? "outpost" : "base")</span>
+            }
+            else
+            {
+                <span class="map-caption-name">&nbsp;</span>
+                <span class="map-caption-meta">&nbsp;</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private const float MapHalf = 64f;
+    private static readonly int[] RangeSteps = { 100, 250, 500, 1000, 1500, 2000, 3000, 5000, 10000, 20000 };
+
+    /// <summary>The bases, nearest first.</summary>
+    [Parameter]
+    public IReadOnlyList<BaseView> Bases { get; set; } = Array.Empty<BaseView>();
+
+    /// <summary>Where the player stands (raw world X, Z) and which way they face (compass degrees).</summary>
+    [Parameter]
+    public Vector2 PlayerFlat { get; set; }
+
+    [Parameter]
+    public float PlayerHeading { get; set; }
+
+    /// <summary>The base the contents panel is showing.</summary>
+    [Parameter]
+    public long? SelectedId { get; set; }
+
+    /// <summary>The base picked by hand, if any. Null while the nearest base is being followed.</summary>
+    [Parameter]
+    public long? PinnedId { get; set; }
+
+    [Parameter]
+    public EventCallback<long> OnSelect { get; set; }
+
+    /// <summary>A small version with no controls, for the player card. It leaves out bases beyond half the full map's range.</summary>
+    [Parameter]
+    public bool Compact { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    [Parameter]
+    public string EmptyText { get; set; } = "No bases found.";
+
+    // The base under the mouse, if any.
+    private long? _hoverId;
+
+    // The compact map only draws what is inside its range.
+    private IEnumerable<BaseView> ShownBases => Compact ? Bases.Where(b => b.Distance <= Range) : Bases;
+
+    // Hover wins. Otherwise the base being shown, unless it is off this small map.
+    private BaseView? LabelBase
+    {
+        get
+        {
+            if (_hoverId is long hovered)
+                return Bases.FirstOrDefault(b => b.Id == hovered);
+
+            var shown = Bases.FirstOrDefault(b => b.Id == SelectedId);
+            return Compact && shown is not null && shown.Distance > Range ? null : shown;
+        }
+    }
+
+    // Several of these share a page, and SVG ids are page-wide.
+    private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
+
+    // Null means "fit every base"; otherwise the radius in world units the user zoomed to.
+    private int? _range;
+
+    private float _heading;
+    private float _turn;
+    private bool _started;
+
+    protected override void OnParametersSet()
+    {
+        var heading = float.IsFinite(PlayerHeading) ? PlayerHeading : 0f;
+
+        if (!_started)
+        {
+            _started = true;
+            _turn = heading;
+        }
+        else
+        {
+            // Turn by the shortest way round, so 359 to 2 degrees is a small nudge and not a full spin.
+            _turn += ((heading - _heading + 540f) % 360f) - 180f;
+        }
+
+        _heading = heading;
+    }
+
+    // The smallest round radius that still holds the farthest base.
+    private int FitRange
+    {
+        get
+        {
+            var far = Bases.Count > 0 ? Bases.Max(b => b.Distance) * 1.08f : 0f;
+            return RangeSteps.FirstOrDefault(step => far <= step, RangeSteps[^1]);
+        }
+    }
+
+    // The compact map stops at the full map's inner ring: half of the range that fits every base.
+    private int Range => Compact ? Math.Max(RangeSteps[0], FitRange / 2) : _range ?? FitRange;
+
+    private void ZoomIn()
+    {
+        var current = Range;
+        var smaller = RangeSteps.Where(step => step < current).ToArray();
+        _range = smaller.Length > 0 ? smaller[^1] : RangeSteps[0];
+    }
+
+    private void ZoomOut()
+    {
+        var current = Range;
+        var larger = RangeSteps.Where(step => step > current).ToArray();
+        _range = larger.Length > 0 ? larger[0] : RangeSteps[^1];
+    }
+
+    private void Fit() => _range = null;
+
+    // You are at the centre and the game's north is up. Anything past the edge is pinned to it, on its bearing.
+    private (float X, float Y) Place(BaseView b)
+    {
+        var offset = Compass.ToEastNorth(b.Flat - PlayerFlat) * (MapHalf / Range);
+        var length = offset.Length();
+
+        if (length > MapHalf)
+            offset *= MapHalf / length;
+
+        return (70f + offset.X, 70f - offset.Y);
+    }
+
+    private static string PipLabel(BaseView b) =>
+        $"{b.Name}, {b.DisplayDistance} {b.Direction}{(b.Kind == BaseKind.Outpost ? " (outpost)" : "")}";
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}

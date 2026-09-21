@@ -1,0 +1,137 @@
+.contents {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+}
+
+.contents.is-dim {
+    opacity: 0.5;
+}
+
+.contents-empty {
+    color: #5f7d99;
+    font-style: italic;
+}
+
+.contents-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.contents-name {
+    color: #e6f2ff;
+    font-size: 1.15rem;
+    font-weight: bold;
+}
+
+.contents-meta {
+    color: #7f9db9;
+    font-size: 0.85rem;
+}
+
+.contents-spacer {
+    flex: 1;
+}
+
+.contents-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #7f9db9;
+    font-size: 0.85rem;
+}
+
+.contents-btn {
+    padding: 2px 10px;
+    background: rgba(122, 184, 255, 0.12);
+    border: 1px solid rgba(122, 184, 255, 0.3);
+    border-radius: 3px;
+    color: #9ac7ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    cursor: pointer;
+}
+
+.contents-btn:hover {
+    background: rgba(122, 184, 255, 0.22);
+}
+
+.contents-btn.active {
+    border-color: #7ab8ff;
+    color: #e6f2ff;
+}
+
+/* Stored, ready and loose sit side by side when there is room, one under another when there is not. */
+.contents-lists {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 14px;
+    align-items: start;
+}
+
+.contents-list {
+    padding: 8px 10px;
+    background: #0e1520;
+    border: 1px solid #1a2a3a;
+    border-radius: 4px;
+}
+
+.contents-list.ready {
+    border-color: #245a3c;
+}
+
+.contents-list.loose {
+    border-color: #4a3d20;
+}
+
+.contents-search {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #1a2a3a;
+}
+
+.contents-input {
+    width: 100%;
+    max-width: 420px;
+    padding: 5px 8px;
+    background: #0b0f17;
+    border: 1px solid #24384d;
+    border-radius: 3px;
+    color: #e6f2ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.contents-input:focus {
+    outline: none;
+    border-color: #7ab8ff;
+}
+
+.search-results {
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.search-item {
+    margin-top: 6px;
+    color: #9ac7ff;
+    font-weight: bold;
+}
+
+.search-row {
+    display: grid;
+    grid-template-columns: 220px 140px 110px;
+    gap: 10px;
+    padding-left: 12px;
+    color: #b7d3f2;
+}
+
+.search-count {
+    color: #e6f2ff;
+}
+
+.search-where {
+    color: #7f9db9;
+}

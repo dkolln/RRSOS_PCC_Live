@@ -143,3 +143,53 @@
     min-height: 0;
     overflow: hidden;
 }
+
+/* Tabs live in the top bar, so the Main page keeps every pixel it had. */
+.tabs {
+    display: flex;
+    gap: 4px;
+    align-self: stretch;
+}
+
+.tab {
+    padding: 0 20px;
+    background: transparent;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    color: #7f9db9;
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.tab:hover {
+    color: #cfe4ff;
+}
+
+.tab.active {
+    border-bottom-color: #7ab8ff;
+    color: #e6f2ff;
+}
+
+/* Inactive tabs are hidden, not removed, so they keep their state (the map's zoom, the open lists). */
+.grid.pane-hidden {
+    display: none;
+}
+
+/* The Base tab: the map beside what the chosen base holds. */
+.grid-base {
+    grid-template-columns: minmax(420px, 0.8fr) minmax(0, 1.7fr);
+}
+
+.grid-single {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+/* A card body that scrolls by itself, so a long list never pushes the page. */
+.scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-color: #24384d #0b0f17;
+}

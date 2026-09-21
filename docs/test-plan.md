@@ -7,6 +7,10 @@
 >
 > What was tested without the game: the plugin compiles against the game's real assemblies, and the dashboard was
 > exercised against a fake file (`tools/sample-live.ps1`) in every state at 2560 x 1440.
+>
+> **Added later the same day: plugin 0.3.0 with bases and extractors (section 9).** None of that has run in the game.
+> The owner confirmed that player, vehicle, power and planet data "all look good" in the game before this was added.
+> **Start with section 9**, then tick off the older leftovers (sections 3 to 6) as you meet them.
 
 Work top to bottom. Each item says what to do and what should happen. Tick them off; anything that does not match is
 a bug or a wrong assumption, so write down what you saw. A few PowerShell snippets are at the end.
@@ -37,7 +41,7 @@ The answer is meant to be "either". Test all four:
 
 Open `BepInEx\LogOutput.log` after a session.
 
-- [ ] Line `RRSOS PCC Live 0.2.0 loaded. Read-only ...` appears.
+- [ ] Line `RRSOS PCC Live 0.3.0 loaded. Read-only ...` appears.
 - [ ] Line `In world: Prime. Writing ...\live.json once a second.` appears when you enter a world.
 - [ ] Line `Not in a world. The live file now says so.` appears when you leave to the menu.
 - [ ] No lines starting `Could not read '...'`. If there are, note which section: each means that section arrives as
@@ -105,7 +109,7 @@ Already verified in an earlier build: position, yaw and vitals (the position mat
 ## 6. Dashboard (layout and behaviour)
 
 - [ ] At **2560 x 1440, browser zoom 100%**: all three cards fit with nothing scrolling and nothing cut off, even with a
-  full backpack. (Browser full screen, F11, is the intended way to run it.) The lower half of each card is deliberately empty for the future Base and Extractors.
+  full backpack. (Browser full screen, F11, is the intended way to run it.) The tabs (Main, Base, Extractors) are in the top bar, so they take no room from the cards; the small Bases map sits in the Player card's top row (section 9.3).
 - [ ] Other sizes (1920 x 1080): note what breaks; the layout is designed for 2K and is not responsive yet.
 - [ ] **Stale detection:** close the game with the dashboard open: within about 6 seconds the status becomes
   `GAME NOT RUNNING - showing the last reading, from HH:MM:SS`, the data dims but stays visible.
@@ -140,7 +144,117 @@ These are the likely places for surprises. Each is a guess, made from reading th
 6. **Inventory display names** use `Readable.GetGroupName`. If it throws or returns nothing, the id is shown.
 7. **Gauge maximums** are read with reflection from private fields; a game update that renames them makes the dials fall back to 100.
 8. **Multiplayer** is unsupported: only the local player is read.
-9. **Drones, bases and extractors** are not in the file yet.
+9. **Drones** are not in the file yet. Bases and extractors are (section 9).
+
+## 9. Base and Extractors (plugin 0.3.0, dashboard tabs Main / Base / Extractors)
+
+**Nothing in this section has been run in the game yet.** It was built from the decompiled game code and checked against
+fake data and against your real save `Custom-2` (converted with `tools\save-to-world.ps1`): 16 door pods found, 1 base and
+15 outposts, the same numbers as counting the save by hand, and the base names came out the same as RRSOS-PCC's. What
+remains is everything that only the running game can tell: whether the plugin's reads work, and whether the numbers match
+what you see. Run it in a world with a few bases, some extractors and a grower, ideally the newer of the two saves, and
+have RRSOS-PCC open on a save made a moment before for comparison.
+
+Before the game: the plugin DLL in the game folder was rebuilt at the end of the 2026-09-21 session and should say 0.3.0 in
+the log. If you change anything, rebuild (`dotnet build src/Live/Live.csproj`, game closed).
+
+### 9.1 The world file
+
+- [ ] `BepInEx\LogOutput.log` says `RRSOS PCC Live 0.3.0 loaded` and names **both** files (`live.json` and `live-world.json`).
+- [ ] After you load a world, `%LOCALAPPDATA%\RRSOS-PCC-Live\live-world.json` appears within about 10 seconds and is rewritten about every
+  5 to 6 seconds (use snippet A below). It is valid JSON on every read.
+- [ ] **No lines in the log** starting `Could not` that mention the world: `Could not list the game's objects`, `Could not read a placed object`,
+  `Could not read a container`, `Could not read a loose item`, `Could not write the world file`, `Could not read the planet's hash`.
+  If there are, note the text: each names the game call that failed (and only the first three of each are logged).
+- [ ] **The counts look right** (snippet A): `pods` roughly equals the number of compartments you built (plus your bigger `Pod4x`/`Pod9xC` modules, which
+  are in the file but are not bases); `signs` equals your signs; `extractors` equals your ore, gas, water and algae machines; `containers` is not empty.
+  **If `pods` is 0 in a world with bases, the planet-hash filter or the "constructed objects" list is the suspect** (say so).
+- [ ] **Cost to the game.** Snippet A prints `scan`: `worstFrameMs` should be a few milliseconds at most (the target is about 2) and `workMs` a
+  few tens. Play a few minutes in a big base (fast movement, flying the jetpack): **no stutter every 5 seconds.** Note the numbers even if it feels fine.
+- [ ] The file is a sensible size (snippet A prints it). Under about 500 KB is expected; over 1 MB means something is being listed that should not be.
+- [ ] Quit to the main menu: the file gets `"inWorld":false` once and stops changing. Load a world again: it resumes.
+- [ ] Load a save, quit **without** saving: your save files are untouched, as before.
+
+### 9.2 Bases: what is a base
+
+Compare with RRSOS-PCC on the same save (it decides the same way: a pod with a door; door plus connection is a Base).
+
+- [ ] The Base tab title `n bases, m outposts` (and the number on the tab) matches RRSOS-PCC's Bases list for a save made a moment ago.
+  Known, intended differences: this counts a door pod called `EscapePod` if it had a door (RRSOS-PCC's match misses that spelling; yours has no panels, so none today),
+  and the larger `Pod4x`/`Pod9xC` modules are not bases in either.
+- [ ] **Base versus Outpost:** a pod with a door and a corridor connection is drawn as a diamond and called `base`; a door only is a dot and `outpost`.
+  Connect a corridor to a door-only outpost: within about 10 seconds it becomes a base.
+- [ ] **Names:** a base with a sign next to it (within about 6 metres) shows the sign's text. Bases without a sign get a name from a list (Greek names for bases, NATO letters for outposts).
+  Stop and restart the dashboard: **the same bases have the same names** (they are saved in `%LOCALAPPDATA%\RRSOS-PCC-Live\basedata.json`).
+  Put a sign by an unnamed base: it takes the sign's name. Change the sign's text: the name follows.
+- [ ] **New and removed bases:** build a new door pod: it appears within about 10 seconds. Deconstruct one: it disappears and, if you were pinned to it, the Base tab goes back to the nearest one.
+- [ ] Positions: the pip for a base you are standing next to is in the middle of the map, on top of you.
+
+### 9.3 The small map on the Player card (Main tab)
+
+- [ ] It sits in the same row as the compass, position map and elevation strip, labelled `BASES`, you in the middle, north up, the light cone showing which way you face (turn and it follows).
+- [ ] **Main still fits 2560 x 1440 with no scrolling** and nothing cut off, browser at 100% (F11). Check with a full backpack. The Player card's top row must **not** wrap onto two lines.
+- [ ] The bottom-right label (`250 m`, `500 m`...) is the map's range. Bases farther than that are left off this small map (they are on the Base tab).
+- [ ] **Hover** a base: its name appears under the map with its distance and direction, and whether it is a base or an outpost. Move away: it shows the base the Base tab is showing (or nothing, if that one is off this small map).
+- [ ] **Click** a base: the page jumps to the Base tab with that base selected and pinned (the dashed ring on the big map, a lock next to its name).
+- [ ] Walk between two bases: the pips slide sensibly and the compass directions in the caption (`120m NE`) agree with the in-game compass.
+
+### 9.4 The big map (Base tab)
+
+- [ ] Every base is on it, you in the middle. `-`, `+` and `Fit` change the range (`Fit` shows the farthest base). A base past the edge is pinned to the edge on its bearing, faded.
+- [ ] Hover shows the name under the map. **Click** a base to pin it (dashed ring, lock); click it again to go back to following the nearest.
+- [ ] **Follow nearest** (button, top right of the contents) does the same.
+- [ ] **Sticky nearest:** stand between two bases and walk slowly. The shown base must not flip back and forth; it changes only when another is clearly closer (15 m).
+- [ ] Switch to Main and back: the map's zoom, the pinned base, the search text and the group-by choice are all kept (nothing resets).
+
+### 9.5 Base contents (Base tab, right side)
+
+Pick a base whose contents you know well (a room with a few chests).
+
+- [ ] **Stored** lists what is in the base's containers. By default grouped by category. `Name` shows the game's own display names (localized), `Type` and `Category` use RRSOS-PCC's table
+  and should read like RRSOS-PCC does. **Add 5 Iron to a chest in that base: within about 10 seconds Iron goes up by 5** (in `Name`). Take some out: it goes down.
+- [ ] Items in **machines** with storage (auto-crafters, incubators, growers) are counted as stored too (RRSOS-PCC does the same).
+- [ ] Nothing that is a **machine or a building part** is listed as stored (no `Foundation`, no placed chests).
+- [ ] **Ready to harvest:** plants that have finished growing in a Vegetable Grower or Outdoor Farm, by name. Harvest one: the count drops. Plants still growing are not listed here (but do count under `Stored`, as in RRSOS-PCC).
+- [ ] **Boneyard (loose):** drop 3 Iron on the floor inside a base: within about 10 seconds `Iron 3` (or more) appears here. Pick them up: gone.
+  It must not fill up with the landscape's own rocks or the loot in wrecks. **Likely surprise:** plants you grew outdoors and other things you placed in the open (that are items, not machines)
+  may appear here; note which.
+- [ ] **Range:** something in a chest more than 100 metres from every base is listed nowhere (it belongs to no base). Something 60 m from base A and 90 m from base B belongs to A.
+- [ ] Launched rockets (the hidden storage far away) never show up in any base.
+- [ ] **Search:** type an item name (or part of its id). Every base that has it is listed with how many are stored / loose and how far, nearest first.
+  Only items in containers within reach of a base can be found; items in your backpack or truck are not included.
+- [ ] Compare the whole list with RRSOS-PCC for the same base on a fresh save. Small differences (a few items) are expected while things move; large ones are not, so note the base and the item.
+
+### 9.6 Extractors tab
+
+The tab label shows how many extractors it found (ore, gas, water and algae machines; RRSOS-PCC does not show gas ones).
+
+- [ ] **Ore extractors** are grouped under the ore each one **is set to mine**, with a header `n items x/y full` per ore. Change one extractor's ore in the game: it moves to the other group within about 10 seconds.
+- [ ] Each machine shows `X ... Z ...` (matches its position: compare with the coordinates you see standing next to it), **distance and direction from you** (updates as you walk, every second), a **fill bar** `count / slots`, and its contents.
+- [ ] **Fill level:** the count matches what the machine's own screen shows; `slots` matches its capacity. A machine whose storage is full has a gold outline and counts under `full`.
+- [ ] **Water collectors** (`Water Bottle`), **gas extractors** (their capsule) and **algae generators** are their own groups. For algae the bar counts only algae that have **finished growing** (`5 / 8 grown`) and the line says how many are ready.
+- [ ] An empty machine says `no contents` and an empty bar.
+- [ ] Click a group header (or an ore's header) to fold it; it stays folded while data refreshes.
+- [ ] Extractors on another planet, and kinds not listed here (the genetic extractor, the water-life collector), are not shown. Note if you have any and want them.
+
+### 9.7 Dashboard behaviour
+
+- [ ] Close the game with the dashboard open: within about 6 seconds all three tabs dim but keep their last data, and the status says `GAME NOT RUNNING`.
+- [ ] Quit to the main menu: Base and Extractors say `Waiting for live data.` or `No world loaded.`, not an error, and the tab numbers disappear.
+- [ ] Open the dashboard **before** the game, and after it: both work (as in section 1).
+- [ ] Keep the dashboard open for an hour while playing: no growth in its memory (Task Manager), no warnings in its console window. (The plugin's file is rewritten every 5 seconds; the dashboard re-reads it when it changes.)
+
+### 9.8 What I assumed (the likely places for surprises)
+
+1. **`GetConstructedWorldObjects()` contains the pods, signs, extractors and chests** (the game adds everything that is a building, or a buildable item, that is not from the scene). If pods are missing, this is why.
+2. **`GetIsPlaced()` (position not zero) means "in the world"**, and the planet hash of a placed object equals the current planet's hash (the game compares them the same way).
+3. **The pod's `GetPanelsId()` holds `BuildPanelSubType` numbers, 4 for a door and 2 for a connection**, exactly as the save's `pnls`. If every pod comes out as an outpost or no pod as a base, check the `panels` in the file (snippet B).
+4. **A grower's plants are in its secondary storage** and finished ones have growth 100. If `Ready to harvest` is always empty, look at `containers` entries for your growers in the file (`secondary` should hold the plants).
+5. **Ore and gas extractors name their product in `GetLinkedGroups()`** (the save's `liGrps`). If the ore groups all say `Unset`, that call is empty in the running game.
+6. **Algae generators keep their algae in the secondary storage**, water and ore machines in the main one (as the save's `siIds` and `liId`).
+7. **Objects with an id below 200,000,000 are the landscape's**, so they are not loose items. If your own dropped items never show as loose, this rule is wrong.
+8. **A container is anything constructed and placed that has storage**; a sign is a group called `Sign`. Anything else that has storage (a machine) counts as a container too.
+9. **Base logic** (what is a base, names, the 100 m ownership, ready to harvest) was **ported by reading** RRSOS-PCC, and checked against a real save, but not against a running game.
 
 ## Snippets
 
@@ -166,3 +280,34 @@ Select-String -Path "C:\Program Files (x86)\Steam\steamapps\common\The Planet Cr
 
 Try the dashboard without the game: `tools\sample-live.ps1 -Path .\sample\live.json -Loop`, then
 `dotnet run --project src\Dashboard --LiveFile=.\sample\live.json` (scenarios: `live`, `menu`, `stowed`, `novehicle`).
+
+The world file at a glance (snippet A; run it a few times, and again in a big base):
+
+```powershell
+$f = "$env:LOCALAPPDATA\RRSOS-PCC-Live\live-world.json"
+$w = Get-Content $f -Raw | ConvertFrom-Json
+"{0}  inWorld={1}  pods={2} signs={3} containers={4} loose={5} extractors={6}  size={7:N0} KB" -f $w.updatedAt, $w.inWorld, $w.pods.Count, $w.signs.Count, $w.containers.Count, $w.loose.Count, $w.extractors.Count, ((Get-Item $f).Length / 1KB)
+"scan: visited={0} frames={1} work={2} ms  worst chunk={3} ms" -f $w.scan.objectsVisited, $w.scan.frames, $w.scan.workMs, $w.scan.worstFrameMs
+```
+
+Which pods have a door, and what their sides are (snippet B; 4 = door, 2 = connection):
+
+```powershell
+$w.pods | Where-Object { $_.panels -contains 4 } | ForEach-Object { "{0}  {1}  panels={2}  at {3:N0},{4:N0}" -f $_.id, $_.group, ($_.panels -join ','), $_.position.x, $_.position.z }
+```
+
+Extractors as the plugin reports them (snippet C):
+
+```powershell
+$w.extractors | ForEach-Object { "{0,-6} {1,-16} {2,-12} {3}/{4}  ready={5}" -f $_.kind, $_.group, $_.productName, $_.count, $_.size, $_.ready }
+```
+
+Plugin problems in the world pass only:
+
+```powershell
+Select-String -Path "C:\Program Files (x86)\Steam\steamapps\common\The Planet Crafter\BepInEx\LogOutput.log" -Pattern 'RRSOS.*(world|placed object|container|loose item|game.s objects|planet.s hash)'
+```
+
+Try the dashboard without the game, on fake data: `tools\sample-live.ps1 -Path .\sample\live.json -Loop` (it now writes `live-world.json` beside it too; there is a
+new scenario, `nobases`). On a **real save**: `tools\save-to-world.ps1 -Save "$env:USERPROFILE\AppData\LocalLow\MijuGames\Planet Crafter\Custom-2.json" -OutFolder .\sample-save -Loop`,
+then `dotnet run --project src\Dashboard -- --LiveFile=.\sample-save\live.json`. Both keep everything, including the base names, in that folder, never in the real one.

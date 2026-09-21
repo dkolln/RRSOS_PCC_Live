@@ -8,23 +8,30 @@ only from the game's **save file**, which the game writes only when it saves, so
 project reads the running game instead. Neither depends on the other to build.
 
 ```
-Planet Crafter  --(plugin, once a second)-->  live.json  --(watches)-->  Dashboard (browser)
+Planet Crafter  --(plugin, once a second)-->  live.json        --(watches)-->  Dashboard (browser)
+                --(plugin, every 5 seconds)-> live-world.json  --(watches)-->
                                               %LOCALAPPDATA%\RRSOS-PCC-Live
 ```
 
 ## What the dashboard shows
 
-One page, laid out for a 2560 x 1440 monitor, three cards:
+Three tabs in the top bar, laid out for a 2560 x 1440 monitor. Inactive tabs are hidden, not removed, so nothing resets when you switch.
+
+**Main**: three cards, nothing scrolls.
 
 | Player | Planet | Vehicle |
 |---|---|---|
-| compass, position map, altimeter | six terraformation dials with live rates | compass, map with you in the middle and the truck placed relative to you, altimeter |
+| compass, position map, altimeter, and a small **map of the bases around you** (hover for a name, click to open it on the Base tab) | six terraformation dials with live rates | compass, map with you in the middle and the truck placed relative to you, altimeter |
 | oxygen, health, thirst, toxicity | rocket count and multiplier under each dial | trunk contents |
 | backpack contents | power dial (produced, used, left) and a picture per generator | equipped modules |
 | worn gear | | |
 
+**Base**: a big map of every base and outpost (zoom, Fit, click to pin one, "Follow nearest" to go back) beside what the chosen
+base holds: stored items (by name, type or category), crops ready to harvest, loose items, and a search across all bases.
+
+**Extractors**: every ore, gas, water and algae machine, grouped (ore by what it mines), with its fill level, position, and distance and direction from you.
+
 The only control is **LAUNCH PC**, which starts the game through Steam. Nothing on the page can change the game.
-Base and Extractors will be added later.
 
 ## Which starts first, the game or the app?
 
@@ -36,7 +43,7 @@ page keeps the last reading, dimmed, and says so. `LAUNCH PC` is disabled while 
 
 - **Read-only.** The plugin observes the game. It never changes game state, saves, items or settings.
 - **Awareness, not shortcuts.** It shows what the game already knows; it does not help anyone bypass how the game is played.
-- **One small contract.** Everything leaves the game through one versioned JSON file ([docs/contract.md](docs/contract.md)).
+- **One small contract.** Everything leaves the game through two versioned JSON files, the fast one and the slow one ([docs/contract.md](docs/contract.md)).
 - **Nothing of the game is redistributed.** The project references the game's assemblies in place. Game files, and the
   game's decompiled source, are never copied into this repo.
 - **Nothing is trusted blindly.** Every section of the file is read on its own; if one fails it becomes `null` and the
@@ -54,9 +61,10 @@ page keeps the last reading, dimmed, and says so. `LAUNCH PC` is disabled while 
    `BepInEx\plugins\RRSOS-PCC-Live\`.
 5. Run the dashboard: `dotnet run --project src/Dashboard`, then open http://localhost:5320 (full screen, F11, on a 2K monitor).
 
-To try the dashboard **without the game**, generate a fake live file:
+To try the dashboard **without the game**, generate fake live files:
 `tools\sample-live.ps1 -Path .\sample\live.json -Loop`, then
-`dotnet run --project src/Dashboard --LiveFile=.\sample\live.json`.
+`dotnet run --project src/Dashboard --LiveFile=.\sample\live.json` (the world file is written beside it, and the base names are kept there too).
+To see the bases and extractors of a **real save**, `tools\save-to-world.ps1` turns one into the same two files (it only reads the save).
 
 ## Testing
 
@@ -75,8 +83,8 @@ Built one at a time.
 | 3 | **Player**: position, yaw, vitals | done and verified in the game (position matches a save exactly) |
 | 4 | **Inventories and vehicle**: backpack, gear, vehicle position, trunk, gear | done: run in the game, all sections arrive (vehicle position matches the save); detailed checks still open in the test plan |
 | 5 | **Planet**: world-unit values and live rates, power and generators, rockets | done: run in the game; rocket multipliers match the wiki maths exactly, power and generators plausible; screen comparisons still open |
-| 6 | **Dashboard**: one page for Player, Planet, Vehicle; Launch PC | done: fake data in every state at 2560 x 1440, then live with the real game (the owner: "beautiful") |
-| 7 | **Base and Extractors**: base data and maps (compact on the Player card, big on a Base tab), extractor data and tab | next; see docs/handoff.md |
+| 6 | **Dashboard**: one page for Player, Planet, Vehicle; Launch PC | done (now three tabs): fake data in every state at 2560 x 1440, then live with the real game (the owner: "beautiful") |
+| 7 | **Base and Extractors**: base data and maps (compact on the Player card, big on a Base tab), extractor data and tab | built (plugin 0.3.0, second file `live-world.json`); checked on fake data and a real save, **not yet run in the game**: see section 9 of docs/test-plan.md |
 | 8 | **Optional**: drones, local HTTP feed, in-game overlay | later |
 
 ## License

@@ -27,12 +27,6 @@ namespace RRSOS.PCC.Dashboard
         private static readonly TimeSpan StaleAfter = TimeSpan.FromSeconds(6);
         private static readonly TimeSpan PollEvery = TimeSpan.FromMilliseconds(500);
 
-        private static readonly JsonSerializerOptions Options = new()
-        {
-            PropertyNameCaseInsensitive = true,
-            Converters = { new TolerantDoubleConverter(), new TolerantNullableDoubleConverter(), new TolerantIntConverter() }
-        };
-
         private readonly ILogger<LiveFileService> _log;
         private readonly PCLauncherService _launcher;
         private readonly string _path;
@@ -43,9 +37,7 @@ namespace RRSOS.PCC.Dashboard
         {
             _log = log;
             _launcher = launcher;
-            _path = config["LiveFile"]
-                    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "RRSOS-PCC-Live", "live.json");
+            _path = LivePaths.LiveFile(config);
         }
 
         public LiveData? Data { get; private set; }
@@ -113,7 +105,7 @@ namespace RRSOS.PCC.Dashboard
             try
             {
                 using var stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                return JsonSerializer.Deserialize<LiveData>(stream, Options);
+                return JsonSerializer.Deserialize<LiveData>(stream, LiveJson.Options);
             }
             catch (IOException)
             {

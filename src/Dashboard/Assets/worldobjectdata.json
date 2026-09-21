@@ -1,0 +1,2391 @@
+{
+  "VegetableGrower1": {
+    "BaseId": "VegetableGrower",
+    "Name": "Vegetable Grower",
+    "Tier": "T1",
+    "PowerKw": -15,
+    "Type": 5510
+  },
+  "VegetableGrower2": {
+    "BaseId": "VegetableGrower",
+    "Name": "Vegetable Grower",
+    "Tier": "T2",
+    "PowerKw": -29.5,
+    "Type": 5510
+  },
+
+  "Farm1": {
+    "BaseId": "Farm",
+    "Name": "Outdoor Farm",
+    "Tier": "T1",
+    "PowerKw": -45.5,
+    "Type": 5520
+  },
+  "Farm2": {
+    "BaseId": "Farm",
+    "Name": "Outdoor Farm",
+    "Tier": "T2",
+    "PowerKw": -165,
+    "Type": 5520
+  },
+
+  "VehicleEquipmentSize1": {
+    "BaseId": "VehicleEquipmentSize",
+    "Name": "Vehicle Equipment Size",
+    "Tier": "T1",
+    "Type": 1210
+  },
+  "VehicleEquipmentSize2": {
+    "BaseId": "VehicleEquipmentSize",
+    "Name": "Vehicle Equipment Size",
+    "Tier": "T2",
+    "Type": 1210
+  },
+  "VehicleEquipmentSize3": {
+    "BaseId": "VehicleEquipmentSize",
+    "Name": "Vehicle Equipment Size",
+    "Tier": "T3",
+    "Type": 1210
+  },
+
+  "VehicleBeacon1": {
+    "BaseId": "VehicleBeacon",
+    "Name": "Vehicle Beacon",
+    "Tier": "T1",
+    "Type": 1210
+  },
+
+  "VehicleLights1": {
+    "BaseId": "VehicleLights",
+    "Name": "Vehicle Lights",
+    "Tier": "T1",
+    "Type": 1210
+  },
+  "VehicleLights2": {
+    "BaseId": "VehicleLights",
+    "Name": "Vehicle Lights",
+    "Tier": "T2",
+    "Type": 1210
+  },
+
+  "VehicleOxygen1": {
+    "BaseId": "VehicleOxygen",
+    "Name": "Vehicle Oxygen",
+    "Tier": "T1",
+    "Type": 1210
+  },
+
+  "VehicleSpeed1": {
+    "BaseId": "VehicleSpeed",
+    "Name": "Vehicle Speed",
+    "Tier": "T1",
+    "Type": 1210
+  },
+  "VehicleSpeed2": {
+    "BaseId": "VehicleSpeed",
+    "Name": "Vehicle Speed",
+    "Tier": "T2",
+    "Type": 1210
+  },
+  "VehicleSpeed3": {
+    "BaseId": "VehicleSpeed",
+    "Name": "Vehicle Speed",
+    "Tier": "T3",
+    "Type": 1210
+  },
+
+  "VehicleInventorySize1": {
+    "BaseId": "VehicleInventorySize",
+    "Name": "Vehicle Inventory Size",
+    "Tier": "T1",
+    "Type": 1210
+  },
+  "VehicleInventorySize2": {
+    "BaseId": "VehicleInventorySize",
+    "Name": "Vehicle Inventory Size",
+    "Tier": "T2",
+    "Type": 1210
+  },
+  "VehicleInventorySize3": {
+    "BaseId": "VehicleInventorySize",
+    "Name": "Vehicle Inventory Size",
+    "Tier": "T3",
+    "Type": 1210
+  },
+
+  "Obsidian": {
+    "BaseId": "Obsidian",
+    "Name": "Obsidian",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Iron": {
+    "BaseId": "Iron",
+    "Name": "Iron",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Zeolite": {
+    "BaseId": "Zeolite",
+    "Name": "Zeolite",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Aluminium": {
+    "BaseId": "Aluminium",
+    "Name": "Aluminium",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Cobalt": {
+    "BaseId": "Cobalt",
+    "Name": "Cobalt",
+    "Tier": "",
+    "Type": 2110
+  },
+  "ice": {
+    "BaseId": "ice",
+    "Name": "Ice",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Iridium": {
+    "BaseId": "Iridium",
+    "Name": "Iridium",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Magnesium": {
+    "BaseId": "Magnesium",
+    "Name": "Magnesium",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Osmium": {
+    "BaseId": "Osmium",
+    "Name": "Osmium",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Silicon": {
+    "BaseId": "Silicon",
+    "Name": "Silicon",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Sulfur": {
+    "BaseId": "Sulfur",
+    "Name": "Sulfur",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Titanium": {
+    "BaseId": "Titanium",
+    "Name": "Titanium",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Uranim": {
+    "BaseId": "Uranium",
+    "Name": "Uranium",
+    "Tier": "",
+    "Type": 2110
+  },
+
+  "Alloy": {
+    "BaseId": "Alloy",
+    "Name": "Alloy",
+    "Tier": "",
+    "Type": 2120
+  },
+
+  "CookFlour": {
+    "BaseId": "Flour",
+    "Name": "Flour",
+    "Tier": "",
+    "Type": 2510
+  },
+
+  "LarvaeBase1": {
+    "BaseId": "Larva",
+    "Name": "Common Larva",
+    "Tier": "1",
+    "Type": 3310
+  },
+  "LarvaeBase2": {
+    "BaseId": "Larva",
+    "Name": "Uncommon Larva",
+    "Tier": "2",
+    "Type": 3320
+  },
+  "LarvaeBase3": {
+    "BaseId": "Larva",
+    "Name": "Rare Larva",
+    "Tier": "3",
+    "Type": 3330
+  },
+
+  "Butterfly10Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "10",
+    "Type": 3340
+  },
+  "Butterfly8Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "8",
+    "Type": 3340
+  },
+  "Butterfly6Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "6",
+    "Type": 3340
+  },
+  "Butterfly5Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "5",
+    "Type": 3340
+  },
+  "Butterfly4Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "4",
+    "Type": 3340
+  },
+  "Butterfly3Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "3",
+    "Type": 3340
+  },
+  "Butterfly19Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "19",
+    "Type": 3340
+  },
+  "Butterfly20Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "20",
+    "Type": 3340
+  },
+  "Butterfly7Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva",
+    "Tier": "7",
+    "Type": 3340
+  },
+  "Algae1Seed": {
+    "BaseId": "AlgaeSeed",
+    "Name": "Algae Seed",
+    "Tier": "",
+    "Type": 3440
+  },
+
+  "Bacteria1": {
+    "BaseId": "Bacteria1",
+    "Name": "Bacteria Sample",
+    "Tier": "",
+    "Type": 3120
+  },
+
+  "Bioplastic1": {
+    "BaseId": "Bioplastic1",
+    "Name": "Bio Nugget",
+    "Tier": "",
+    "Type": 3640
+  },
+
+  "FabricBlue": {
+    "BaseId": "Fabric",
+    "Name": "Fabric (Blue)",
+    "Tier": "",
+    "Type": 7210
+  },
+  "SmartFabric": {
+    "BaseId": "SmartFabric",
+    "Name": "Smart Fabric",
+    "Tier": "",
+    "Type": 7220
+  },
+
+  "Silk": {
+    "BaseId": "Silk",
+    "Name": "Silk",
+    "Tier": "",
+    "Type": 3650
+  },
+
+  "Fertilizer1": {
+    "BaseId": "Fertilizer1",
+    "Name": "Fertilizer",
+    "Tier": "T1",
+    "Type": 2610
+  },
+  "Fertilizer2": {
+    "BaseId": "Fertilizer",
+    "Name": "Fertilizer 2",
+    "Tier": "T2",
+    "Type": 2610
+  },
+
+  "RedPowder1": {
+    "BaseId": "RedPowder",
+    "Name": "Explosive Powder",
+    "Tier": "T1",
+    "Type": 2620
+  },
+
+  "Explosive": {
+    "BaseId": "Explosive",
+    "Name": "Explosive",
+    "Tier": "T1",
+    "Type": 9410
+  },
+
+  "FuseOxygen1": {
+    "BaseId": "FuseOxygen1",
+    "Name": "Oxygen Fuse",
+    "Tier": "T1",
+    "Type": 8010
+  },
+  "FuseEnergy1": {
+    "BaseId": "FuseEnergy",
+    "Name": "Energy Fuse",
+    "Tier": "T1",
+    "Type": 8010
+  },
+  "FuseHeat1": {
+    "BaseId": "FuseHeat",
+    "Name": "Heat Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "FusePlants1": {
+    "BaseId": "FusePlants",
+    "Name": "Plants Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "FusePressure1": {
+    "BaseId": "FusePressure",
+    "Name": "Pressure Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "FuseProduction1": {
+    "BaseId": "FuseProduction",
+    "Name": "Production Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "SpaceMultiplierHeat": {
+    "BaseId": "SpaceMultiplierHeat",
+    "Name": "Heat Multiplier Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "SpaceMultiplierAnimals": {
+    "BaseId": "SpaceMultiplierAnimals",
+    "Name": "Animal Multiplier Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "SpaceMultiplierOxygen": {
+    "BaseId": "SpaceMultiplierOxygen",
+    "Name": "Oxygen Multiplier Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "SpaceMultiplierPlants": {
+    "BaseId": "SpaceMultiplierPlants",
+    "Name": "Plants Multiplier Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "SpaceMultiplierPressure": {
+    "BaseId": "SpaceMultiplierPressure",
+    "Name": "Pressure Multiplier Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+  "SpaceMultiplierInsects": {
+    "BaseId": "SpaceMultiplierInsects",
+    "Name": "Insect Multiplier Fuse",
+    "Tier": "",
+    "Type": 8010
+  },
+
+
+  "OxygenCapsule1": {
+    "BaseId": "OxygenCapsule",
+    "Name": "Oxygen Capsule",
+    "Tier": "T1",
+    "Type": 4410
+  },
+
+  "NitrogenCapsule1": {
+    "BaseId": "NitrogenCapsule",
+    "Name": "Nitrogen Capsule",
+    "Tier": "T1",
+    "Type": 2220
+  },
+
+  "RocketReactor": {
+    "BaseId": "RocketReactor",
+    "Name": "Rocket Engine",
+    "Tier": "",
+    "Type": 7330
+  },
+
+  "CircuitBoard1": {
+    "BaseId": "CircuitBoard",
+    "Name": "Circuit Board",
+    "Tier": "",
+    "Type": 7110
+  },
+
+  "Rod-alloy": {
+    "BaseId": "Rod-alloy",
+    "Name": "Super Alloy Rod",
+    "Tier": "",
+    "Type": 2410
+  },
+  "Rod-iridium": {
+    "BaseId": "Rod-iridium",
+    "Name": "Iridium Rod",
+    "Tier": "",
+    "Type": 2410
+  },
+  "Rod-osmium": {
+    "BaseId": "Rod-osmium",
+    "Name": "Osmium Rod",
+    "Tier": "",
+    "Type": 2410
+  },
+  "Rod-uranium": {
+    "BaseId": "Rod-uranium",
+    "Name": "Uranium Rod",
+    "Tier": "",
+    "Type": 2410
+  },
+
+  "Seed0": {
+    "BaseId": "Seed",
+    "Name": "Seed Lirma",
+    "Tier": "0",
+    "Type": 3410
+  },
+  "Seed1": {
+    "BaseId": "Seed",
+    "Name": "Seed Nulna",
+    "Tier": "1",
+    "Type": 3410
+  },
+  "Seed2": {
+    "BaseId": "Seed",
+    "Name": "Seed Tuska",
+    "Tier": "2",
+    "Type": 3410
+  },
+  "Seed3": {
+    "BaseId": "Seed",
+    "Name": "Seed Shanga",
+    "Tier": "3",
+    "Type": 3410
+  },
+  "Seed4": {
+    "BaseId": "Seed",
+    "Name": "Seed Pestera",
+    "Tier": "4",
+    "Type": 3410
+  },
+  "Seed5": {
+    "BaseId": "Seed",
+    "Name": "Seed Orema",
+    "Tier": "5",
+    "Type": 3410
+  },
+  "Seed6": {
+    "BaseId": "Seed",
+    "Name": "Seed",
+    "Tier": "6",
+    "Type": 3410
+  },
+  "Seed7Humble": {
+    "BaseId": "SeedHumble",
+    "Name": "Seed Humble Bean",
+    "Tier": "7",
+    "Type": 3430
+  },
+  "Seed8Humble": {
+    "BaseId": "SeedHumble",
+    "Name": "Seed Humble Flower",
+    "Tier": "8",
+    "Type": 3410
+  },
+  "SeedGold": {
+    "BaseId": "SeedGold",
+    "Name": "Golden Seed",
+    "Tier": "",
+    "Type": 3410
+  },
+
+  "Skin-01": {
+    "BaseId": "Skin-01",
+    "Name": "Skin",
+    "Tier": "1",
+    "Type": 1130
+  },
+  "Skin-05": {
+    "BaseId": "Skin-05",
+    "Name": "Skin",
+    "Tier": "5",
+    "Type": 1130
+  },
+  "Skin-06": {
+    "BaseId": "Skin-06",
+    "Name": "Skin",
+    "Tier": "6",
+    "Type": 1130
+  },
+  "Skin-07": {
+    "BaseId": "Skin-07",
+    "Name": "Skin",
+    "Tier": "7",
+    "Type": 1130
+  },
+  "Skin-08": {
+    "BaseId": "Skin-08",
+    "Name": "Skin",
+    "Tier": "8",
+    "Type": 1130
+  },
+  "Skin-09": {
+    "BaseId": "Skin-09",
+    "Name": "Skin",
+    "Tier": "9",
+    "Type": 1130
+  },
+  "Skin-10": {
+    "BaseId": "Skin-10",
+    "Name": "Skin",
+    "Tier": "10",
+    "Type": 1130
+  },
+  "Skin-11": {
+    "BaseId": "Skin",
+    "Name": "Blueprint Skin",
+    "Tier": "11",
+    "Type": 1130
+  },
+  "Skin-03": {
+    "BaseId": "Skin",
+    "Name": "Blueprint Skin",
+    "Tier": "03",
+    "Type": 1130
+  },
+  "Skin-12": {
+    "BaseId": "Skin",
+    "Name": "Blueprint Skin",
+    "Tier": "12",
+    "Type": 1130
+  },
+  "Skin-16": {
+    "BaseId": "Skin",
+    "Name": "Blueprint Skin",
+    "Tier": "16",
+    "Type": 1130
+  },
+  "Skin-02": {
+    "BaseId": "Skin",
+    "Name": "Blueprint Skin",
+    "Tier": "2",
+    "Type": 1130
+  },
+  "Skin-14": {
+    "BaseId": "Skin",
+    "Name": "Blueprint Skin",
+    "Tier": "14",
+    "Type": 1130
+  },
+
+
+  "TreeRoot": {
+    "BaseId": "TreeRoot",
+    "Name": "Tree Bark",
+    "Tier": "",
+    "Type": 3660
+  },
+
+  "Tree1Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Linifolia Seed",
+    "Tier": "",
+    "Type": 3420
+  },
+  "Tree13Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed",
+    "Tier": "13",
+    "Type": 3420
+  },
+  "Tree10Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed",
+    "Tier": "10",
+    "Type": 3420
+  },
+  "Tree4Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed",
+    "Tier": "4",
+    "Type": 3420
+  },
+  "Tree2Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed",
+    "Tier": "2",
+    "Type": 3420
+  },
+  "Tree3Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed",
+    "Tier": "3",
+    "Type": 3420
+  },
+  "Tree11Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed",
+    "Tier": "11",
+    "Type": 3420
+  },
+  "Tree12Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed",
+    "Tier": "12",
+    "Type": 3420
+  },
+  "Tree8Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed",
+    "Tier": "8",
+    "Type": 3420
+  },
+
+  "Vegetable0Growable": {
+    "BaseId": "Vegetable0Growable",
+    "Name": "Eggplant",
+    "Tier": "",
+    "Type": 4110
+  },
+  "CookCocoaGrowable": {
+    "BaseId": "CookCocoaGrowable",
+    "Name": "Cocoa",
+    "Tier": "",
+    "Type": 4110
+  },
+  "CookWheatGrowable": {
+    "BaseId": "CookWheatGrowable",
+    "Name": "Wheat",
+    "Tier": "",
+    "Type": 4110
+  },
+  "Vegetable1Growable": {
+    "BaseId": "Vegetable1Growable",
+    "Name": "Squash",
+    "Tier": "",
+    "Type": 4110
+  },
+
+  "Vegetable2Growable": {
+    "BaseId": "Vegetable2Growable",
+    "Name": "Beans",
+    "Tier": "",
+    "Type": 4110
+  },
+
+  "Vegetable3Growable": {
+    "BaseId": "Vegetable3Growable",
+    "Name": "Mushroom",
+    "Tier": "",
+    "Type": 4110
+  },
+
+
+  "CookChocolate": {
+    "BaseId": "Chocolate",
+    "Name": "Chocolate",
+    "Tier": "",
+    "Type": 4120
+  },
+  "astrofood": {
+    "BaseId": "astrofood",
+    "Name": "Space Food",
+    "Tier": "",
+    "Type": 4120
+  },
+  "astrofood2": {
+    "BaseId": "astrofood",
+    "Name": "Space Food",
+    "Tier": "T2",
+    "Type": 4120
+  },
+  "honey": {
+    "BaseId": "honey",
+    "Name": "Honey",
+    "Tier": "",
+    "Type": 4120
+  },
+  "AnimalFood1": {
+    "BaseId": "AnimalFood",
+    "Name": "Animal Food",
+    "Tier": "",
+    "Type": 4120
+  },
+  "CookCookie1": {
+    "BaseId": "Cookie",
+    "Name": "Cookie",
+    "Tier": "",
+    "Type": 4120
+  },
+
+  "Vegetable0Seed": {
+    "BaseId": "Vegetable0Seed",
+    "Name": "Eggplant Seed",
+    "Tier": "",
+    "Type": 3430
+  },
+  "CookCocoaSeed": {
+    "BaseId": "CookCocoaSeed",
+    "Name": "Cocoa Seed",
+    "Tier": "",
+    "Type": 3430
+  },
+  "CookWheatSeed": {
+    "BaseId": "CookWheatSeed",
+    "Name": "Wheat Seed",
+    "Tier": "",
+    "Type": 3430
+  },
+  "Vegetable1Seed": {
+    "BaseId": "Vegetable1Seed",
+    "Name": "Squash Seed",
+    "Tier": "",
+    "Type": 3430
+  },
+  "Vegetable2Seed": {
+    "BaseId": "Vegetable2Seed",
+    "Name": "Bean Seed",
+    "Tier": "",
+    "Type": 3430
+  },
+  "Vegetable3Seed": {
+    "BaseId": "Vegetable3Seed",
+    "Name": "Mushroom Seed",
+    "Tier": "",
+    "Type": 3430
+  },
+
+  "WaterBottle1": {
+    "BaseId": "WaterBottle",
+    "Name": "Water Bottle",
+    "Tier": "",
+    "Type": 4310
+  },
+
+  "AlgaeGenerator1": {
+    "BaseId": "AlgaeGenerator",
+    "Name": "Algae Generator",
+    "Tier": "T1",
+    "PowerKw": -13,
+    "Type": 5340
+  },
+
+  "AlgaeGenerator2": {
+    "BaseId": "AlgaeGenerator",
+    "Name": "Algae Generator",
+    "Tier": "T2",
+    "PowerKw": -27,
+    "Type": 5340
+  },
+
+  "biodome": {
+    "BaseId": "biodome",
+    "Name": "Biodome",
+    "Tier": "T1",
+    "PowerKw": -37,
+    "Type": 6630
+  },
+  "biodome2": {
+    "BaseId": "biodome",
+    "Name": "Biodome",
+    "Tier": "T2",
+    "PowerKw": -75,
+    "Type": 6630
+  },
+
+  "ButterflyDome1": {
+    "BaseId": "ButterflyDome",
+    "Name": "Butterfly Dome",
+    "Tier": "T1",
+    "PowerKw": -139,
+    "Type": 6640
+  },
+
+  "Biolab": {
+    "BaseId": "Biolab",
+    "Name": "Biolab",
+    "Tier": "T1",
+    "PowerKw": -40,
+    "Type": 6650
+  },
+
+  "CraftStation1": {
+    "BaseId": "CraftStation",
+    "Name": "Craft Station",
+    "Tier": "T1",
+    "PowerKw": -0.5,
+    "Type": 6810
+  },
+  "CraftStation2": {
+    "BaseId": "CraftStation",
+    "Name": "Craft Station",
+    "Tier": "T2",
+    "PowerKw": -12.5,
+    "Type": 6810
+  },
+  "AutoCrafter1": {
+    "BaseId": "AutoCrafter1",
+    "Name": "Auto Crafter",
+    "Tier": "T1",
+    "PowerKw": -155,
+    "Type": 6810
+  },
+
+  "CookingStation1": {
+    "BaseId": "CookingStation",
+    "Name": "Cooking Station",
+    "Tier": "T1",
+    "Type": 6840
+  },
+
+  "Teleporter1": {
+    "BaseId": "Teleporter",
+    "Name": "Teleporter",
+    "Tier": "T1",
+    "PowerKw": -276,
+    "Type": 6520
+  },
+
+  "Drill0": {
+    "BaseId": "Drill0",
+    "Name": "Drill",
+    "Tier": "T1",
+    "PowerKw": -0.5,
+    "Type": 5110
+  },
+  "Drill1": {
+    "BaseId": "Drill1",
+    "Name": "Drill",
+    "Tier": "T2",
+    "PowerKw": -5,
+    "Type": 5110
+  },
+  "Drill2": {
+    "BaseId": "Drill2",
+    "Name": "Drill",
+    "Tier": "T3",
+    "PowerKw": -8.5,
+    "Type": 5110
+  },
+  "Drill3": {
+    "BaseId": "Drill3",
+    "Name": "Drill",
+    "Tier": "T4",
+    "PowerKw": -45.5,
+    "Type": 5110
+  },
+  "Drill4": {
+    "BaseId": "Drill4",
+    "Name": "Drill",
+    "Tier": "T5",
+    "PowerKw": -375.5,
+    "Type": 5110
+  },
+
+  "HarvestingRobot1": {
+    "BaseId": "HarvestingRobot",
+    "Name": "Harvesting Robot",
+    "Tier": "T1",
+    "PowerKw": -120,
+    "Type": 5440
+  },
+
+  "EnergyGenerator1": {
+    "BaseId": "EnergyGenerator1",
+    "Name": "Wind Turbine",
+    "Tier": "T1",
+    "PowerKw": 1.2,
+    "Icon": "windmill",
+    "Type": 6920
+  },
+  "EnergyGenerator2": {
+    "BaseId": "EnergyGenerator2",
+    "Name": "Solar Panel",
+    "Tier": "T1",
+    "PowerKw": 6.5,
+    "Icon": "sun",
+    "Type": 6920
+  },
+  "EnergyGenerator3": {
+    "BaseId": "EnergyGenerator3",
+    "Name": "Solar Panel",
+    "Tier": "T2",
+    "PowerKw": 19.5,
+    "Icon": "sun-large",
+    "Type": 6920
+  },
+  "EnergyGenerator4": {
+    "BaseId": "EnergyGenerator4",
+    "Name": "Nuclear Reactor",
+    "Tier": "T1",
+    "PowerKw": 86.5,
+    "Icon": "atom",
+    "Type": 6920
+  },
+  "EnergyGenerator5": {
+    "BaseId": "EnergyGenerator5",
+    "Name": "Nuclear Reactor",
+    "Tier": "T2",
+    "PowerKw": 331.5,
+    "Icon": "atoms",
+    "Type": 6920
+  },
+  "EnergyGenerator6": {
+    "BaseId": "EnergyGenerator6",
+    "Name": "Fusion Generator",
+    "Tier": "T6",
+    "PowerKw": 1485,
+    "Icon": "starburst",
+    "Type": 6920
+  },
+
+  "Foundation": {
+    "BaseId": "Foundation",
+    "Name": "Foundation",
+    "Tier": "",
+    "Type": 6310
+  },
+  "FoundationAngle": {
+    "BaseId": "FoundationAngle",
+    "Name": "Foundation Angle",
+    "Tier": "",
+    "Type": 6310
+  },
+  "FoundationSlope": {
+    "BaseId": "FoundationSlope",
+    "Name": "Foundation Slope",
+    "Tier": "",
+    "Type": 6310
+  },
+
+  "Ladder": {
+    "BaseId": "Ladder",
+    "Name": "Ladder",
+    "Tier": "",
+    "Type": 6140
+  },
+  "Stairs": {
+    "BaseId": "Stairs",
+    "Name": "Stairs",
+    "Tier": "",
+    "Type": 6140
+  },
+
+
+  "Desktop1": {
+    "BaseId": "Desktop",
+    "Name": "Desktop",
+    "Tier": "T1",
+    "Type": 6450
+  },
+  "Desktop2": {
+    "BaseId": "Desktop",
+    "Name": "Desk",
+    "Tier": "T2",
+    "Type": 6450
+  },
+  "BedDouble": {
+    "BaseId": "BedDouble",
+    "Name": "Bed",
+    "Tier": "",
+    "Type": 6460
+  },
+  "Table1": {
+    "BaseId": "Table",
+    "Name": "Table1",
+    "Tier": "",
+    "Type": 6460
+  },
+  "Toilet1": {
+    "BaseId": "Toilet",
+    "Name": "Toilet",
+    "Tier": "",
+    "Type": 6470
+  },
+  "Shower1": {
+    "BaseId": "Shower",
+    "Name": "Shower",
+    "Tier": "",
+    "Type": 6470
+  },
+
+  "Fence": {
+    "BaseId": "Fence",
+    "Name": "Fence",
+    "Tier": "",
+    "Type": 6480
+  },
+
+  "Poster10": {
+    "BaseId": "Poster",
+    "Name": "Poster",
+    "Tier": "10",
+    "Type": 6490
+  },
+  "Poster4": {
+    "BaseId": "Poster",
+    "Name": "Poster",
+    "Tier": "T4",
+    "Type": 6490
+  },
+  "Poster7": {
+    "BaseId": "Poster",
+    "Name": "Poster",
+    "Tier": "T7",
+    "Type": 6490
+  },
+
+
+  "GoldenEffigie1": {
+    "BaseId": "GoldenEffigie",
+    "Name": "Rocket Statue",
+    "Tier": "1",
+    "Type": 6480
+  },
+  "GoldenEffigie2": {
+    "BaseId": "GoldenEffigie",
+    "Name": "Escape Pod Statue",
+    "Tier": "2",
+    "Type": 6480
+  },
+  "GoldenEffigie3": {
+    "BaseId": "GoldenEffigie",
+    "Name": "Golden Effigy",
+    "Tier": "3",
+    "Type": 6480
+  },
+  "GoldenEffigie6": {
+    "BaseId": "GoldenEffigie",
+    "Name": "Golden Effigy",
+    "Tier": "6",
+    "Type": 6480
+  },
+  "AnimalEffigie3": {
+    "BaseId": "AnimalEffigie",
+    "Name": "Animal Statue",
+    "Tier": "3",
+    "Type": 6480
+  },
+  "AnimalEffigie2": {
+    "BaseId": "AnimalEffigie",
+    "Name": "Animal Statue",
+    "Tier": "2",
+    "Type": 6480
+  },
+
+  "GrassSpreader1": {
+    "BaseId": "GrassSpreader",
+    "Name": "Grass Spreader",
+    "Tier": "T1",
+    "PowerKw": -13.8,
+    "Type": 5330
+  },
+  "GrassSpreader2": {
+    "BaseId": "GrassSpreader",
+    "Name": "Grass Spreader",
+    "Tier": "T2",
+    "Type": 5330
+  },
+
+  "Heater1": {
+    "BaseId": "Heater",
+    "Name": "Heater",
+    "Tier": "T1",
+    "PowerKw": -1,
+    "Type": 5210
+  },
+  "Heater2": {
+    "BaseId": "Heater",
+    "Name": "Heater",
+    "Tier": "T2",
+    "PowerKw": -3.5,
+    "Type": 5210
+  },
+  "Heater3": {
+    "BaseId": "Heater",
+    "Name": "Heater",
+    "Tier": "T3",
+    "PowerKw": -17.5,
+    "Type": 5210
+  },
+  "Heater4": {
+    "BaseId": "Heater",
+    "Name": "Heater",
+    "Tier": "T4",
+    "PowerKw": -51.5,
+    "Type": 5210
+  },
+  "Heater5": {
+    "BaseId": "Heater",
+    "Name": "Heater",
+    "Tier": "T5",
+    "PowerKw": -360.5,
+    "Type": 5210
+  },
+
+  "LaunchPlatform": {
+    "BaseId": "LaunchPlatform",
+    "Name": "Launch Platform",
+    "Tier": "",
+    "PowerKw": -55,
+    "Type": 6530
+  },
+  "TradePlatform1": {
+    "BaseId": "TradePlatform",
+    "Name": "Trade Platform",
+    "Tier": "",
+    "PowerKw": -425,
+    "Type": 6540
+  },
+
+  "Pod4x": {
+    "BaseId": "Pod4x",
+    "Name": "Living Compartment 4x",
+    "Tier": "",
+    "Type": 6210
+  },
+  "Pod9xA": {
+    "BaseId": "Pod9x",
+    "Name": "Living Compartment 9x",
+    "Tier": "A",
+    "Type": 6210
+  },
+  "Pod9xC": {
+    "BaseId": "Pod9x",
+    "Name": "Living Compartment 9x",
+    "Tier": "C",
+    "Type": 6210
+  },
+
+  "ScreenEnergy": {
+    "BaseId": "ScreenEnergy",
+    "Name": "Energy Screen",
+    "Tier": "",
+    "PowerKw": -0.4,
+    "Type": 1310
+  },
+  "ScreenTerraformation": {
+    "BaseId": "ScreenTerraformation",
+    "Name": "Terraformation Screen",
+    "Tier": "",
+    "PowerKw": -0.4,
+    "Type": 1310
+  },
+  "ScreenTerraStage": {
+    "BaseId": "ScreenTerraStage",
+    "Name": "Terra Stage Screen",
+    "Tier": "",
+    "PowerKw": -1.3,
+    "Type": 1310
+  },
+  "ScreenUnlockables": {
+    "BaseId": "ScreenUnlockables",
+    "Name": "Blueprint Screen",
+    "Tier": "",
+    "PowerKw": -0.2,
+    "Type": 1310
+  },
+
+  "BlueprintT1": {
+    "BaseId": "Blueprint",
+    "Name": "Blueprint",
+    "Tier": "1",
+    "Type": 1120
+  },
+  "BlueprintT2": {
+    "BaseId": "Blueprint",
+    "Name": "Blueprint",
+    "Tier": "2",
+    "Type": 1120
+  },
+  "BlueprintT3": {
+    "BaseId": "Blueprint",
+    "Name": "Blueprint",
+    "Tier": "3",
+    "Type": 1120
+  },
+
+  "DroneStation1": {
+    "BaseId": "DroneStation",
+    "Name": "Drone Station",
+    "Tier": "T1",
+    "PowerKw": -850,
+    "Type": 6550
+  },
+
+  "VehicleCrafter1": {
+    "BaseId": "VehicleCrafter1",
+    "Name": "Vehicle Crafter",
+    "Tier": "T1",
+    "PowerKw": -63,
+    "Type": 6560
+  },
+
+
+  "Drone1": {
+    "BaseId": "Drone",
+    "Name": "Drone",
+    "Tier": "T1",
+    "Type": 11110
+  },
+  "Drone2": {
+    "BaseId": "Drone",
+    "Name": "Drone",
+    "Tier": "T2",
+    "Type": 11110
+  },
+
+  "RocketDrones1": {
+    "BaseId": "RocketDrone",
+    "Name": "Rocket Drone",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "RocketInsects1": {
+    "BaseId": "RocketInsects",
+    "Name": "Rocket Insects",
+    "Tier": "T1",
+    "Type": 8310
+  },
+
+  "GeneticManipulator1": {
+    "BaseId": "GeneticManipulator",
+    "Name": "Genetic Manipulator",
+    "Tier": "T1",
+    "PowerKw": -117.5,
+    "Type": 3210
+  },
+  "DNASequence": {
+    "BaseId": "DNASequence",
+    "Name": "DNA Sequencer",
+    "Tier": "T1",
+    "Type": 3220
+  },
+  "GeneticExtractor1": {
+    "BaseId": "GeneticExtractor",
+    "Name": "Genetic Extractor",
+    "Tier": "T1",
+    "PowerKw": -317.5,
+    "Type": 3210
+  },
+  "GeneticSynthetizer1": {
+    "BaseId": "GeneticSynthetizer",
+    "Name": "Genetic Synthetizer",
+    "Tier": "T1",
+    "PowerKw": -292,
+    "Type": 3210
+  },
+
+  "GeneticTrait": {
+    "BaseId": "GeneticTrait",
+    "Name": "Genetic Trait",
+    "Tier": "",
+    "Type": 3240
+  },
+
+  "Aquarium1": {
+    "BaseId": "Aquarium",
+    "Name": "Aquarium",
+    "Tier": "T1",
+    "PowerKw": -75,
+    "Type": 3510
+  },
+  "Aquarium2": {
+    "BaseId": "Aquarium",
+    "Name": "Aquarium",
+    "Tier": "T2",
+    "PowerKw": -225,
+    "Type": 3510
+  },
+  "AquariumTube1": {
+    "BaseId": "AquariumTube",
+    "Name": "Aquarium Tube",
+    "Tier": "T1",
+    "Type": 3510
+  },
+
+  "PulsarQuartz": {
+    "BaseId": "PulsarQuartz",
+    "Name": "Pulsar Quartz",
+    "Tier": "",
+    "Type": 2130
+  },
+  "BalzarQuartz": {
+    "BaseId": "BalzarQuartz",
+    "Name": "Balzar Quartz",
+    "Tier": "",
+    "Type": 2130
+  },
+  "SolarQuartz": {
+    "BaseId": "SolarQuartz",
+    "Name": "Solar Quartz",
+    "Tier": "",
+    "Type": 2130
+  },
+  "QuasarQuartz": {
+    "BaseId": "QuasarQuartz",
+    "Name": "Quasar Quartz",
+    "Tier": "",
+    "Type": 2130
+  },
+  "MagnetarQuartz": {
+    "BaseId": "MagnetarQuartz",
+    "Name": "Magnetar Quartz",
+    "Tier": "",
+    "Type": 2130
+  },
+
+  "AirFilter1": {
+    "BaseId": "AirFilter",
+    "Name": "Air Filter",
+    "Tier": "T1",
+    "Type": 1120
+  },
+  "WaterFilter": {
+    "BaseId": "WaterFilter",
+    "Name": "Water Filter",
+    "Tier": "T1",
+    "Type": 1120
+  },
+  "MapChip": {
+    "BaseId": "MapChip",
+    "Name": "Map Chip",
+    "Tier": "",
+    "Type": 1120
+  },
+
+  "ArcadeMachine1": {
+    "BaseId": "ArcadeMachine",
+    "Name": "Arcade Machine",
+    "Tier": "",
+    "Type": 6410
+  },
+
+  "Backpack1": {
+    "BaseId": "Backpack",
+    "Name": "Backpack",
+    "Tier": "T1",
+    "Type": 1120,
+    "inventoryId": 3,
+    "Size": 16,
+    "IsPrimary": true
+  },
+  "Backpack2": {
+    "BaseId": "Backpack",
+    "Name": "Backpack",
+    "Tier": "T2",
+    "Type": 1120,
+    "inventoryId": 3,
+    "Size": 20,
+    "IsPrimary": true
+  },
+  "Backpack3": {
+    "BaseId": "Backpack",
+    "Name": "Backpack",
+    "Tier": "T3",
+    "Type": 1120,
+    "inventoryId": 3,
+    "Size": 24,
+    "IsPrimary": true
+  },
+  "Backpack4": {
+    "BaseId": "Backpack",
+    "Name": "Backpack",
+    "Tier": "T4",
+    "Type": 1120,
+    "inventoryId": 3,
+    "Size": 30,
+    "IsPrimary": true
+  },
+  "Backpack5": {
+    "BaseId": "Backpack",
+    "Name": "Backpack",
+    "Tier": "T5",
+    "Type": 1120,
+    "inventoryId": 3,
+    "Size": 35,
+    "IsPrimary": true
+  },
+  "Backpack6": {
+    "BaseId": "Backpack",
+    "Name": "Backpack",
+    "Tier": "T6",
+    "Type": 1120,
+    "inventoryId": 3,
+    "Size": 45,
+    "IsPrimary": true
+  },
+  "Backpack7": {
+    "BaseId": "Backpack",
+    "Name": "Backpack",
+    "Tier": "T7",
+    "Type": 1120,
+    "inventoryId": 3,
+    "Size": 54,
+    "IsPrimary": true
+  },
+  "BootsSpeed1": {
+    "BaseId": "BootsSpeed",
+    "Name": "Agility Boots",
+    "Tier": "T1",
+    "Type": 1120
+  },
+  "BootsSpeed3": {
+    "BaseId": "BootsSpeed",
+    "Name": "Agility Boots",
+    "Tier": "T3",
+    "Type": 1120
+  },
+
+
+  "Bee1Larvae": {
+    "BaseId": "BeeLarvae",
+    "Name": "Bee Larva",
+    "Tier": "",
+    "Type": 3350
+  },
+  "SilkWorm": {
+    "BaseId": "SilkWorm",
+    "Name": "Silk Worm",
+    "Tier": "",
+    "Type": 3360
+  },
+
+  "Butterfly1Larvae": {
+    "BaseId": "ButterflyLarvae",
+    "Name": "Butterfly Larvae",
+    "Tier": "",
+    "Type": 3340
+  },
+  "Butterfly2Larvae": {
+    "BaseId": "ButterflyLarvae",
+    "Name": "Butterfly Larvae",
+    "Tier": "2",
+    "Type": 3340
+  },
+  "Butterfly9Larvae": {
+    "BaseId": "ButterflyLarvae",
+    "Name": "Butterfly Larvae",
+    "Tier": "9",
+    "Type": 3340
+  },
+
+  "Fish1Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs",
+    "Tier": "1",
+    "Type": 3720
+  },
+  "Fish12Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs",
+    "Tier": "12",
+    "Type": 3720
+  },
+  "Fish6Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs",
+    "Tier": "6",
+    "Type": 3720
+  },
+
+  "canister": {
+    "BaseId": "Canister",
+    "Name": "Empty Canister",
+    "Tier": "",
+    "Type": 9210
+  },
+
+  "Frog10Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs",
+    "Tier": "10",
+    "Type": 3710
+  },
+  "Frog11Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs",
+    "Tier": "11",
+    "Type": 3710
+  },
+  "Frog12Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs",
+    "Tier": "12",
+    "Type": 3710
+  },
+  "Frog1Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs",
+    "Tier": "1",
+    "Type": 3710
+  },
+  "Frog4Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs",
+    "Tier": "4",
+    "Type": 3710
+  },
+  "FrogGoldEggs": {
+    "BaseId": "FrogGoldEggs",
+    "Name": "Golden Frog Eggs",
+    "Tier": "",
+    "Type": 3710
+  },
+  "Frog6Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs",
+    "Tier": "6",
+    "Type": 3710
+  },
+
+  "Chair2": {
+    "BaseId": "Chair",
+    "Name": "Chair",
+    "Tier": "T2",
+    "Type": 6410
+  },
+
+  "Beacon": {
+    "BaseId": "Beacon",
+    "Name": "Beacon",
+    "Tier": "",
+    "PowerKw": -0.25,
+    "Type": 10110
+  },
+
+  "ComAntenna": {
+    "BaseId": "ComAntenna",
+    "Name": "Transmission Antenna",
+    "Tier": "",
+    "PowerKw": -15,
+    "Type": 6510
+  },
+
+  "Container1": {
+    "BaseId": "Container",
+    "Name": "Storage Container",
+    "Tier": "T1",
+    "Type": 9110,
+    "Size": 15,
+    "IsPrimary": true
+  },
+  "Container2": {
+    "BaseId": "Container",
+    "Name": "Storage Container",
+    "Tier": "T2",
+    "Type": 9110,
+    "Size": 35,
+    "IsPrimary": true
+  },
+  "Container3": {
+    "BaseId": "Container",
+    "Name": "Storage Container",
+    "Tier": "T3",
+    "Type": 9110,
+    "Size": 80,
+    "IsPrimary": true
+  },
+  "Locker1": {
+    "BaseId": "Locker",
+    "Name": "Locker",
+    "Tier": "T1",
+    "Type": 9110,
+    "Size": 15,
+    "IsPrimary": true
+  },
+
+  "Vault1": {
+    "BaseId": "Vault",
+    "Name": "Vault",
+    "Tier": "T1",
+    "Type": 9320,
+    "Size": 15,
+    "IsPrimary": true
+  },
+
+  "Counter1": {
+    "BaseId": "Counter",
+    "Name": "Counter",
+    "Tier": "T1",
+    "Type": 6440
+  },
+  "Counter2": {
+    "BaseId": "Counter",
+    "Name": "Counter",
+    "Tier": "T2",
+    "Type": 6440
+  },
+
+  "Destructor1": {
+    "BaseId": "Destructor",
+    "Name": "Shredder",
+    "Tier": "T1",
+    "PowerKw": -18,
+    "Type": 6830
+  },
+
+  "EquipmentIncrease1": {
+    "BaseId": "EquipmentIncrease",
+    "Name": "Exoskeleton",
+    "Tier": "T1",
+    "Type": 1120
+  },
+  "EquipmentIncrease2": {
+    "BaseId": "EquipmentIncrease",
+    "Name": "Exoskeleton",
+    "Tier": "T2",
+    "Type": 1120
+  },
+  "EquipmentIncrease3": {
+    "BaseId": "EquipmentIncrease",
+    "Name": "Exoskeleton",
+    "Tier": "T3",
+    "Type": 1120
+  },
+  "EquipmentIncrease4": {
+    "BaseId": "EquipmentIncrease",
+    "Name": "Exoskeleton",
+    "Tier": "T4",
+    "Type": 1120
+  },
+
+  "Jetpack1": {
+    "BaseId": "Jetpack",
+    "Name": "Jetpack",
+    "Tier": "T1",
+    "Type": 1120
+  },
+  "Jetpack2": {
+    "BaseId": "Jetpack",
+    "Name": "Jetpack",
+    "Tier": "T2",
+    "Type": 1120
+  },
+  "Jetpack3": {
+    "BaseId": "Jetpack",
+    "Name": "Jetpack",
+    "Tier": "T3",
+    "Type": 1120
+  },
+  "Jetpack4": {
+    "BaseId": "Jetpack",
+    "Name": "Jetpack",
+    "Tier": "T4",
+    "Type": 1120
+  },
+
+  "EscapePod": {
+    "BaseId": "EscapePod",
+    "Name": "Escape Pod",
+    "Tier": "",
+    "Type": 6220
+  },
+
+  "ExerciseBike1": {
+    "BaseId": "ExerciseBike",
+    "Name": "Exercise Bike",
+    "Tier": "",
+    "Type": 6430
+  },
+
+  "Faucet1": {
+    "BaseId": "Faucet",
+    "Name": "Faucet",
+    "Tier": "",
+    "Type": 6470
+  },
+
+  "FlowerPot1": {
+    "BaseId": "FlowerPot",
+    "Name": "Flower Pot",
+    "Tier": "T1",
+    "Type": 6480
+  },
+  "FlowerPot2": {
+    "BaseId": "FlowerPot",
+    "Name": "Flower Pot",
+    "Tier": "T2",
+    "Type": 6480
+  },
+  "FlowerPot3": {
+    "BaseId": "FlowerPot",
+    "Name": "Flower Pot",
+    "Tier": "T3",
+    "Type": 6480
+  },
+
+  "GasExtractor1": {
+    "BaseId": "GasExtractor",
+    "Name": "Gas Extractor",
+    "Tier": "T1",
+    "PowerKw": -58,
+    "Type": 5450
+  },
+  "GasExtractor2": {
+    "BaseId": "GasExtractor",
+    "Name": "Gas Extractor",
+    "Tier": "T2",
+    "PowerKw": -218,
+    "Type": 5450
+  },
+
+  "GoldenContainer": {
+    "BaseId": "GoldenContainer",
+    "Name": "Golden Storage Crate",
+    "Tier": "",
+    "Type": 9310
+  },
+
+  "HudCompass": {
+    "BaseId": "HudCompass",
+    "Name": "Compass Antenna",
+    "Tier": "",
+    "Type": 1120
+  },
+  "Incubator1": {
+    "BaseId": "Incubator",
+    "Name": "Incubator",
+    "Tier": "T1",
+    "PowerKw": -215,
+    "Type": 3550
+  },
+  "Ivy1": {
+    "BaseId": "Ivy",
+    "Name": "Ivy Seed",
+    "Tier": "",
+    "Type": 6480
+  },
+  "Keycard1": {
+    "BaseId": "Keycard",
+    "Name": "Access Card",
+    "Tier": "",
+    "Type": 11310
+  },
+  "Library1": {
+    "BaseId": "Library",
+    "Name": "Library",
+    "Tier": "",
+    "Type": 6420
+  },
+  "FuseCartridge": {
+    "BaseId": "FuseCartridge",
+    "Name": "Fuse Cartridge",
+    "Tier": "",
+    "Type": 9210
+  },
+  "MethanCapsule1": {
+    "BaseId": "MethanCapsule",
+    "Name": "Methane Cartridge",
+    "Tier": "",
+    "Type": 2210
+  },
+  "MultiBuild": {
+    "BaseId": "MultiBuild",
+    "Name": "Construction Microchip",
+    "Tier": "",
+    "Type": 1110
+  },
+  "MultiToolDeconstruct2": {
+    "BaseId": "MultiToolDeconstruct",
+    "Name": "Deconstruction Microchip",
+    "Tier": "T2",
+    "Type": 1110
+  },
+  "MultiToolDeconstruct3": {
+    "BaseId": "MultiToolDeconstruct",
+    "Name": "Deconstruction Microchip",
+    "Tier": "T3",
+    "Type": 1110
+  },
+  "MultiToolLight2": {
+    "BaseId": "MultiToolLight",
+    "Name": "Torch Microchip",
+    "Tier": "T2",
+    "Type": 1110
+  },
+  "MultiToolLight3": {
+    "BaseId": "MultiToolLight",
+    "Name": "Torch Microchip",
+    "Tier": "T3",
+    "Type": 1110
+  },
+  "MultiToolMineSpeed4": {
+    "BaseId": "MultiToolMineSpeed",
+    "Name": "Mining Speed Microchip",
+    "Tier": "T4",
+    "Type": 1110
+  },
+  "Mutagen1": {
+    "BaseId": "Mutagen",
+    "Name": "Mutagen",
+    "Tier": "T1",
+    "Type": 3110
+  },
+  "Mutagen2": {
+    "BaseId": "Mutagen",
+    "Name": "Mutagen",
+    "Tier": "T2",
+    "Type": 3110
+  },
+  "Mutagen3": {
+    "BaseId": "Mutagen",
+    "Name": "Mutagen",
+    "Tier": "T3",
+    "Type": 3110
+  },
+  "Mutagen4": {
+    "BaseId": "Mutagen",
+    "Name": "Mutagen",
+    "Tier": "T4",
+    "Type": 3110
+  },
+  "Phytoplankton1": {
+    "BaseId": "Phytoplankton",
+    "Name": "Phyto Plankton",
+    "Tier": "1",
+    "Type": 3610
+  },
+  "Phytoplankton2": {
+    "BaseId": "Phytoplankton",
+    "Name": "Phyto Plankton",
+    "Tier": "2",
+    "Type": 3620
+  },
+  "Phytoplankton3": {
+    "BaseId": "Phytoplankton",
+    "Name": "Phyto Plankton",
+    "Tier": "3",
+    "Type": 3630
+  },
+  "Optimizer1": {
+    "BaseId": "Optimizer",
+    "Name": "Machine Optimizer",
+    "Tier": "T1",
+    "PowerKw": -50,
+    "Type": 8210
+  },
+  "Optimizer2": {
+    "BaseId": "Optimizer",
+    "Name": "Machine Optimizer",
+    "Tier": "T2",
+    "PowerKw": -150,
+    "Type": 8210
+  },
+  "OreExtractor1": {
+    "BaseId": "OreExtractor",
+    "Name": "Ore Extractor",
+    "Tier": "T1",
+    "PowerKw": -34,
+    "Type": 5430
+  },
+  "OreExtractor2": {
+    "BaseId": "OreExtractor",
+    "Name": "Ore Extractor",
+    "Tier": "T2",
+    "PowerKw": -164,
+    "Type": 5430
+  },
+  "OreExtractor3": {
+    "BaseId": "OreExtractor",
+    "Name": "Ore Extractor",
+    "Tier": "T3",
+    "PowerKw": -289,
+    "Type": 5430
+  },
+  "OxygenTank1": {
+    "BaseId": "OxygenTank",
+    "Name": "Oxygen Tank",
+    "Tier": "T1",
+    "Type": 1120
+  },
+  "OxygenTank2": {
+    "BaseId": "OxygenTank",
+    "Name": "Oxygen Tank",
+    "Tier": "T2",
+    "Type": 1120
+  },
+  "OxygenTank3": {
+    "BaseId": "OxygenTank",
+    "Name": "Oxygen Tank",
+    "Tier": "T3",
+    "Type": 1120
+  },
+  "OxygenTank4": {
+    "BaseId": "OxygenTank",
+    "Name": "Oxygen Tank",
+    "Tier": "T4",
+    "Type": 1120
+  },
+  "PinChip2": {
+    "BaseId": "PinChip",
+    "Name": "Blueprint Pinning Chip",
+    "Tier": "T2",
+    "Type": 1110
+  },
+  "PinChip3": {
+    "BaseId": "PinChip",
+    "Name": "Blueprint Pinning Chip",
+    "Tier": "T3",
+    "Type": 1110
+  },
+  "PlanetViewer1": {
+    "BaseId": "PlanetViewer",
+    "Name": "Planet Information Screen",
+    "Tier": "T1",
+    "Type": 6480
+  },
+  "RocketMap4": {
+    "BaseId": "RocketMap",
+    "Name": "Rocket Map",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "pod": {
+    "BaseId": "Pod",
+    "Name": "Living Compartment",
+    "Tier": "",
+    "Type": 6210
+  },
+  "ProceduralInstanceGenerator": {
+    "BaseId": "ProceduralInstanceGenerator",
+    "Name": "Portal Generator",
+    "Tier": "",
+    "Type": 6570
+  },
+  "ProceduralWreckContainer1": {
+    "BaseId": "ProceduralWreckContainer",
+    "Name": "Wreckage Crate",
+    "Tier": "T1",
+    "Type": 9310
+  },
+  "ProceduralWreckContainer2": {
+    "BaseId": "ProceduralWreckContainer",
+    "Name": "Wreckage Crate",
+    "Tier": "T2",
+    "Type": 9310
+  },
+  "ProceduralWreckSafe": {
+    "BaseId": "ProceduralWreckSafe",
+    "Name": "Wreckage Safe",
+    "Tier": "",
+    "Type": 9310
+  },
+  "RecyclingMachine": {
+    "BaseId": "RecyclingMachine",
+    "Name": "Recycler",
+    "Tier": "",
+    "PowerKw": -12.5,
+    "Type": 6830
+  },
+  "RocketBiomass1": {
+    "BaseId": "RocketBiomass",
+    "Name": "Plants Rocket",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "RocketAnimals1": {
+    "BaseId": "RocketAnimals",
+    "Name": "Animal Rocket",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "RockExplodable": {
+    "BaseId": "RockExplodable",
+    "Name": "Rock Explodable",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "RocketHeat1": {
+    "BaseId": "RocketHeat",
+    "Name": "Asteroid Attraction Rocket",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "RocketInformations1": {
+    "BaseId": "RocketInformations",
+    "Name": "GPS Satellite",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "RocketMap1": {
+    "BaseId": "RocketMap",
+    "Name": "Map Information Rocket",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "RocketMap2": {
+    "BaseId": "RocketMap",
+    "Name": "Map Information Rocket",
+    "Tier": "T2",
+    "Type": 8310
+  },
+  "RocketMap3": {
+    "BaseId": "RocketMap",
+    "Name": "Map Information Rocket",
+    "Tier": "T3",
+    "Type": 8310
+  },
+  "RocketOxygen1": {
+    "BaseId": "RocketOxygen",
+    "Name": "Oxygen Spreading Rocket",
+    "Tier": "T1",
+    "Type": 8310
+  },
+  "RocketPressure1": {
+    "BaseId": "RocketPressure",
+    "Name": "Magnetic Field Protection Rocket",
+    "Tier": "T1",
+    "Type": 8310
+  },
+
+  "ScreenMap1": {
+    "BaseId": "ScreenMap",
+    "Name": "Map Screen",
+    "Tier": "T1",
+    "PowerKw": -14.7,
+    "Type": 1310
+  },
+  "ScreenMessage": {
+    "BaseId": "ScreenMessage",
+    "Name": "Messages Screen",
+    "Tier": "",
+    "PowerKw": -0.4,
+    "Type": 1310
+  },
+  "ScreenBiomass": {
+    "BaseId": "ScreenBiomass",
+    "Name": "Biomass Screen",
+    "Tier": "",
+    "PowerKw": -3.4,
+    "Type": 1310
+  },
+  "ScreenRockets": {
+    "BaseId": "ScreenRockets",
+    "Name": "Orbital Information Screen",
+    "Tier": "",
+    "PowerKw": -35.2,
+    "Type": 1310
+  },
+  "RocketInformations2": {
+    "BaseId": "RocketInformations",
+    "Name": "Rocket Information",
+    "Tier": "",
+    "Type": 1310
+  },
+
+  "SeedSpreader1": {
+    "BaseId": "SeedSpreader",
+    "Name": "Flower Spreader",
+    "Tier": "T1",
+    "PowerKw": -28.8,
+    "Type": 5320
+  },
+  "SeedSpreader2": {
+    "BaseId": "SeedSpreader",
+    "Name": "Flower Spreader",
+    "Tier": "T2",
+    "PowerKw": -38.8,
+    "Type": 5320
+  },
+
+  "Server1": {
+    "BaseId": "Server",
+    "Name": "Server",
+    "Tier": "T1",
+    "Type": 6480
+  },
+  "Shelves1": {
+    "BaseId": "Shelves",
+    "Name": "Storage Shelves",
+    "Tier": "T1",
+    "Type": 6450
+  },
+
+  "Sign": {
+    "BaseId": "Sign",
+    "Name": "Sign",
+    "Tier": "",
+    "Type": 10210
+  },
+
+  "TerraTokens100": {
+    "BaseId": "TerraTokens",
+    "Name": "Terra Tokens (100)",
+    "Tier": "",
+    "Type": 2710
+  },
+  "TerraTokens1000": {
+    "BaseId": "TerraTokens",
+    "Name": "Terra Tokens (1000)",
+    "Tier": "",
+    "Type": 2710
+  },
+  "TerraTokens500": {
+    "BaseId": "TerraTokens",
+    "Name": "Terra Tokens (500)",
+    "Tier": "",
+    "Type": 2710
+  },
+  "TerraTokens5000": {
+    "BaseId": "TerraTokens",
+    "Name": "Terra Tokens (5000)",
+    "Tier": "",
+    "Type": 2710
+  },
+
+  "Treadmill1": {
+    "BaseId": "Treadmill",
+    "Name": "Treadmill",
+    "Tier": "",
+    "Type": 6430
+  },
+
+  "TreePlanter2": {
+    "BaseId": "TreePlanter",
+    "Name": "Tree Spreader",
+    "Tier": "T2",
+    "PowerKw": -71,
+    "Type": 5310
+  },
+  "TreeSpreader1": {
+    "BaseId": "TreeSpreader",
+    "Name": "Tree Spreader",
+    "Tier": "T1",
+    "PowerKw": -31,
+    "Type": 5310
+  },
+  "TreeSpreader2": {
+    "BaseId": "TreeSpreader",
+    "Name": "Tree Spreader",
+    "Tier": "T2",
+    "PowerKw": -153,
+    "Type": 5310
+  },
+
+  "Vegetube1": {
+    "BaseId": "Vegetube",
+    "Name": "Vegetube",
+    "Tier": "T1",
+    "PowerKw": -0.35,
+    "Type": 6820
+  },
+
+  "Vegetube2": {
+    "BaseId": "Vegetube",
+    "Name": "Vegetube",
+    "Tier": "T2",
+    "PowerKw": -1.25,
+    "Type": 6820
+  },
+
+  "VegetubeOutside1": {
+    "BaseId": "VegetubeOutside",
+    "Name": "Vegetube",
+    "Tier": "T3",
+    "PowerKw": -7.25,
+    "Type": 5520
+  },
+
+  "FishFarm1": {
+    "BaseId": "FishFarm",
+    "Name": "Fish Farm",
+    "Tier": "T1",
+    "PowerKw": -155.5,
+    "Type": 3530
+  },
+  "AmphibiansFarm1": {
+    "BaseId": "AmphibiansFarm",
+    "Name": "Amphibian Farm",
+    "Tier": "T1",
+    "PowerKw": -155,
+    "Type": 3560
+  },
+
+  "Ecosystem1": {
+    "BaseId": "Ecosystem",
+    "Name": "Eco System",
+    "Tier": "T1",
+    "PowerKw": -325,
+    "Type": 6930
+  },
+  "WaterLifeCollector1": {
+    "BaseId": "WaterLifeCollector",
+    "Name": "Water Life Collector",
+    "Tier": "T1",
+    "PowerKw": -105.5,
+    "Type": 6930
+  },
+
+  "ButterflyFarm1": {
+    "BaseId": "ButterflyFarm",
+    "Name": "Butterfly Farm",
+    "Tier": "T1",
+    "PowerKw": -30,
+    "Type": 3540
+  },
+  "ButterflyFarm2": {
+    "BaseId": "ButterflyFarm",
+    "Name": "Butterfly Farm",
+    "Tier": "T2",
+    "PowerKw": -45,
+    "Type": 3540
+  },
+
+  "Beehive1": {
+    "BaseId": "Beehive",
+    "Name": "Beehive",
+    "Tier": "T1",
+    "PowerKw": -25,
+    "Type": 6910
+  },
+  "Beehive2": {
+    "BaseId": "Beehive",
+    "Name": "Beehive",
+    "Tier": "T2",
+    "PowerKw": -95,
+    "Type": 6910
+  },
+
+  "AnimalFeeder1": {
+    "BaseId": "AnimalFeeder",
+    "Name": "Animal Feeder",
+    "Tier": "",
+    "PowerKw": -95,
+    "Type": 5510
+  },
+
+  "AnimalShelter1": {
+    "BaseId": "AnimalShelter",
+    "Name": "Animal Shelter",
+    "Tier": "",
+    "PowerKw": -270,
+    "Type": 3520
+  },
+
+  "SilkGenerator": {
+    "BaseId": "SilkGenerator",
+    "Name": "Silk Generator",
+    "Tier": "",
+    "PowerKw": -38,
+    "Type": 6850
+  },
+
+  "VehicleTruck": {
+    "BaseId": "VehicleTruck",
+    "Name": "Rover",
+    "Tier": "",
+    "Type": 1140
+  },
+
+  "VendingMachine1": {
+    "BaseId": "VendingMachine",
+    "Name": "Vending Machine",
+    "Tier": "",
+    "Type": 6480
+  },
+
+  "WardenKey": {
+    "BaseId": "WardenKey",
+    "Name": "Warden Key",
+    "Tier": "",
+    "Type": 11410
+  },
+
+  "FusionEnergyCell": {
+    "BaseId": "FusionEnergyCell",
+    "Name": "Fusion Energy Cell",
+    "Tier": "",
+    "Type": 11210
+  },
+
+  "WaterCollector1": {
+    "BaseId": "WaterCollector",
+    "Name": "Water Collector",
+    "Tier": "T1",
+    "PowerKw": -11,
+    "Type": 6940
+  },
+  "WaterCollector2": {
+    "BaseId": "WaterCollector",
+    "Name": "Water Collector",
+    "Tier": "T2",
+    "PowerKw": -19,
+    "Type": 6940
+  },
+
+  "WreckEntryLocked1": {
+    "BaseId": "WreckEntryLocked",
+    "Name": "Locked Wreck Door",
+    "Tier": "",
+    "Type": 12120
+  },
+
+  "WreckFusionGenerator": {
+    "BaseId": "WreckFusionGenerator",
+    "Name": "Wreck Fusion Reactor",
+    "Tier": "",
+    "Type": 12130
+  },
+
+  "WreckPilar": {
+    "BaseId": "WreckPilar",
+    "Name": "Wreck Pillar",
+    "Tier": "",
+    "Type": 12140
+  },
+  "WreckServer": {
+    "BaseId": "WreckServer",
+    "Name": "Wreckage Server",
+    "Tier": "",
+    "Type": 12140
+  },
+
+  "WreckRockExplodable": {
+    "BaseId": "WreckRockExplodable",
+    "Name": "Explodable Debris",
+    "Tier": "",
+    "Type": 12150
+  }
+}
+
+
+
+
+

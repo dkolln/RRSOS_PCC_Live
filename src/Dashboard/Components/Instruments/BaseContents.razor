@@ -1,0 +1,195 @@
+@using System.Text.RegularExpressions
+@inject ItemCatalog Catalog
+
+@* What one base holds: stored items (grouped by name, type or category), crops ready to harvest, loose items on the
+   ground, and a search across every base. Ported from RRSOS-PCC's Base Contents card. *@
+<div class="contents @(Dim ? "is-dim" : "")">
+
+    @if (SelectedBase is null)
+    {
+        <div class="contents-empty">@EmptyText</div>
+    }
+    else
+    {
+        var info = SelectedBase.Info;
+
+        <div class="contents-title">
+            <span class="contents-name">@SelectedBase.Name</span>
+            <span class="contents-meta">@SelectedBase.DisplayDistance @SelectedBase.Direction · @(SelectedBase.Kind == BaseKind.Outpost ? "outpost" : "base")</span>
+            <span class="contents-spacer"></span>
+
+            @if (IsPinned)
+            {
+                <button class="contents-btn" @onclick="OnFollowNearest" title="Go back to showing the nearest base">🔒 Follow nearest</button>
+            }
+            else
+            {
+                <span class="contents-meta">nearest</span>
+            }
+        </div>
+
+        <div class="contents-group">
+            <span>Group by:</span>
+
+            @foreach (var (mode, label) in Modes)
+            {
+                <button class="contents-btn @(_mode == mode ? "active" : "")" @onclick="() => _mode = mode">@label</button>
+            }
+        </div>
+
+        @if (info.Stored.Count == 0 && info.Ready.Count == 0 && info.Loose.Count == 0)
+        {
+            <div class="contents-empty">Nothing stored here.</div>
+        }
+
+        <div class="contents-lists">
+            @if (info.Stored.Count > 0)
+            {
+                <div class="contents-list"><ItemList Title="@ModeTitle" Data="@Grouped(info.Stored)" Columns="2" /></div>
+            }
+
+            @if (info.Ready.Count > 0)
+            {
+                <div class="contents-list ready"><ItemList Title="Ready to harvest" Data="@Grouped(info.Ready, byName: true)" Columns="2" /></div>
+            }
+
+            @if (info.Loose.Count > 0)
+            {
+                <div class="contents-list loose"><ItemList Title="Boneyard (loose)" Data="@Grouped(info.Loose, byName: true)" Columns="2" /></div>
+            }
+        </div>
+
+        <div class="contents-search">
+            <input class="contents-input" placeholder="Search every base for an item..." @bind="_search" @bind:event="oninput" />
+
+            @if (!string.IsNullOrWhiteSpace(_search))
+            {
+                var results = Search().ToList();
+
+                @if (results.Count == 0)
+                {
+                    <div class="contents-empty">No matches.</div>
+                }
+
+                <div class="search-results">
+                    @foreach (var item in results)
+                    {
+                        <div class="search-item">@item.Name</div>
+
+                        @foreach (var where in item.Places)
+                        {
+                            <div class="search-row">
+                                <span>@where.Base.Name</span>
+                                <span class="search-count">@where.Text</span>
+                                <span class="search-where">@where.Base.DisplayDistance @where.Base.Direction</span>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private enum GroupMode { Name, Type, Category }
+
+    private static readonly (GroupMode Mode, string Label)[] Modes =
+    {
+        (GroupMode.Name, "Name"),
+        (GroupMode.Type, "Type"),
+        (GroupMode.Category, "Category")
+    };
+
+    private static readonly Regex Words = new("(?<=[a-z])(?=[A-Z])", RegexOptions.Compiled);
+
+    /// <summary>The base being shown, or null when there are none.</summary>
+    [Parameter]
+    public BaseView? SelectedBase { get; set; }
+
+    /// <summary>Every base, for the search (with distances from where the player stands).</summary>
+    [Parameter]
+    public IReadOnlyList<BaseView> AllBases { get; set; } = Array.Empty<BaseView>();
+
+    /// <summary>True when the base was picked by hand, false when it is simply the nearest one.</summary>
+    [Parameter]
+    public bool IsPinned { get; set; }
+
+    /// <summary>Raised when the user drops a pinned base and goes back to following the nearest.</summary>
+    [Parameter]
+    public EventCallback OnFollowNearest { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    [Parameter]
+    public string EmptyText { get; set; } = "No bases found.";
+
+    private GroupMode _mode = GroupMode.Category;
+    private string _search = "";
+
+    private string ModeTitle => _mode switch
+    {
+        GroupMode.Name => "Stored, by name",
+        GroupMode.Type => "Stored, by type",
+        _ => "Stored, by category"
+    };
+
+    // Items counted under whatever the card is grouped by. Ready crops and loose items are always listed by name.
+    private InventoryData Grouped(IReadOnlyList<ItemCount> items, bool byName = false)
+    {
+        var groups = items
+            .GroupBy(i => byName ? i.Name : _mode switch
+            {
+                GroupMode.Name => i.Name,
+                GroupMode.Type => Spaced(Catalog.TypeOf(i.Id).ToString()),
+                _ => Spaced(Catalog.CategoryOf(i.Id).ToString())
+            })
+            .Select(g => new ItemData { Id = g.Key, Name = g.Key, Count = g.Sum(i => i.Count) })
+            .ToList();
+
+        return new InventoryData { Items = groups };
+    }
+
+    private static string Spaced(string name) => Words.Replace(name, " ");
+
+    private sealed record Place(BaseView Base, int Stored, int Loose)
+    {
+        public string Text => string.Join(", ", new[] { Stored > 0 ? $"{Stored} stored" : null, Loose > 0 ? $"{Loose} loose" : null }.Where(t => t is not null));
+    }
+
+    private sealed record Found(string Name, List<Place> Places);
+
+    // Matches what the card shows (the item's name) as well as its raw id, in stored and loose items of every base.
+    private IEnumerable<Found> Search()
+    {
+        var text = _search.Trim();
+
+        bool Matches(ItemCount item) =>
+            item.Name.Contains(text, StringComparison.OrdinalIgnoreCase) || item.Id.Contains(text, StringComparison.OrdinalIgnoreCase);
+
+        // Per item name, one line for each base that has some (its stored and loose counts together).
+        var hits = new Dictionary<string, List<Place>>();
+
+        foreach (var view in AllBases)
+        {
+            var names = view.Info.Stored.Concat(view.Info.Loose).Where(Matches).Select(i => i.Name).Distinct();
+
+            foreach (var name in names)
+            {
+                var stored = view.Info.Stored.Where(i => i.Name == name && Matches(i)).Sum(i => i.Count);
+                var loose = view.Info.Loose.Where(i => i.Name == name && Matches(i)).Sum(i => i.Count);
+
+                if (!hits.TryGetValue(name, out var places))
+                    hits[name] = places = new List<Place>();
+
+                places.Add(new Place(view, stored, loose));
+            }
+        }
+
+        return hits
+            .OrderBy(h => h.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(h => new Found(h.Key, h.Value.OrderBy(p => p.Base.Distance).ToList()));
+    }
+}

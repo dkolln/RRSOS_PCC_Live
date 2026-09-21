@@ -1,0 +1,181 @@
+@* Every extractor, grouped: ore by what it mines, then gas, water and algae. Each shows how full it is, where it is and
+   which way from the player. Ported from RRSOS-PCC's Extractors card. *@
+<div class="extractors @(Dim ? "is-dim" : "")">
+
+    @if (Groups.Count == 0)
+    {
+        <div class="extractors-empty">@EmptyText</div>
+    }
+
+    @foreach (var group in Groups)
+    {
+        var groupOpen = !_closed.Contains(group.Key);
+
+        <div class="ex-group" @onclick="() => Toggle(group.Key)">
+            <span class="ex-caret">@(groupOpen ? "▼" : "▶")</span>
+            <span class="ex-group-name">@group.Title</span>
+            <span class="ex-group-total">@group.Items items</span>
+            <span class="ex-group-full @(group.Full > 0 ? "has-full" : "")">@group.Full/@group.Rows.Count full</span>
+        </div>
+
+        @if (groupOpen)
+        {
+            @foreach (var sub in group.Subs)
+            {
+                var subKey = group.Key + "/" + sub.Title;
+                var subOpen = !_closed.Contains(subKey);
+
+                @if (group.Subs.Count > 1 || sub.Title != group.Title)
+                {
+                    <div class="ex-sub" @onclick="() => Toggle(subKey)">
+                        <span class="ex-caret">@(subOpen ? "▼" : "▶")</span>
+                        <span class="ex-sub-name">@sub.Title</span>
+                        <span class="ex-group-total">@sub.Items items</span>
+                        <span class="ex-group-full @(sub.Full > 0 ? "has-full" : "")">@sub.Full/@sub.Rows.Count full</span>
+                    </div>
+                }
+
+                @if (subOpen)
+                {
+                    <div class="ex-tiles">
+                        @foreach (var row in sub.Rows)
+                        {
+                            <div class="ex-tile @(row.IsFull ? "is-full" : "")">
+                                <div class="ex-tile-head">
+                                    <span class="ex-pos">@row.Position</span>
+                                    <span class="ex-where">@row.Where</span>
+                                </div>
+
+                                <div class="ex-fill" title="@row.FillText">
+                                    <div class="ex-fill-bar" style="width: @Inv($"{row.FillFraction * 100:0.#}")%"></div>
+                                    <span class="ex-fill-text">@row.FillText</span>
+                                </div>
+
+                                @if (row.Data.Items.Count == 0)
+                                {
+                                    <div class="ex-none">no contents</div>
+                                }
+                                else
+                                {
+                                    @foreach (var item in row.Data.Items.OrderBy(i => i.Label, StringComparer.CurrentCultureIgnoreCase))
+                                    {
+                                        <div class="ex-line">
+                                            <span class="ex-line-name">@item.Label</span>
+                                            <span class="ex-line-count">@item.Count@(row.Data.Kind == "algae" && item.Ready > 0 ? $" ({item.Ready} ready)" : "")</span>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        }
+    }
+</div>
+
+@code {
+    private static readonly string[] Order = { "ore", "gas", "water", "algae" };
+
+    /// <summary>Every extractor the plugin found.</summary>
+    [Parameter]
+    public IReadOnlyList<ExtractorData> Data { get; set; } = Array.Empty<ExtractorData>();
+
+    /// <summary>Where the player stands (raw world X, Z). Without it, distances and directions are left out.</summary>
+    [Parameter]
+    public Vector2? PlayerFlat { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    [Parameter]
+    public string EmptyText { get; set; } = "No extractors found.";
+
+    // Groups the user has folded shut. Everything starts open, and the choice survives new readings.
+    private readonly HashSet<string> _closed = new();
+
+    private void Toggle(string key)
+    {
+        if (!_closed.Remove(key))
+            _closed.Add(key);
+    }
+
+    private sealed class Row
+    {
+        public required ExtractorData Data { get; init; }
+        public required string Position { get; init; }
+        public required string Where { get; init; }
+        public float Distance { get; init; }
+        public bool IsFull { get; init; }
+        public float FillFraction { get; init; }
+        public required string FillText { get; init; }
+    }
+
+    private sealed class Sub
+    {
+        public required string Title { get; init; }
+        public required List<Row> Rows { get; init; }
+        public int Items => Rows.Sum(r => r.Data.Count);
+        public int Full => Rows.Count(r => r.IsFull);
+    }
+
+    private sealed class Group
+    {
+        public required string Key { get; init; }
+        public required string Title { get; init; }
+        public required List<Sub> Subs { get; init; }
+        public List<Row> Rows => Subs.SelectMany(s => s.Rows).ToList();
+        public int Items => Rows.Sum(r => r.Data.Count);
+        public int Full => Rows.Count(r => r.IsFull);
+    }
+
+    private List<Group> Groups => Data
+        .Where(e => e.Position is not null)
+        .Select(ToRow)
+        .GroupBy(r => r.Data.Kind)
+        .OrderBy(g => Array.IndexOf(Order, g.Key) is var at and >= 0 ? at : Order.Length)
+        .Select(g => new Group
+        {
+            Key = g.Key,
+            Title = Title(g.Key),
+
+            // Ore and gas are split by what they mine; water and algae are one list.
+            Subs = g.GroupBy(r => g.Key is "ore" or "gas" ? r.Data.ProductName ?? r.Data.Product ?? "Unset" : Title(g.Key))
+                    .OrderBy(s => s.Key, StringComparer.CurrentCultureIgnoreCase)
+                    .Select(s => new Sub { Title = s.Key, Rows = s.OrderBy(r => r.Distance).ToList() })
+                    .ToList()
+        })
+        .ToList();
+
+    private Row ToRow(ExtractorData e)
+    {
+        var position = new Vector2((float)e.Position!.X, (float)e.Position.Z);
+
+        // Algae are "full" when they have all grown; the others when their storage is.
+        var have = e.Kind == "algae" ? e.Ready : e.Count;
+        var isFull = e.Size > 0 && have >= e.Size;
+
+        return new Row
+        {
+            Data = e,
+            Position = Inv($"X {position.X:F0}   Z {position.Y:F0}"),
+            Distance = PlayerFlat is { } player ? Vector2.Distance(player, position) : 0f,
+            Where = PlayerFlat is { } here ? $"{(int)Vector2.Distance(here, position)} m {Compass.GetCompassDirection(here, position)}" : "",
+            IsFull = isFull,
+            FillFraction = e.Size > 0 ? Math.Clamp((float)have / e.Size, 0f, 1f) : 0f,
+            FillText = e.Size > 0 ? $"{have} / {e.Size}{(e.Kind == "algae" ? " grown" : "")}" : $"{have}"
+        };
+    }
+
+    private static string Title(string kind) => kind switch
+    {
+        "ore" => "Ore",
+        "gas" => "Gas",
+        "water" => "Water",
+        "algae" => "Algae",
+        _ => kind
+    };
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}

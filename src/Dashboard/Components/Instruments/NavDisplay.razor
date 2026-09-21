@@ -131,9 +131,19 @@
         <div class="nav-caption @TrendClass">@TrendText</div>
     </div>
 
+    @* One more instrument at the end of the row (the Player card puts the small base map here). *@
+    @if (Extra is not null)
+    {
+        <div class="nav-panel">@Extra</div>
+    }
+
 </div>
 
 @code {
+    /// <summary>An extra instrument drawn after the others in the row.</summary>
+    [Parameter]
+    public RenderFragment? Extra { get; set; }
+
     private const float TapePxPerMetre = 3f;
     private const int TapeReachMetres = 100;
     private const int MaxTrail = 24;
