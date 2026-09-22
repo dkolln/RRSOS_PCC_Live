@@ -10,7 +10,7 @@
 >
 > **Added later the same day: plugin 0.3.0 with bases and extractors (section 9).** None of that has run in the game.
 > The owner confirmed that player, vehicle, power and planet data "all look good" in the game before this was added.
-> **Start with section 9**, then tick off the older leftovers (sections 3 to 6) as you meet them.
+> **Start with section 9, then section 10 (drones)**, then tick off the older leftovers (sections 3 to 6) as you meet them.
 
 Work top to bottom. Each item says what to do and what should happen. Tick them off; anything that does not match is
 a bug or a wrong assumption, so write down what you saw. A few PowerShell snippets are at the end.
@@ -144,7 +144,7 @@ These are the likely places for surprises. Each is a guess, made from reading th
 6. **Inventory display names** use `Readable.GetGroupName`. If it throws or returns nothing, the id is shown.
 7. **Gauge maximums** are read with reflection from private fields; a game update that renames them makes the dials fall back to 100.
 8. **Multiplayer** is unsupported: only the local player is read.
-9. **Drones** are not in the file yet. Bases and extractors are (section 9).
+9. Bases and extractors are in the file (section 9), and drones (section 10).
 
 ## 9. Base and Extractors (plugin 0.3.0; on the Main page: the Bases map, the Base card and the Extractors card)
 
@@ -205,17 +205,17 @@ The page is three columns: **Player with Vehicle under it**, then **Planet**, th
 
 ### 9.4 Base card (top right)
 
-The card names the base (`Main`, `120m NW`, `base` or `outpost`) and has three lists, **all folded to begin with**: `Stored`, `Ready to harvest` and `Boneyard (loose)`
-(the last two side by side). Click a title to open it; it shows 20 rows and then scrolls. Pick a base you know well (a room with a few chests).
+The card names the base (`Main`, `120m NW`, `base` or `outpost`) and has three lists, **all open on load**: `Stored`, `Ready to harvest` and `Boneyard (loose)`
+(the last two side by side). Each shows 10 rows and then scrolls; click a title to fold it away. Pick a base you know well (a room with a few chests).
 
 - [ ] **Stored** lists what is in the base's containers, by the game's own (localized) names. **Add 5 Iron to a chest in that base: within about 10 seconds Iron goes up by 5.** Take some out: it goes down.
 - [ ] Items in **machines** with storage (auto-crafters, incubators, growers) are counted as stored too (RRSOS-PCC does the same).
 - [ ] Nothing that is a **machine or a building part** is listed as stored (no `Foundation`, no placed chests).
 - [ ] **Ready to harvest:** plants that have finished growing in a Vegetable Grower or Outdoor Farm, by name. Harvest one: the count drops. Plants still growing are not listed here (but do count under `Stored`, as in RRSOS-PCC).
-- [ ] **Boneyard (loose):** drop 3 Iron on the floor inside a base: within about 10 seconds `Iron 3` (or more) appears here. Pick them up: gone.
-  It must not fill up with the landscape's own rocks or the loot in wrecks. **Likely surprise:** plants you grew outdoors and other things you placed in the open (that are items, not machines)
-  may appear here; note which.
-- [ ] The three lists scroll after 20 rows, and the number on each title is the total item count.
+- [ ] **Boneyard (loose):** it shows **loose raw material only**: ore (iron, cobalt, titanium, silicon, magnesium, iridium, aluminium, uranium, sulfur, obsidian, zeolite, osmium, ice), super alloy, quartz and rods. Drop 3 Iron on the floor inside a base: within about 10 seconds `Iron 3` (or more) appears here. Pick them up: gone.
+  Plants growing outdoors, drones, vehicles, wheat, cocoa, algae and the like must **not** appear. The landscape's own rocks and the loot in wrecks must not either.
+  Anything the table does not know is left out; note any material you see lying around that is missing.
+- [ ] The three lists scroll after 10 rows, and the number on each title is the total item count.
 - [ ] **Range:** something in a chest more than 100 metres from every base is listed nowhere (it belongs to no base). Something 60 m from base A and 90 m from base B belongs to A.
 - [ ] Launched rockets (the hidden storage far away) never show up in any base.
 - [ ] Compare the Stored list with RRSOS-PCC's for the same base on a fresh save. Small differences (a few items) are expected while things move; large ones are not, so note the base and the item.
@@ -231,7 +231,7 @@ The card's title shows how many it found (ore, gas, water and algae machines; RR
 - [ ] **Fill level:** the count matches what the machine's own screen shows; `slots` matches its capacity. A machine whose storage is full has a gold outline and counts under `full`.
 - [ ] **Water collectors** (`Water Bottle`), **gas extractors** (their capsule) and **algae generators** are their own groups. For algae the bar counts only algae that have **finished growing** (`5 / 8 grown`) and the line says how many are ready.
 - [ ] An empty machine says `no contents` and an empty bar.
-- [ ] Click a group header (or an ore's header) to fold it; it stays folded while data refreshes.
+- [ ] **Ore, Gas, Water and Algae start open; the individual ores (and gases) under them start folded**, showing only `n items x/y full`. Click an ore's header to open its machines, or a kind's header to fold it; what you open or fold stays that way while data refreshes.
 - [ ] Extractors on another planet, and kinds not listed here (the genetic extractor, the water-life collector), are not shown. Note if you have any and want them.
 
 ### 9.6 Dashboard behaviour
@@ -253,6 +253,46 @@ The card's title shows how many it found (ore, gas, water and algae machines; RR
 7. **Objects with an id below 200,000,000 are the landscape's**, so they are not loose items. If your own dropped items never show as loose, this rule is wrong.
 8. **A container is anything constructed and placed that has storage**; a sign is a group called `Sign`. Anything else that has storage (a machine) counts as a container too.
 9. **Base logic** (what is a base, names, the 100 m ownership, ready to harvest) was **ported by reading** RRSOS-PCC, and checked against a real save, but not against a running game.
+
+## 10. Drones (plugin 0.3.0: `drones` in `live.json`, `droneStations` in `live-world.json`)
+
+**Not run in the game yet.** Built from the decompiled code (`Drone`, `MachineDroneStation`, `LogisticTask`) and checked on fake data only. Needs a world with at least one
+drone station and a few drones working (an auto-crafter or a grower being fed from a container is enough to keep them busy).
+
+### 10.1 The data
+
+- [ ] No lines in the log like `Could not read a drone` or `Could not read a drone's cargo / task item / task source / task target`. If there are, note the text.
+- [ ] Snippet D below shows `drones.flying` with one entry per drone that is **in the air** right now (docked ones are not listed there), each with a position that matches where you see it.
+- [ ] The count of flying drones goes up when drones leave a station and down when they go home. (New drones can take up to about 5 seconds to appear: the plugin re-lists them every 5 seconds and reads positions every second.)
+- [ ] `live-world.json` has `droneStations`: one per station, with its position, `size` (slots), `docked` (drones inside it) and `items`.
+- [ ] Nothing is wrong with the rest: the file size and `scan.worstFrameMs` are about what they were (section 9.1).
+
+### 10.2 The drone map (Player card, next to the Bases map)
+
+- [ ] It is the last instrument in the Player card's top row, labelled `DRONES`. **The row still fits on one line at 2560 x 1440** and the whole page still fits without scrolling.
+- [ ] You in the middle, north up, the cone shows which way you face. Drone **stations** are teal squares; drones **in the air** are small arrows pointing the way they fly, **amber when carrying something**.
+- [ ] The scale (bottom-right, `100 m`, `250 m`, `500 m`, `1000 m`, `2000 m`) steps up to hold the closest station or drone. Anything farther than the edge is left off; with nothing within 2 km the map is empty but the caption still counts them.
+- [ ] Drones **move on the map** as they fly (they glide between the once-a-second readings) and their arrows turn to match. Stand next to a station and watch one leave: it appears at the station and heads off in the right direction.
+- [ ] The caption reads `n flying` and `n stations, n docked`. Hover a square or arrow for its name, distance and direction.
+- [ ] **Click the map:** the **Drones** card opens under the Power card (the Planet card gets shorter, nothing else moves), and the map is outlined. Click it again: the card closes and the Planet card is full height again. Whether it is open survives new readings.
+
+### 10.3 The drone card
+
+- [ ] **Flying:** one tile per drone in the air, nearest first: its name (tier), what it is doing (`heading to pick up`, `delivering`, `loading`, `unloading`, `returning to a station`, `waiting for a task`), its distance and direction from you,
+  what it is **carrying**, its **task** (`item from A (distance) to B (distance)`), its speed and height. Compare with the game's own logistics screen and with watching the drone.
+- [ ] A drone with cargo has an amber outline; the `Carrying` line lists the items.
+- [ ] **Stations:** one tile per drone station, nearest first: its position (`X ... Z ...`) which matches where the station stands, its distance and direction, a bar of `n docked / slots`, and its storage (the docked drones by tier).
+  Send a drone out and back: `docked` goes down and up within about 5 seconds.
+- [ ] The card scrolls if there are many drones; nothing is cut off silently.
+- [ ] With no drones or no stations the card says so instead of showing an empty box.
+
+### 10.4 What I assumed
+
+1. **`Object.FindObjectsByType<Drone>()` finds the drones that are in the air**, and a drone put away in a station is an inactive object (so it is not listed). If docked drones show up as flying, or flying ones do not show at all, this is why.
+2. **`Drone.transform.position` is the live position** and `forwardSpeed` is its speed in metres per second.
+3. **A drone's `GetLogisticTask()`** is null when it has no job (shown as "returning to a station"); otherwise the task's supply and demand world objects are the machines it goes between.
+4. **Stations have group ids starting `DroneStation`** (as in your save: `DroneStation1`) and their storage holds the docked drones as items whose group id is `Drone` plus digits (`Drone2`).
+5. Because stations are now reported on their own, **their storage no longer counts as "stored" in the Base card** (docked drones used to be counted there as items).
 
 ## Snippets
 
@@ -300,10 +340,19 @@ Extractors as the plugin reports them (snippet C):
 $w.extractors | ForEach-Object { "{0,-6} {1,-16} {2,-12} {3}/{4}  ready={5}" -f $_.kind, $_.group, $_.productName, $_.count, $_.size, $_.ready }
 ```
 
+Drones (snippet D; the ones in the air are in `live.json`, the stations in the world file):
+
+```powershell
+$live = Get-Content "$env:LOCALAPPDATA\RRSOS-PCC-Live\live.json" -Raw | ConvertFrom-Json
+$live.drones.flying | ForEach-Object { "{0}  {1,-14} {2,-8}  at {3:N0},{4:N0}  speed={5}  cargo={6}" -f $_.id, $_.name, $_.state, $_.position.x, $_.position.z, $_.speed, (($_.cargo.items | ForEach-Object { "$($_.name) x$($_.count)" }) -join ', ') }
+$w = Get-Content "$env:LOCALAPPDATA\RRSOS-PCC-Live\live-world.json" -Raw | ConvertFrom-Json
+$w.droneStations | ForEach-Object { "{0}  {1}  at {2:N0},{3:N0}  docked={4}/{5}" -f $_.id, $_.group, $_.position.x, $_.position.z, $_.docked, $_.size }
+```
+
 Plugin problems in the world pass only:
 
 ```powershell
-Select-String -Path "C:\Program Files (x86)\Steam\steamapps\common\The Planet Crafter\BepInEx\LogOutput.log" -Pattern 'RRSOS.*(world|placed object|container|loose item|game.s objects|planet.s hash)'
+Select-String -Path "C:\Program Files (x86)\Steam\steamapps\common\The Planet Crafter\BepInEx\LogOutput.log" -Pattern 'RRSOS.*(world|placed object|container|loose item|game.s objects|planet.s hash|drone)'
 ```
 
 Try the dashboard without the game, on fake data: `tools\sample-live.ps1 -Path .\sample\live.json -Loop` (it now writes `live-world.json` beside it too; there is a

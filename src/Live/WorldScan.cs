@@ -46,6 +46,7 @@ namespace RRSOS.PCC.Live
         private readonly List<string> _signs = new List<string>();
         private readonly List<string> _containers = new List<string>();
         private readonly List<string> _extractors = new List<string>();
+        private readonly List<string> _stations = new List<string>();
         private readonly List<Vector2> _podFlat = new List<Vector2>();
         private readonly Dictionary<string, KeyValuePair<Vector3, Tally>> _loose = new Dictionary<string, KeyValuePair<Vector3, Tally>>();
 
@@ -173,6 +174,8 @@ namespace RRSOS.PCC.Live
 
                 if (kind != null)
                     _extractors.Add(ExtractorJson(o, id, kind));
+                else if (id.StartsWith("DroneStation", StringComparison.OrdinalIgnoreCase))
+                    AddDroneStation(o, id);
                 else if (IsPod(id))
                     AddPod(o, id);
                 else if (id.Equals("Sign", StringComparison.OrdinalIgnoreCase))
@@ -297,6 +300,49 @@ namespace RRSOS.PCC.Live
                 .Point("position", position.x, position.y, position.z)
                 .IntList("panels", o.GetPanelsId())
                 .End().ToString());
+        }
+
+        // A drone station and what is in its storage (the drones docked in it, mostly). Its drones that are flying are in live.json.
+        private void AddDroneStation(WorldObject o, string id)
+        {
+            var position = o.GetPosition();
+            var inventory = LinkedInventory(o);
+            var items = Tallies(inventory, false);
+
+            var docked = 0;
+            if (items != null)
+            {
+                foreach (var pair in items)
+                {
+                    if (IsDroneGroup(pair.Key))
+                        docked += pair.Value.Count;
+                }
+            }
+
+            _stations.Add(new Json().Begin()
+                .Int("id", o.GetId())
+                .Str("group", id)
+                .Str("name", InventoryReader.NameOf(id, o.GetGroup()))
+                .Point("position", position.x, position.y, position.z)
+                .Int("size", inventory == null ? 0 : inventory.GetSize())
+                .Int("docked", docked)
+                .Raw("items", ItemsJson(items))
+                .End().ToString());
+        }
+
+        // "Drone", "Drone1", "Drone2"...: a drone, as opposed to a station or the rocket that carries drones.
+        private static bool IsDroneGroup(string id)
+        {
+            if (!id.StartsWith("Drone", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            for (var i = "Drone".Length; i < id.Length; i++)
+            {
+                if (!char.IsDigit(id[i]))
+                    return false;
+            }
+
+            return true;
         }
 
         private void AddSign(WorldObject o)
@@ -494,6 +540,7 @@ namespace RRSOS.PCC.Live
                 .Raw("containers", Array(_containers))
                 .Raw("loose", Array(loose))
                 .Raw("extractors", Array(_extractors))
+                .Raw("droneStations", Array(_stations))
                 .End().ToString();
         }
 

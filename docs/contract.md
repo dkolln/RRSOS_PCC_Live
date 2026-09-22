@@ -87,7 +87,7 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
 
 ## Changes
 
-- **World file, schema 1** (plugin 0.3.0): new file `live-world.json` (see above). `live.json` is unchanged.
+- **World file, schema 1** (plugin 0.3.0): new file `live-world.json` (see above). `live.json` gains a `drones` section (see "Drones").
 - **Schema 1** (plugin 0.2.0): the string `planet` became `planetId` (it clashed with the `planet` object);
   added `vitalsMax`, `backpack`, `equipment`, `planet`, `vehicle`.
 - **Schema 0** (plugin 0.1.0): position, yaw and vitals only.
@@ -142,6 +142,42 @@ The plugin (0.3.0 and later) writes them to a second file beside it. The dashboa
 
 Everything is limited to the planet the player is on.
 
+
+### Drones (added in plugin 0.3.0)
+
+**In `live.json`, `drones`** (the ones in the air, read every second):
+
+```json
+"drones": {
+  "flying": [
+    { "id": 206956029, "group": "Drone2", "name": "Drone T2",
+      "position": { "x": 800.1, "y": 41, "z": 620.4 }, "yawDegrees": 132.5, "speed": 9.5,
+      "state": "ToSupply",
+      "cargo": { "size": 4, "items": [ { "id": "Iron", "name": "Iron", "count": 4 } ] },
+      "moving": { "id": "Iron", "name": "Iron" },
+      "from": { "id": "Container1", "name": "Storage Container", "position": { "x": 806, "y": 35, "z": 617 } },
+      "to":   { "id": "VegetableGrower2", "name": "Vegetable Grower T2", "position": { "x": 772.25, "y": 36, "z": 579.75 } } }
+  ]
+}
+```
+
+- `flying` lists every drone on this planet that is a live, active scene object. Drones sitting in a station are not in it (they have no place in the world).
+- `state` is the game's task state (`NotAttributed`, `ToSupply`, `ToDemand`, `Loading`, `Unloading`, `Done`), or `Returning` when the drone has no task. `moving`, `from` and `to` are null with no task.
+- `speed` is the drone's forward speed; `yawDegrees` is Unity's, as for the player. `cargo` is its own storage, in the same shape as the backpack.
+- The list of drones is refreshed every 5 seconds; between refreshes only positions, tasks and cargo are read. `drones` is null if it could not be read.
+
+**In `live-world.json`, `droneStations`** (slow, with the rest of the world):
+
+```json
+"droneStations": [
+  { "id": 208001, "group": "DroneStation1", "name": "Drone Station", "position": { "x": 790, "y": 35.5, "z": 600 },
+    "size": 10, "docked": 3, "items": [ { "id": "Drone2", "name": "Drone T2", "count": 3 } ] }
+]
+```
+
+`size` is the station's slot count, `docked` how many drones are in it, `items` everything in its storage. Stations are reported separately, so
+they are not also in `containers`.
+
 ### What a base is (the dashboard's rules, ported from RRSOS-PCC)
 
 - A **base** is a pod (group `pod` or `EscapePod`) with a **door** in its `panels` (a 4). With a **connection** (a 2) as
@@ -150,5 +186,7 @@ Everything is limited to the planet the player is on.
   name from a list (Greek names for bases, NATO letters for outposts), which is then saved. Names are kept in the
   dashboard's own `basedata.json` beside the live files, keyed by the game's id for the pod.
 - A container or a loose item belongs to the nearest base within **100 m** (flat distance). Machines and building parts
-  (by RRSOS-PCC's table of item types) are not listed as stored items or loose items.
+  (by RRSOS-PCC's table of item types) are not listed as stored items. The **boneyard** (loose items) is **loose raw material only**: the types Ore, Alloy, Quartz and Rod in that table
+  (iron, cobalt, titanium, silicon, magnesium, iridium, aluminium, uranium, sulfur, obsidian, zeolite, osmium, ice, super alloy, the quartzes and the rods).
+  Plants, drones, vehicles and the rest that are lying about are not shown. The file still lists every loose item near a pod; this is decided in the dashboard.
 - **Ready to harvest** is the crops with `ready` in the planting tray of a grower (`VegetableGrower*`, `Farm1`).

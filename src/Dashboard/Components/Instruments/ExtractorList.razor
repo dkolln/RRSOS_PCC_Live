@@ -9,7 +9,7 @@
 
     @foreach (var group in Groups)
     {
-        var groupOpen = !_closed.Contains(group.Key);
+        var groupOpen = IsOpen(group.Key, defaultOpen: true);
 
         <div class="ex-group" @onclick="() => Toggle(group.Key)">
             <span class="ex-caret">@(groupOpen ? "▼" : "▶")</span>
@@ -23,9 +23,11 @@
             @foreach (var sub in group.Subs)
             {
                 var subKey = group.Key + "/" + sub.Title;
-                var subOpen = !_closed.Contains(subKey);
+                // A header per ore (or gas); water and algae have just the one list, so nothing to fold and it is always shown.
+                var hasHeader = group.Subs.Count > 1 || sub.Title != group.Title;
+                var subOpen = !hasHeader || IsOpen(subKey, defaultOpen: false);
 
-                @if (group.Subs.Count > 1 || sub.Title != group.Title)
+                @if (hasHeader)
                 {
                     <div class="ex-sub" @onclick="() => Toggle(subKey)">
                         <span class="ex-caret">@(subOpen ? "▼" : "▶")</span>
@@ -92,13 +94,16 @@
     [Parameter]
     public string EmptyText { get; set; } = "No extractors found.";
 
-    // Groups the user has folded shut. Everything starts open, and the choice survives new readings.
-    private readonly HashSet<string> _closed = new();
+    // What the user has clicked. The four kinds (ore, gas, water, algae) start open and the ore or gas under each starts folded;
+    // a click flips that, and the choice survives new readings.
+    private readonly HashSet<string> _flipped = new();
+
+    private bool IsOpen(string key, bool defaultOpen) => _flipped.Contains(key) ? !defaultOpen : defaultOpen;
 
     private void Toggle(string key)
     {
-        if (!_closed.Remove(key))
-            _closed.Add(key);
+        if (!_flipped.Remove(key))
+            _flipped.Add(key);
     }
 
     private sealed class Row

@@ -29,6 +29,47 @@
         <div class="nav-label">Heading</div>
     </div>
 
+    <!-- Altimeter: a tape that scrolls past a fixed pointer, like an aircraft instrument. -->
+    <div class="nav-panel nav-panel-tall" title="Elevation @ElevationText">
+        <svg viewBox="0 0 84 140" role="img" aria-label="Elevation @ElevationText">
+            <defs>
+                <clipPath id="nav-tape-clip-@_uid">
+                    <rect x="2" y="6" width="80" height="128" rx="6" />
+                </clipPath>
+            </defs>
+
+            <rect class="nav-face" x="2" y="6" width="80" height="128" rx="6" />
+
+            <g clip-path="url(#nav-tape-clip-@_uid)">
+                @if (Known)
+                {
+                    <g class="nav-slide" style="transform: translateY(@Inv($"{_elevation * TapePxPerMetre:0.##}")px)">
+                        @foreach (var tick in TapeTicks)
+                        {
+                            <g @key="tick.Metres">
+                                <line class="nav-tick @(tick.Major ? "major" : "")" x1="@(tick.Major ? 64 : 71)" y1="@tick.Y" x2="80" y2="@tick.Y" />
+                                @if (tick.Major)
+                                {
+                                    <g>
+                                        <text class="nav-tape-label" x="61" y="@Inv($"{tick.YValue + 2.5f:0.##}")">@tick.Metres</text>
+                                    </g>
+                                }
+                            </g>
+                        }
+                    </g>
+                }
+
+                <line class="nav-pointer-line" x1="42" y1="70" x2="80" y2="70" />
+            </g>
+
+            <polygon class="nav-pointer" points="42,63 51,70 42,77" />
+            <rect class="nav-box" x="4" y="60" width="38" height="20" rx="3" />
+            <text class="nav-box-text" x="23" y="74.5">@ElevationText</text>
+        </svg>
+        <div class="nav-label">Elevation</div>
+        <div class="nav-caption @TrendClass">@TrendText</div>
+    </div>
+
     <!-- Map: a fixed square with the world origin (0, 0) in the middle and north up. The scale grows to fit how far out you have been. -->
     @if (ShowPosition)
     {
@@ -93,51 +134,20 @@
     </div>
     }
 
-    <!-- Altimeter: a tape that scrolls past a fixed pointer, like an aircraft instrument. -->
-    <div class="nav-panel nav-panel-tall" title="Elevation @ElevationText">
-        <svg viewBox="0 0 84 140" role="img" aria-label="Elevation @ElevationText">
-            <defs>
-                <clipPath id="nav-tape-clip-@_uid">
-                    <rect x="2" y="6" width="80" height="128" rx="6" />
-                </clipPath>
-            </defs>
-
-            <rect class="nav-face" x="2" y="6" width="80" height="128" rx="6" />
-
-            <g clip-path="url(#nav-tape-clip-@_uid)">
-                @if (Known)
-                {
-                    <g class="nav-slide" style="transform: translateY(@Inv($"{_elevation * TapePxPerMetre:0.##}")px)">
-                        @foreach (var tick in TapeTicks)
-                        {
-                            <g @key="tick.Metres">
-                                <line class="nav-tick @(tick.Major ? "major" : "")" x1="@(tick.Major ? 64 : 71)" y1="@tick.Y" x2="80" y2="@tick.Y" />
-                                @if (tick.Major)
-                                {
-                                    <g>
-                                        <text class="nav-tape-label" x="61" y="@Inv($"{tick.YValue + 2.5f:0.##}")">@tick.Metres</text>
-                                    </g>
-                                }
-                            </g>
-                        }
-                    </g>
-                }
-
-                <line class="nav-pointer-line" x1="42" y1="70" x2="80" y2="70" />
-            </g>
-
-            <polygon class="nav-pointer" points="42,63 51,70 42,77" />
-            <rect class="nav-box" x="4" y="60" width="38" height="20" rx="3" />
-            <text class="nav-box-text" x="23" y="74.5">@ElevationText</text>
-        </svg>
-        <div class="nav-label">Elevation</div>
-        <div class="nav-caption @TrendClass">@TrendText</div>
-    </div>
-
-    @* One more instrument at the end of the row (the Player card puts the small base map here). *@
+    @* Extra instruments at the end of the row: the Player card puts base map, drone map, vehicle map here. *@
     @if (Extra is not null)
     {
         <div class="nav-panel">@Extra</div>
+    }
+
+    @if (Extra2 is not null)
+    {
+        <div class="nav-panel">@Extra2</div>
+    }
+
+    @if (Extra3 is not null)
+    {
+        <div class="nav-panel">@Extra3</div>
     }
 
 </div>
@@ -150,6 +160,14 @@
     /// <summary>An extra instrument drawn after the others in the row.</summary>
     [Parameter]
     public RenderFragment? Extra { get; set; }
+
+    /// <summary>A second extra instrument, after the first.</summary>
+    [Parameter]
+    public RenderFragment? Extra2 { get; set; }
+
+    /// <summary>A third extra instrument, after the second.</summary>
+    [Parameter]
+    public RenderFragment? Extra3 { get; set; }
 
     private const float TapePxPerMetre = 3f;
     private const int TapeReachMetres = 100;

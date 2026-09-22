@@ -5,7 +5,6 @@
 @inject WorldFileService World
 
 @{
-    // One snapshot for the whole render, so a new reading arriving mid-render cannot mix two of them.
     var data = Live.Data;
     var status = Live.Status;
     var player = data?.Player;
@@ -14,6 +13,9 @@
     var dim = status != LiveStatus.Live;
     var world = World.Data;
     var extractors = world?.Extractors ?? new List<ExtractorData>();
+    var flying = data?.Drones?.Flying ?? new List<DroneData>();
+    var stations = world?.DroneStations ?? new List<DroneStationData>();
+    var recentlyDocked = _recentlyDocked.Values.Select(v => v.Drone).ToList();
 }
 
 <div class="app">
@@ -35,12 +37,10 @@
         </button>
     </header>
 
-    @* Everything on one page, sized for 2560 x 1440: you and your truck, the planet, and the base you are at with the extractors. *@
     <main class="grid">
 
+        @* ── Column 1: Player (full height) ── *@
         <div class="col">
-
-            <!-- PLAYER -->
             <section class="card card-player">
                 <h2>Player <span class="who">@player?.Name</span></h2>
 
@@ -52,13 +52,45 @@
                 {
                     @if (player.Position is { } position)
                     {
-                        @* Which way you face, how high you are, and the bases around you (click one to show what it holds). *@
+                        @* Nav row: compass | altimeter | base-map | drone-map | vehicle-map *@
                         <NavDisplay Position="@(new Vector3((float)position.X, (float)position.Y, (float)position.Z))"
                                     Heading="@Compass.HeadingFromYaw(player.YawDegrees)" ShowPosition="false">
                             <Extra>
-                                <BaseMap Bases="@_views" PlayerFlat="@_playerFlat" PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
-                                         SelectedId="@_selectedBaseId" PinnedId="@_pinnedBaseId" OnSelect="TogglePin" Dim="@dim" EmptyText="no bases" />
+                                <BaseMap Bases="@_views" PlayerFlat="@_playerFlat"
+                                         PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                         SelectedId="@_selectedBaseId" PinnedId="@_pinnedBaseId"
+                                         Open="@(_activeMap == "base")"
+                                         OnMapClick="OnBaseMapClick" OnSelect="SelectBase"
+                                         Dim="@dim" EmptyText="no bases" />
                             </Extra>
+                            <Extra2>
+                                <DroneMap Flying="@flying" Stations="@stations" PlayerFlat="@_playerFlat"
+                                          PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                          Open="@(_activeMap == "drone")" OnToggle='() => SelectMap("drone")'
+                                          Dim="@dim" />
+                            </Extra2>
+                            <Extra3>
+                                @if (vehicle != null)
+                                {
+                                    var vFlat = vehicle.Position is { } vp
+                                        ? new Vector2((float)vp.X, (float)vp.Z)
+                                        : _playerFlat;
+                                    <div class="vehicle-mini @(_activeMap == "vehicle" ? "is-open" : "")"
+                                         role="button" tabindex="0"
+                                         title="@(vehicle.Position != null ? "Click to see vehicle" : "Vehicle stowed")"
+                                         @onclick='() => SelectMap("vehicle")'>
+                                        <RelativeMap PlayerFlat="@_playerFlat"
+                                                     PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                                     TargetFlat="@vFlat"
+                                                     Known="@(vehicle.Position != null)" />
+                                        <div class="nav-label">Vehicle</div>
+                                        @if (vehicle.Position is null)
+                                        {
+                                            <div class="nav-caption">stowed</div>
+                                        }
+                                    </div>
+                                }
+                            </Extra3>
                         </NavDisplay>
                     }
 
@@ -83,94 +115,156 @@
                     <ItemList Title="Gear" Data="@player.Equipment" Columns="3" Dim="@dim" Collapsible="true" />
                 }
             </section>
+        </div>
 
-            <!-- VEHICLE -->
-            <section class="card card-vehicle">
-                <h2>Vehicle</h2>
+        @* ── Column 2: Planet + Power + Notes ── *@
+        <div class="col">
+            <section class="card card-planet">
+                <h2>Planet <span class="who">@data?.PlanetId</span></h2>
 
-                @if (data is null)
+                @if (data?.Planet is not { } planet)
                 {
                     <div class="empty">@EmptyText(status)</div>
                 }
-                else if (vehicle is null)
-                {
-                    <div class="empty">@(data.InWorld ? "No vehicle yet." : EmptyText(status))</div>
-                }
                 else
                 {
-                    @* With a position: the vehicle drawn relative to the player. Without one it is stowed (pocket or portal). *@
-                    <NavDisplay Position="@(vehicle.Position is { } v ? new Vector3((float)v.X, (float)v.Y, (float)v.Z) : default)"
-                                Heading="@Compass.HeadingFromYaw(vehicle.YawDegrees ?? 0)"
-                                Known="@(vehicle.Position is not null)"
-                                AroundFlat="@(player?.Position is { } p ? new Vector2((float)p.X, (float)p.Z) : null)"
-                                AroundHeading="@(player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees))" />
-
-                    <div class="fill">
-                        <ItemList Title="Trunk" Data="@vehicle.Trunk" Columns="3" Dim="@dim" Collapsible="true" />
-                    </div>
-
-                    <ItemList Title="Gear" Data="@vehicle.Gear" Columns="3" Dim="@dim" Collapsible="true" />
+                    <PlanetDials Data="@planet" Dim="@dim" />
+                    <PowerCard Data="@planet.Power" Dim="@dim" />
                 }
             </section>
 
+            <section class="card card-notes">
+                <h2>Notes</h2>
+                <div class="fill">
+                    <NotesList />
+                </div>
+            </section>
         </div>
 
-        <!-- PLANET -->
-        <section class="card">
-            <h2>Planet <span class="who">@data?.PlanetId</span></h2>
+        @* ── Column 3: Detail panel ── *@
+        <div class="col">
 
-            @if (data?.Planet is not { } planet)
+            @* Small extractors chip — always visible, switches back to extractor list *@
+            <div class="ext-bar">
+                <button class="ext-link @(_activeMap == null ? "is-active" : "")"
+                        @onclick="() => SelectMap(null)">
+                    Extractors@(extractors.Count > 0 ? $" · {extractors.Count}" : "")
+                </button>
+            </div>
+
+            @if (_activeMap == "base")
             {
-                <div class="empty">@EmptyText(status)</div>
+                <section class="card card-detail">
+                    <h2>Base <span class="who">@BaseCountText()</span></h2>
+                    <BaseContents SelectedBase="@SelectedBase" IsPinned="@(_pinnedBaseId is not null)"
+                                  OnFollowNearest="UnpinBase" Dim="@dim"
+                                  EmptyText="@BasesEmptyText(status, world)" />
+                </section>
+            }
+            else if (_activeMap == "drone")
+            {
+                <section class="card card-detail">
+                    <h2>Drones <span class="who">@flying.Count flying, @stations.Sum(s => s.Docked) docked</span></h2>
+                    <div class="scroll">
+                        <DroneList Flying="@flying" RecentlyDocked="@recentlyDocked" Stations="@stations"
+                                   PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim" />
+                    </div>
+                </section>
+            }
+            else if (_activeMap == "vehicle")
+            {
+                <section class="card card-detail">
+                    <h2>Vehicle</h2>
+
+                    @if (vehicle is null)
+                    {
+                        <div class="empty">@(data?.InWorld == true ? "No vehicle yet." : EmptyText(status))</div>
+                    }
+                    else
+                    {
+                        @if (vehicle.Position is { } vpos && player?.Position is not null)
+                        {
+                            var vFlat = new Vector2((float)vpos.X, (float)vpos.Z);
+                            var dist  = (int)Vector2.Distance(_playerFlat, vFlat);
+                            var dir   = Compass.GetCompassDirection(_playerFlat, vFlat);
+                            <div class="vehicle-detail-map">
+                                <RelativeMap PlayerFlat="@_playerFlat"
+                                             PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                             TargetFlat="@vFlat" Known="true" />
+                                <div class="vehicle-detail-where">@dist m @dir</div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="empty vehicle-stowed">Stowed in pocket.</div>
+                        }
+
+                        <div class="fill">
+                            <ItemList Title="Trunk" Data="@vehicle.Trunk" Columns="3" Dim="@dim" Collapsible="true" />
+                        </div>
+                        <ItemList Title="Gear" Data="@vehicle.Gear" Columns="3" Dim="@dim" Collapsible="true" />
+                    }
+                </section>
             }
             else
             {
-                <PlanetDials Data="@planet" Dim="@dim" />
-                <PowerCard Data="@planet.Power" Dim="@dim" />
+                @* Default: extractors list *@
+                <section class="card card-detail">
+                    <h2>Extractors <span class="who">@(extractors.Count > 0 ? extractors.Count.ToString() : "")</span></h2>
+                    <div class="scroll">
+                        <ExtractorList Data="@extractors" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim"
+                                       EmptyText="@(world is null || !world.InWorld ? EmptyText(status) : "No extractors found.")" />
+                    </div>
+                </section>
             }
-        </section>
-
-        <div class="col">
-
-            <!-- BASE: what the base you are at (or picked on the map) holds -->
-            <section class="card card-base">
-                <h2>Base <span class="who">@BaseCountText()</span></h2>
-
-                <BaseContents SelectedBase="@SelectedBase" IsPinned="@(_pinnedBaseId is not null)" OnFollowNearest="Unpin"
-                              Dim="@dim" EmptyText="@BasesEmptyText(status, world)" />
-            </section>
-
-            <!-- EXTRACTORS -->
-            <section class="card card-extractors">
-                <h2>Extractors <span class="who">@(extractors.Count > 0 ? extractors.Count.ToString() : "")</span></h2>
-
-                <div class="scroll">
-                    <ExtractorList Data="@extractors" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim"
-                                   EmptyText="@(world is null || !world.InWorld ? EmptyText(status) : "No extractors found.")" />
-                </div>
-            </section>
-
         </div>
 
     </main>
 </div>
 
 @code {
-    // How much closer another base must be before the contents switch to it.
     private const float BaseSwitchThreshold = 15f;
 
-    // The bases as seen from where the player stands, nearest first. Refreshed whenever a new reading arrives.
     private IReadOnlyList<BaseView> _views = Array.Empty<BaseView>();
     private Vector2 _playerFlat;
-
     private long? _selectedBaseId;
-
-    // Set by clicking a base on the map; null means "show the nearest".
     private long? _pinnedBaseId;
+
+    // Which map's detail panel is open in column 3: "base", "drone", "vehicle", or null (= extractors)
+    private string? _activeMap;
+
+    // Recently-docked drones: held for 5 seconds after they leave the flying list
+    private Dictionary<int, DroneData> _prevFlyingData = new();
+    private Dictionary<int, (DroneData Drone, DateTime HidAt)> _recentlyDocked = new();
+
+    private Timer? _timer;
 
     private BaseView? SelectedBase => _views.FirstOrDefault(b => b.Id == _selectedBaseId);
 
-    private Timer? _timer;
+    private void SelectMap(string? map)
+    {
+        _activeMap = _activeMap == map ? null : map;
+        if (_activeMap != "base") { _pinnedBaseId = null; UpdateSelection(); }
+    }
+
+    private void OnBaseMapClick()
+    {
+        // Empty-space click: toggle base panel (shows nearest when opening)
+        SelectMap("base");
+    }
+
+    private void SelectBase(long id)
+    {
+        _activeMap = "base";
+        _pinnedBaseId = _pinnedBaseId == id ? null : id;
+        UpdateSelection();
+    }
+
+    private void UnpinBase()
+    {
+        _pinnedBaseId = null;
+        UpdateSelection();
+    }
 
     protected override void OnInitialized()
     {
@@ -178,71 +272,54 @@
         World.Changed += OnChanged;
         Refresh();
 
-        // The game starting or stopping changes the Launch button even before any data arrives.
         var wasRunning = Launcher.IsRunning();
         _timer = new Timer(_ =>
         {
             var now = Launcher.IsRunning();
-            if (now != wasRunning)
-            {
-                wasRunning = now;
-                _ = InvokeAsync(StateHasChanged);
-            }
+            if (now != wasRunning) { wasRunning = now; _ = InvokeAsync(StateHasChanged); }
         }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
-    // Readings arrive on a background thread; hop onto the renderer's own thread before touching this page's state.
-    private void OnChanged() => _ = InvokeAsync(() =>
-    {
-        Refresh();
-        StateHasChanged();
-    });
+    private void OnChanged() => _ = InvokeAsync(() => { Refresh(); StateHasChanged(); });
 
-    // Works out where the bases are relative to the player, and which one the Base card shows.
     private void Refresh()
     {
+        var data = Live.Data;
         var bases = World.Bases.Bases;
 
-        if (Live.Data?.Player?.Position is { } position && bases.Count > 0)
-        {
-            _playerFlat = new Vector2((float)position.X, (float)position.Z);
+        if (data?.Player?.Position is { } here)
+            _playerFlat = new Vector2((float)here.X, (float)here.Z);
+
+        if (data?.Player?.Position is not null && bases.Count > 0)
             _views = bases.Select(b => new BaseView(b, _playerFlat)).OrderBy(v => v.Distance).ToList();
-        }
         else
-        {
             _views = Array.Empty<BaseView>();
-        }
+
+        // Track recently-docked drones
+        var nowFlying = data?.Drones?.Flying ?? new List<DroneData>();
+        var nowFlyingIds = nowFlying.Select(d => d.Id).ToHashSet();
+
+        foreach (var (id, drone) in _prevFlyingData)
+            if (!nowFlyingIds.Contains(id))
+                _recentlyDocked.TryAdd(id, (drone, DateTime.UtcNow.AddSeconds(5)));
+
+        var expired = _recentlyDocked.Where(kv => DateTime.UtcNow >= kv.Value.HidAt).Select(kv => kv.Key).ToList();
+        foreach (var id in expired) _recentlyDocked.Remove(id);
+
+        _prevFlyingData = nowFlying.ToDictionary(d => d.Id);
 
         UpdateSelection();
     }
 
-    // A base picked by hand wins; otherwise the contents follow the nearest one (see BaseSelector).
     private void UpdateSelection()
     {
         if (_pinnedBaseId is long pin && _views.All(b => b.Id != pin))
-            _pinnedBaseId = null; // the pinned base is gone (other save, base removed)
+            _pinnedBaseId = null;
 
         _selectedBaseId = _pinnedBaseId ?? BaseSelector.Choose(_views, _selectedBaseId, BaseSwitchThreshold);
     }
 
-    // Clicking a base on the map pins it; clicking the pinned one again goes back to following the nearest.
-    private void TogglePin(long id)
-    {
-        _pinnedBaseId = _pinnedBaseId == id ? null : id;
-        UpdateSelection();
-    }
-
-    private void Unpin()
-    {
-        _pinnedBaseId = null;
-        UpdateSelection();
-    }
-
-    private void LaunchGame()
-    {
-        Launcher.Launch();
-        StateHasChanged();
-    }
+    private void LaunchGame() { Launcher.Launch(); StateHasChanged(); }
 
     public void Dispose()
     {
@@ -273,16 +350,14 @@
     {
         LiveStatus.Live => data?.Planet is null && data?.PlanetId is null ? "" : $"plugin {data!.PluginVersion}",
         LiveStatus.Menu => "load a world to see it here",
-        LiveStatus.Stale when data?.UpdatedAt is { } at && running => $"the plugin has stopped reporting (loading screen?); last reading {at.ToLocalTime():HH:mm:ss}",
-        LiveStatus.Stale when data?.UpdatedAt is { } at => $"showing the last reading, from {at.ToLocalTime():HH:mm:ss}",
-        _ => "start Planet Crafter with the RRSOS PCC Live plugin; open this page before or after"
+        LiveStatus.Stale when data?.UpdatedAt is { } at && running => $"last reading {at.ToLocalTime():HH:mm:ss}",
+        LiveStatus.Stale when data?.UpdatedAt is { } at => $"showing last reading from {at.ToLocalTime():HH:mm:ss}",
+        _ => "start Planet Crafter with the RRSOS PCC Live plugin"
     };
 
-    private static string EmptyText(LiveStatus status) => status == LiveStatus.Menu
-        ? "No world loaded."
-        : "Waiting for live data.";
+    private static string EmptyText(LiveStatus status) =>
+        status == LiveStatus.Menu ? "No world loaded." : "Waiting for live data.";
 
-    // A gauge value from 0 to 1. Without a maximum from the game, fall back on a sensible one.
     private static float Fraction(double? value, double? max, double? fallbackMax)
     {
         var top = max is > 0 ? max.Value : fallbackMax ?? 100;

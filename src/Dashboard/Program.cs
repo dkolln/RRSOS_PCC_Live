@@ -16,6 +16,7 @@ builder.Services.AddSingleton<ItemCatalog>();
 builder.Services.AddSingleton<BaseNames>();
 builder.Services.AddSingleton<WorldFileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<WorldFileService>());
+builder.Services.AddSingleton<NotebookService>();
 
 var app = builder.Build();
 

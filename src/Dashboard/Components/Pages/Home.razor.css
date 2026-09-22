@@ -88,9 +88,10 @@
     cursor: default;
 }
 
+/* Three fixed columns: player | planet+notes | detail panel */
 .grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 3fr) minmax(0, 3.5fr) minmax(0, 3.5fr);
     gap: 14px;
     padding: 14px;
     min-height: 0;
@@ -154,27 +155,25 @@
     min-height: 0;
 }
 
-.col > .card {
+/* Column 1: single player card fills the whole column */
+.col > .card-player {
     flex: 1 1 0;
 }
 
-/* The player has the longer lists (a backpack of dozens of kinds), so it gets the bigger share of its column. */
-.col > .card-player {
-    flex: 59 1 0;
+/* Column 2: planet card gets 70%, notes card gets 30% */
+.col > .card-planet {
+    flex: 7 1 0;
 }
 
-.col > .card-vehicle {
-    flex: 41 1 0;
+.col > .card-notes {
+    flex: 3 1 0;
+    min-height: 120px;
 }
 
-/* The base card is as tall as its lists (folded, they are a few rows); the extractors take whatever is left. */
-.col > .card-base {
-    flex: 0 0 auto;
-    max-height: 60%;
-}
-
-.col > .card-extractors {
-    min-height: 200px;
+/* Column 3: detail card fills all remaining space below the ext-bar */
+.col > .card-detail {
+    flex: 1 1 0;
+    min-height: 0;
 }
 
 /* A card body that scrolls by itself, so a long list never pushes the page. */
@@ -183,4 +182,74 @@
     min-height: 0;
     overflow-y: auto;
     scrollbar-color: #24384d #0b0f17;
+    scrollbar-width: thin;
+}
+
+/* ── Extractors chip bar at the top of column 3 ── */
+.ext-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.ext-link {
+    padding: 4px 12px;
+    background: #0e1520;
+    border: 1px solid #1a2a3a;
+    border-radius: 12px;
+    color: #7f9db9;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.ext-link:hover {
+    border-color: #4a7fa5;
+    color: #9ac7ff;
+}
+
+.ext-link.is-active {
+    border-color: #4a7fa5;
+    color: #7ab8ff;
+    background: #0e1928;
+}
+
+/* ── Vehicle mini-map in NavDisplay Extra3 slot ── */
+.vehicle-mini {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 2px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: border-color 0.15s;
+    user-select: none;
+}
+
+.vehicle-mini:hover {
+    border-color: #2a4a68;
+}
+
+.vehicle-mini.is-open {
+    border-color: #4a7fa5;
+}
+
+/* ── Vehicle detail panel inside column 3 ── */
+.vehicle-detail-map {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.vehicle-detail-where {
+    color: #7ab8ff;
+    font-size: 0.9rem;
+}
+
+.vehicle-stowed {
+    margin-bottom: 8px;
 }

@@ -41,8 +41,8 @@ player, vehicle, power and planet data "all look good".
   a saved name, then a pool: `BaseNames`). **One page, no tabs** (the owner's layout, after a first version with Main, Base and Extractors tabs): three columns, sized for 2560 x 1440.
   Left: **Player, with Vehicle under it**. Middle: **Planet**. Right: the **Base card** over the **Extractors card**. The Player card's top row is compass, elevation and the
   **Bases map** (`NavDisplay`'s `Extra` slot; its position map is switched off with `ShowPosition="false"`). Hover a base on the map for its name; click it to pin it (click again,
-  or "Follow nearest", to go back; sticky nearest via `BaseSelector`). The Base card has three lists, **folded to begin with**, each showing 20 rows and then scrolling:
-  Stored (by name), Ready to harvest and Boneyard. Backpack, gear and trunk can be folded too (`ItemList`'s `Collapsible`; they start open). The Extractors card groups ore by product,
+  or "Follow nearest", to go back; sticky nearest via `BaseSelector`). The Base card has three lists, **open on load**, each showing 10 rows and then scrolling (click a title to fold one):
+  Stored (by name), Ready to harvest and Boneyard (loose ore, ice, super alloy, quartz and rods only: decided in `BaseDirectory` by the item-type table, so plants, drones and vehicles never show). Backpack, gear and trunk can be folded too (`ItemList`'s `Collapsible`; they start open). The Extractors card groups ore by product (each ore starts folded, the four kinds open),
   then gas, water and algae, with position, distance, direction, fill bar and contents, and scrolls.
 - **Ported from RRSOS-PCC (copied, not referenced):** `BaseMap` (small version only now), `BaseContents` (built on the existing `ItemList`), `BaseSelector`,
   the extractor grouping, the item-type table (`Assets/worldobjectdata.json` and `ItemType`/`ItemCatalog`) and the two name pools.
@@ -51,6 +51,11 @@ player, vehicle, power and planet data "all look good".
   counting the save by hand, names identical to RRSOS-PCC's saved ones, 38 extractors, Main with 4049 stored items. The page fits 2560 x 1440 with nothing clipped (Player and Vehicle share the left column 59 to 41; the backpack shows in full).
 - **What the save-based check cannot show:** whether the plugin's game calls return what the decompiled code suggests (see `test-plan.md` section 9.7,
   the list of assumptions), and how much the world pass costs in a real session (`scan.workMs` and `scan.worstFrameMs` in the file).
+
+**Drones (also plugin 0.3.0, also not yet run in the game):** flying drones are read every second into `live.json` (`DroneReader`: `FindObjectsByType<Drone>` re-listed every 5 s, then positions, task and cargo);
+drone stations are in the world file (`droneStations`). The dashboard has a **drone map** in the Player card's top row (`DroneMap`: you in the middle, stations as squares, drones as arrows that glide between
+readings, the scale stepping up to hold the nearest one) and clicking it opens a **drone card** (`DroneList`) under the power card, in the Planet column: the Planet card shrinks to its content and the
+drone card takes the rest. Each flying drone shows its state, cargo, task (from and to) and speed; each station its position, distance, docked count and storage. See `contract.md` ("Drones") and `test-plan.md` section 10.
 
 Not yet confirmed by the owner from earlier: the Energy Levels and Terraformation screen comparisons, the backpack contents,
 the compass in all eight directions, whether a stowed truck's trunk and gear still show, and the long main-menu wait.
@@ -68,7 +73,8 @@ See `test-plan.md` (tick items off as they are done).
    - Whether gas extractors, the genetic extractor and the water-life collector belong on the Extractors card (gas is in; the other two are not).
    - **Far bases cannot be picked:** the Bases map only reaches half the range that would hold every base, and it is now the only way to choose a base. If that bites, options are a wider map or a small list of bases.
    - Removed on request when the layout changed: the big map and its zoom, the Group by Name/Type/Category buttons, and the search box. The code for grouping by type is gone with them (`ItemCatalog` is still used to leave machines and building parts out).
-4. Then module 8 (optional): drones, a local HTTP feed, an in-game overlay.
+4. Test section 10 (drones) the same way; the likeliest surprise is `FindObjectsByType<Drone>` returning docked drones (or none).
+5. Then optional: a local HTTP feed, an in-game overlay.
 
 ## Working rules that emerged (from the owner)
 

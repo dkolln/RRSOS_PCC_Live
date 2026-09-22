@@ -16,6 +16,7 @@ namespace RRSOS.PCC.Dashboard
         public List<ContainerData> Containers { get; set; } = new();
         public List<LooseData> Loose { get; set; } = new();
         public List<ExtractorData> Extractors { get; set; } = new();
+        public List<DroneStationData> DroneStations { get; set; } = new();
 
         /// <summary>
         /// The plugin writes null for a list the game gave it none of (a pod with no panels, say), and a null in the file
@@ -28,12 +29,20 @@ namespace RRSOS.PCC.Dashboard
             Containers ??= new();
             Loose ??= new();
             Extractors ??= new();
+            DroneStations ??= new();
 
             Pods.RemoveAll(p => p is null);
             Signs.RemoveAll(s => s is null);
             Containers.RemoveAll(c => c is null);
             Loose.RemoveAll(l => l is null);
             Extractors.RemoveAll(e => e is null);
+            DroneStations.RemoveAll(d => d is null);
+
+            foreach (var station in DroneStations)
+            {
+                station.Group ??= "";
+                station.Items = Clean(station.Items);
+            }
 
             foreach (var pod in Pods)
             {
@@ -127,6 +136,21 @@ namespace RRSOS.PCC.Dashboard
         public int Count { get; set; }
 
         public string Label => string.IsNullOrWhiteSpace(Name) ? Id : Name!;
+    }
+
+    /// <summary>A drone station: where it is, how many drones are docked in it, and what its storage holds.</summary>
+    public sealed class DroneStationData
+    {
+        public int Id { get; set; }
+        public string Group { get; set; } = "";
+        public string? Name { get; set; }
+        public Vec3? Position { get; set; }
+
+        /// <summary>Slots in its storage, and how many drones are in it.</summary>
+        public int Size { get; set; }
+        public int Docked { get; set; }
+
+        public List<StoredData> Items { get; set; } = new();
     }
 
     public sealed class ExtractorData

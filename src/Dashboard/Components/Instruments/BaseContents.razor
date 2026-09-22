@@ -1,5 +1,5 @@
-@* What one base holds: everything stored in it (by name), crops ready to harvest, and loose items on the ground. Each list starts
-   folded; click its title to open it, and it scrolls after 20 rows. Ported from RRSOS-PCC's Base Contents card. *@
+@* What one base holds: everything stored in it (by name), crops ready to harvest, and loose items on the ground. Each list is open on load, shows
+   10 rows and then scrolls; click its title to fold it away. Ported from RRSOS-PCC's Base Contents card. *@
 <div class="contents @(Dim ? "is-dim" : "")">
 
     @if (SelectedBase is null)
@@ -33,18 +33,18 @@
         <div class="contents-lists">
             @if (info.Stored.Count > 0)
             {
-                <div class="contents-list"><ItemList Title="Stored" Data="@ByName(info.Stored)" Columns="1" MaxRows="20" Collapsible="true" StartCollapsed="true" /></div>
+                <div class="contents-list"><ItemList Title="Stored" Data="@ByName(info.Stored)" Columns="1" MaxRows="10" Collapsible="true" /></div>
             }
 
             <div class="contents-pair">
                 @if (info.Ready.Count > 0)
                 {
-                    <div class="contents-list ready"><ItemList Title="Ready to harvest" Data="@ByName(info.Ready)" Columns="1" MaxRows="20" Collapsible="true" StartCollapsed="true" /></div>
+                    <div class="contents-list ready"><ItemList Title="Ready to harvest" Data="@ByName(info.Ready)" Columns="1" MaxRows="10" Collapsible="true" /></div>
                 }
 
                 @if (info.Loose.Count > 0)
                 {
-                    <div class="contents-list loose"><ItemList Title="Boneyard (loose)" Data="@ByName(info.Loose)" Columns="1" MaxRows="20" Collapsible="true" StartCollapsed="true" /></div>
+                    <div class="contents-list loose"><ItemList Title="Boneyard (loose)" Data="@ByName(info.Loose)" Columns="1" MaxRows="10" Collapsible="true" /></div>
                 }
             </div>
         </div>

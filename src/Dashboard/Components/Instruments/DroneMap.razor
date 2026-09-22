@@ -1,0 +1,171 @@
+@* A small live map of the drones around you: you in the middle and the game's north up, drone stations as squares and
+   drones that are in the air as little arrows pointing the way they fly (amber when carrying something). The scale steps up
+   to the nearest round number that holds the closest station or drone, so something is always in view when there is
+   anything within 2 km; what is beyond the edge is left off. Click it to open the drone card under the power card. *@
+<div class="drone-map @(Open ? "is-open" : "") @(Dim ? "is-dim" : "")" role="button" title="@(Open ? "Click to close the drone card" : "Click for the drone card")" @onclick="OnToggle">
+
+    @if (Flying.Count == 0 && Stations.Count == 0)
+    {
+        <div class="map-empty">no drones</div>
+    }
+    else
+    {
+        <svg viewBox="0 0 140 140" role="img" aria-label="Map of the drones around you">
+            <defs>
+                <linearGradient id="drone-cone-fade-@_uid" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0" stop-color="#7ab8ff" stop-opacity="0.6" />
+                    <stop offset="1" stop-color="#7ab8ff" stop-opacity="0" />
+                </linearGradient>
+            </defs>
+
+            <rect class="map-face" x="6" y="6" width="128" height="128" rx="6" />
+            <circle class="map-ring-line" cx="70" cy="70" r="32" />
+            <circle class="map-ring-line" cx="70" cy="70" r="64" />
+            <line class="map-cross" x1="70" y1="6" x2="70" y2="134" />
+            <line class="map-cross" x1="6" y1="70" x2="134" y2="70" />
+            <text class="map-north" x="76" y="17">N</text>
+            <text class="map-east" x="128" y="66">E</text>
+
+            @* You, and which way you face *@
+            <g class="map-turn" style="transform: rotate(@Inv($"{_turn:0.##}")deg)">
+                <path d="M 70 70 L 57.26 38.47 A 34 34 0 0 1 82.74 38.47 Z" fill="url(#drone-cone-fade-@_uid)" />
+            </g>
+            <circle class="map-you" cx="70" cy="70" r="3.2" />
+
+            @foreach (var station in ShownStations)
+            {
+                var (x, y) = Place(station.Position!);
+
+                <g @key="station.Id" class="map-item" style="transform: translate(@Inv($"{x:0.##}px, {y:0.##}px"))">
+                    <title>@StationTitle(station)</title>
+                    <rect class="drone-station" x="-3" y="-3" width="6" height="6" rx="1" />
+                </g>
+            }
+
+            @foreach (var drone in ShownDrones)
+            {
+                var (x, y) = Place(drone.Position!);
+                var carrying = drone.Cargo is { Items.Count: > 0 };
+
+                <g @key="drone.Id" class="map-item" style="transform: translate(@Inv($"{x:0.##}px, {y:0.##}px"))">
+                    <title>@DroneTitle(drone)</title>
+                    <g class="drone-turn" style="transform: rotate(@Inv($"{Compass.HeadingFromYaw(drone.YawDegrees):0.##}")deg)">
+                        <path class="drone-arrow @(carrying ? "carrying" : "")" d="M 0 -4.2 L 3 3.4 L 0 1.6 L -3 3.4 Z" />
+                    </g>
+                </g>
+            }
+
+            <text class="map-range" x="130" y="130">@Range m</text>
+        </svg>
+    }
+
+    <div class="map-label">Drones</div>
+
+    <div class="map-caption">
+        <span class="map-caption-name">@Flying.Count flying</span>
+        <span class="map-caption-meta">@StationText</span>
+    </div>
+</div>
+
+@code {
+    private const float MapHalf = 64f;
+    private static readonly int[] RangeSteps = { 100, 250, 500, 1000, 2000 };
+
+    /// <summary>Drones in the air.</summary>
+    [Parameter]
+    public IReadOnlyList<DroneData> Flying { get; set; } = Array.Empty<DroneData>();
+
+    [Parameter]
+    public IReadOnlyList<DroneStationData> Stations { get; set; } = Array.Empty<DroneStationData>();
+
+    /// <summary>Where the player stands (raw world X, Z) and which way they face (compass degrees).</summary>
+    [Parameter]
+    public Vector2 PlayerFlat { get; set; }
+
+    [Parameter]
+    public float PlayerHeading { get; set; }
+
+    /// <summary>Whether the drone card is showing (the map is outlined).</summary>
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggle { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    // Several of these share a page, and SVG ids are page-wide.
+    private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
+
+    private float _heading;
+    private float _turn;
+    private bool _started;
+
+    protected override void OnParametersSet()
+    {
+        var heading = float.IsFinite(PlayerHeading) ? PlayerHeading : 0f;
+
+        if (!_started)
+        {
+            _started = true;
+            _turn = heading;
+        }
+        else
+        {
+            // Turn by the shortest way round, so 359 to 2 degrees is a small nudge and not a full spin.
+            _turn += ((heading - _heading + 540f) % 360f) - 180f;
+        }
+
+        _heading = heading;
+    }
+
+    private static float Distance(Vector2 from, Vec3 to) => Vector2.Distance(from, new Vector2((float)to.X, (float)to.Z));
+
+    private IEnumerable<DroneStationData> PlacedStations => Stations.Where(s => s.Position is not null);
+
+    private IEnumerable<DroneData> PlacedDrones => Flying.Where(d => d.Position is not null);
+
+    // The smallest round radius that holds the closest station or drone with a little room to spare.
+    private int Range
+    {
+        get
+        {
+            var nearest = PlacedStations.Select(s => Distance(PlayerFlat, s.Position!))
+                .Concat(PlacedDrones.Select(d => Distance(PlayerFlat, d.Position!)))
+                .DefaultIfEmpty(0f)
+                .Min();
+
+            return RangeSteps.FirstOrDefault(step => nearest * 1.15f <= step, RangeSteps[^1]);
+        }
+    }
+
+    private IEnumerable<DroneStationData> ShownStations => PlacedStations.Where(s => Distance(PlayerFlat, s.Position!) <= Range);
+
+    private IEnumerable<DroneData> ShownDrones => PlacedDrones.Where(d => Distance(PlayerFlat, d.Position!) <= Range);
+
+    private string StationText
+    {
+        get
+        {
+            var docked = Stations.Sum(s => s.Docked);
+            return Stations.Count == 0 ? "no stations" : $"{Stations.Count} station{(Stations.Count == 1 ? "" : "s")}, {docked} docked";
+        }
+    }
+
+    // You are at the centre and the game's north is up.
+    private (float X, float Y) Place(Vec3 world)
+    {
+        var offset = Compass.ToEastNorth(new Vector2((float)world.X, (float)world.Z) - PlayerFlat) * (MapHalf / Range);
+        return (70f + offset.X, 70f - offset.Y);
+    }
+
+    private string StationTitle(DroneStationData station) =>
+        $"{(string.IsNullOrWhiteSpace(station.Name) ? station.Group : station.Name)}: {station.Docked} docked, {(int)Distance(PlayerFlat, station.Position!)} m {Compass.GetCompassDirection(PlayerFlat, new Vector2((float)station.Position!.X, (float)station.Position.Z))}";
+
+    private string DroneTitle(DroneData drone) =>
+        $"{(string.IsNullOrWhiteSpace(drone.Name) ? drone.Group : drone.Name)}, {(int)Distance(PlayerFlat, drone.Position!)} m {Compass.GetCompassDirection(PlayerFlat, new Vector2((float)drone.Position!.X, (float)drone.Position.Z))}";
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}

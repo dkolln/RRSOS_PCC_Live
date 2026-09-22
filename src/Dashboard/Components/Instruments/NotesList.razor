@@ -1,0 +1,111 @@
+@inject NotebookService NotebookService
+
+<div class="notes">
+    <div class="notes-toolbar">
+        @if (!_adding)
+        {
+            <button class="notes-add" @onclick="() => _adding = true">+ Add note</button>
+        }
+    </div>
+
+    @if (_adding)
+    {
+        <div class="notes-form">
+            <input class="notes-input" @bind="_draft" @bind:event="oninput" placeholder="Write a note…"
+                   @onkeydown="OnKeyDown" @ref="_inputRef" />
+            <button class="notes-save" @onclick="AddNote">Save</button>
+            <button class="notes-cancel" @onclick="Cancel">✕</button>
+        </div>
+    }
+
+    <div class="notes-list">
+        @foreach (var note in Sorted)
+        {
+            <div class="note-row">
+                <span class="note-text">@note.Text</span>
+                <div class="note-actions">
+                    <button class="note-btn" @onclick="() => MoveUp(note)" title="Move up">▲</button>
+                    <button class="note-btn" @onclick="() => MoveDown(note)" title="Move down">▼</button>
+                    <button class="note-del" @onclick="() => Delete(note)" title="Delete">✕</button>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (!_adding && Sorted.Count == 0)
+    {
+        <div class="notes-empty">No notes yet.</div>
+    }
+</div>
+
+@code {
+    private Notebook _notebook = new();
+    private string _draft = "";
+    private bool _adding;
+    private ElementReference _inputRef;
+
+    private List<Note> Sorted => _notebook.Notes.OrderBy(n => n.Priority).ToList();
+
+    protected override async Task OnInitializedAsync() =>
+        _notebook = await NotebookService.LoadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_adding)
+        {
+            try { await _inputRef.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AddNote();
+        else if (e.Key == "Escape") Cancel();
+    }
+
+    private async Task AddNote()
+    {
+        var text = _draft.Trim();
+        if (string.IsNullOrEmpty(text)) { Cancel(); return; }
+
+        var nextId = _notebook.Notes.Count == 0 ? 1 : _notebook.Notes.Max(n => n.Id) + 1;
+        var nextPri = _notebook.Notes.Count == 0 ? 1 : _notebook.Notes.Max(n => n.Priority) + 1;
+
+        _notebook.Notes.Add(new Note { Id = nextId, Text = text, Created = DateTime.UtcNow, Priority = nextPri });
+        _draft = "";
+        _adding = false;
+        await Save();
+    }
+
+    private void Cancel() { _draft = ""; _adding = false; }
+
+    private async Task MoveUp(Note note)
+    {
+        var sorted = Sorted;
+        var idx = sorted.IndexOf(note);
+        if (idx <= 0) return;
+        (sorted[idx].Priority, sorted[idx - 1].Priority) = (sorted[idx - 1].Priority, sorted[idx].Priority);
+        await Save();
+    }
+
+    private async Task MoveDown(Note note)
+    {
+        var sorted = Sorted;
+        var idx = sorted.IndexOf(note);
+        if (idx < 0 || idx >= sorted.Count - 1) return;
+        (sorted[idx].Priority, sorted[idx + 1].Priority) = (sorted[idx + 1].Priority, sorted[idx].Priority);
+        await Save();
+    }
+
+    private async Task Delete(Note note)
+    {
+        _notebook.Notes.Remove(note);
+        await Save();
+    }
+
+    private async Task Save()
+    {
+        await NotebookService.SaveAsync(_notebook);
+        StateHasChanged();
+    }
+}

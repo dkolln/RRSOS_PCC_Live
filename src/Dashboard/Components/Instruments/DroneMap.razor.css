@@ -1,25 +1,16 @@
-.base-map {
+.drone-map {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0;
     width: 100%;
-}
-
-.base-map {
     cursor: pointer;
 }
 
-.base-map.is-open svg rect.map-face,
-.base-map.is-open svg rect.map-face {
-    stroke: #4a7fa5;
-}
-
-.base-map.is-dim {
+.drone-map.is-dim {
     opacity: 0.5;
 }
 
-.base-map svg {
+.drone-map svg {
     width: 100%;
     max-width: 170px;
     height: auto;
@@ -29,12 +20,26 @@
 .map-empty {
     color: #5f7d99;
     font-style: italic;
+    padding: 60px 0;
 }
 
 .map-face {
     fill: #0e1520;
     stroke: #24384d;
     stroke-width: 1.5;
+}
+
+/* The card is open: outline the map so it is clear what the card belongs to */
+.drone-map.is-open .map-face {
+    stroke: #7ab8ff;
+}
+
+.drone-map:hover .map-face {
+    stroke: #4a6b8a;
+}
+
+.drone-map.is-open:hover .map-face {
+    stroke: #7ab8ff;
 }
 
 .map-ring-line {
@@ -84,64 +89,42 @@
     filter: drop-shadow(0 0 3px #4fd18b);
 }
 
-/* Bases and outposts */
-.map-pip {
-    --pip-color: #7ab8ff;
-    cursor: pointer;
+/* Things glide to their new place between readings (a reading arrives every second) */
+.map-item {
+    transition: transform 1000ms linear;
 }
 
-.map-pip.is-outpost {
-    --pip-color: #8fa3b8;
+.drone-turn {
+    transition: transform 900ms ease-out;
 }
 
-.map-hit {
-    fill: transparent;
-}
-
-.map-dot {
-    fill: var(--pip-color);
+.drone-station {
+    fill: #2fb8a8;
     stroke: #0e1520;
     stroke-width: 0.8;
-    transition: fill 150ms ease;
 }
 
-.map-pip.far {
-    opacity: 0.55;
+.drone-arrow {
+    fill: #9ac7ff;
+    stroke: #0e1520;
+    stroke-width: 0.6;
 }
 
-.map-pip:hover .map-dot {
-    fill: #e6f2ff;
+.drone-arrow.carrying {
+    fill: #ffb347;
+    filter: drop-shadow(0 0 2px #ffb347);
 }
 
-/* The base the contents are showing */
-.map-select {
-    fill: none;
-    stroke: #e6f2ff;
-    stroke-width: 1.2;
-    opacity: 0;
-}
-
-.map-pip.selected .map-select {
-    opacity: 1;
-}
-
-.map-pip.selected .map-dot {
-    fill: #e6f2ff;
-}
-
-/* Picked by hand rather than simply the nearest */
-.map-pip.pinned .map-select {
-    stroke: #ffd86b;
-    stroke-dasharray: 2 1.6;
-}
-
-/* Name of the base under the mouse, or the one being shown. Two lines, always the same height, so the card never jumps. */
 .map-label {
     margin-top: 2px;
     font-size: 0.8rem;
     color: #7ab8ff;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.drone-map.is-open .map-label {
+    color: #e6f2ff;
 }
 
 .map-caption {
@@ -173,13 +156,10 @@
     font-size: 0.72rem;
 }
 
-/* Hovering a base other than the one being shown */
-.map-caption.is-hover .map-caption-name {
-    color: #9ac7ff;
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .map-turn {
+    .map-turn,
+    .map-item,
+    .drone-turn {
         transition: none;
     }
 }

@@ -27,7 +27,7 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>Crops in growers that have finished growing.</summary>
         public IReadOnlyList<ItemCount> Ready { get; init; } = Array.Empty<ItemCount>();
 
-        /// <summary>Items lying loose on the ground.</summary>
+        /// <summary>Loose ore, alloy, quartz and rods lying on the ground (the "boneyard").</summary>
         public IReadOnlyList<ItemCount> Loose { get; init; } = Array.Empty<ItemCount>();
     }
 
@@ -89,7 +89,8 @@ namespace RRSOS.PCC.Dashboard
 
             foreach (var loose in world.Loose)
             {
-                if (Nearest(found, loose.Position) is { } owner && !IsMachineOrBuildingPart(catalog, loose.Id))
+                // The boneyard is raw material lying around the base (ore, ice, super alloy, quartz, rods). Plants, drones, vehicles and the like are left out.
+                if (Nearest(found, loose.Position) is { } owner && IsBoneyardMaterial(catalog, loose.Id))
                     Add(owner.Loose, loose.Id, loose.Label, loose.Count);
             }
 
@@ -131,6 +132,10 @@ namespace RRSOS.PCC.Dashboard
 
             return best;
         }
+
+        /// <summary>What may lie in the boneyard: ores (which includes ice and uranium), super alloy, quartz and rods. Types are those of RRSOS-PCC's table.</summary>
+        private static bool IsBoneyardMaterial(ItemCatalog catalog, string id) =>
+            catalog.TypeOf(id) is ItemType.Ore or ItemType.Alloy or ItemType.Quartz or ItemType.Rod;
 
         private static bool IsMachineOrBuildingPart(ItemCatalog catalog, string id) =>
             catalog.CategoryOf(id) is ItemCategory.Machine or ItemCategory.BasePart;

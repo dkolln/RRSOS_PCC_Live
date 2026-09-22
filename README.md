@@ -19,7 +19,7 @@ One page, laid out for a 2560 x 1440 monitor, three columns, nothing scrolls exc
 
 | Left | Middle | Right |
 |---|---|---|
-| **Player**: compass, altimeter, and a **map of the bases around you** (hover for a name, click to pick one), oxygen, health, thirst, toxicity, backpack and worn gear | **Planet**: six terraformation dials with live rates, rocket count and multiplier under each, power dial and a picture per generator | **Base**: what the base you are at (or picked on the map) holds: stored items, crops ready to harvest, loose items, each folded until you open it and scrolling after 20 rows |
+| **Player**: compass, altimeter, and two small maps: the **bases around you** (hover for a name, click to pick one) and the **drones around you** (stations, and drones in the air moving live; click it to open a drone card under the power card), oxygen, health, thirst, toxicity, backpack and worn gear | **Planet**: six terraformation dials with live rates, rocket count and multiplier under each, power dial and a picture per generator; **click the drone map** and a drone card opens under it | **Base**: what the base you are at (or picked on the map) holds: stored items, crops ready to harvest, loose items, each showing 10 rows and then scrolling |
 | **Vehicle**: compass, map with you in the middle and the truck placed relative to you, altimeter, trunk contents, equipped modules | | **Extractors**: every ore, gas, water and algae machine, grouped (ore by what it mines), with its fill level, position, and distance and direction from you |
 
 The backpack, gear and trunk lists can be folded by clicking their titles.
@@ -52,7 +52,7 @@ page keeps the last reading, dimmed, and says so. `LAUNCH PC` is disabled while 
    `solution_private.targets.example` to `solution_private.targets` and set `GameDir`.
 4. Build the plugin (game closed): `dotnet build src/Live/Live.csproj`. It copies itself into
    `BepInEx\plugins\RRSOS-PCC-Live\`.
-5. Run the dashboard: `dotnet run --project src/Dashboard`, then open http://localhost:5320 (full screen, F11, on a 2K monitor).
+5. Run the dashboard: press start on the `Dashboard` profile in Visual Studio, or `dotnet run --project src/Dashboard`. It opens a console window and your default browser at http://localhost:5320 (full screen, F11, on a 2K monitor).
 
 To try the dashboard **without the game**, generate fake live files:
 `tools\sample-live.ps1 -Path .\sample\live.json -Loop`, then
@@ -78,7 +78,8 @@ Built one at a time.
 | 5 | **Planet**: world-unit values and live rates, power and generators, rockets | done: run in the game; rocket multipliers match the wiki maths exactly, power and generators plausible; screen comparisons still open |
 | 6 | **Dashboard**: one page for Player, Planet, Vehicle; Launch PC | done: fake data in every state at 2560 x 1440, then live with the real game (the owner: "beautiful") |
 | 7 | **Base and Extractors**: base data, a map of nearby bases on the Player card, a Base card and an Extractors card on the one page | built (plugin 0.3.0, second file `live-world.json`); checked on fake data and a real save, **not yet run in the game**: see section 9 of docs/test-plan.md |
-| 8 | **Optional**: drones, local HTTP feed, in-game overlay | later |
+| 8 | **Drones**: a live drone map on the Player card, and a drone card (flying drones, stations, their contents) under the power card | built (plugin 0.3.0: `drones` in `live.json`, `droneStations` in `live-world.json`); checked on fake data only, **not yet run in the game**: see section 10 of docs/test-plan.md |
+| 9 | **Optional**: local HTTP feed, in-game overlay | later |
 
 ## License
 

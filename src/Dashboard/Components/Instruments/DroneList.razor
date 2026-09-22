@@ -1,0 +1,111 @@
+@* Flying drones: what each one is doing, carrying, and heading. Station info collapsed to a one-line summary.
+   Recently docked drones stay visible for a few seconds as they fade out. *@
+<div class="drones @(Dim ? "is-dim" : "")">
+
+    @if (Stations.Count > 0)
+    {
+        <div class="drones-station-summary">
+            @Stations.Sum(s => s.Docked) docked · @Stations.Count station@(Stations.Count == 1 ? "" : "s")
+        </div>
+    }
+
+    <div class="drones-title">Flying <span class="drones-count">@Flying.Count</span></div>
+
+    @if (Flying.Count == 0 && RecentlyDocked.Count == 0)
+    {
+        <div class="drones-empty">No drones are in the air.</div>
+    }
+
+    <div class="drone-tiles">
+        @foreach (var drone in FlyingByDistance)
+        {
+            @DroneTile(drone, false)
+        }
+        @foreach (var drone in RecentlyDocked)
+        {
+            @DroneTile(drone, true)
+        }
+    </div>
+
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<DroneData> Flying { get; set; } = Array.Empty<DroneData>();
+
+    [Parameter]
+    public IReadOnlyList<DroneData> RecentlyDocked { get; set; } = Array.Empty<DroneData>();
+
+    [Parameter]
+    public IReadOnlyList<DroneStationData> Stations { get; set; } = Array.Empty<DroneStationData>();
+
+    /// <summary>Where the player stands (raw world X, Z). Without it, distances and directions are left out.</summary>
+    [Parameter]
+    public Vector2? PlayerFlat { get; set; }
+
+    [Parameter]
+    public bool Dim { get; set; }
+
+    private IEnumerable<DroneData> FlyingByDistance => Flying.OrderBy(d => DistanceTo(d.Position));
+
+    private float DistanceTo(Vec3? at) =>
+        PlayerFlat is { } here && at is not null ? Vector2.Distance(here, new Vector2((float)at.X, (float)at.Z)) : 0f;
+
+    private string Where(Vec3? at, bool brackets = false)
+    {
+        if (PlayerFlat is not { } here || at is null) return "";
+        var there = new Vector2((float)at.X, (float)at.Z);
+        var text = $"{(int)Vector2.Distance(here, there)} m {Compass.GetCompassDirection(here, there)}";
+        return brackets ? $"({text})" : text;
+    }
+
+    private RenderFragment DroneTile(DroneData drone, bool docking) => @<text>
+        @{
+            var cargo = drone.Cargo?.Items ?? new List<ItemData>();
+        }
+        <div class="drone-tile @(cargo.Count > 0 ? "is-loaded" : "") @(docking ? "is-docking" : "")">
+            <div class="drone-head">
+                <span class="drone-name">@(string.IsNullOrWhiteSpace(drone.Name) ? drone.Group : drone.Name)</span>
+                <span class="drone-state">@(docking ? "docking" : StateText(drone.State))</span>
+                <span class="drone-where">@Where(drone.Position)</span>
+            </div>
+
+            <div class="drone-row">
+                <span class="drone-key">Carrying</span>
+                <span class="drone-val">@(cargo.Count == 0 ? "nothing" : string.Join(", ", cargo.OrderBy(i => i.Label).Select(i => $"{i.Label} x{i.Count}")))</span>
+            </div>
+
+            @if (drone.Moving is not null || drone.From is not null || drone.To is not null)
+            {
+                <div class="drone-row">
+                    <span class="drone-key">Task</span>
+                    <span class="drone-val">
+                        @(drone.Moving?.Label ?? "an item")
+                        from @(drone.From?.Label ?? "?") @Where(drone.From?.Position, brackets: true)
+                        to @(drone.To?.Label ?? "?") @Where(drone.To?.Position, brackets: true)
+                    </span>
+                </div>
+            }
+
+            <div class="drone-row">
+                <span class="drone-key">Speed</span>
+                <span class="drone-val">@drone.Speed.ToString("0.#") m/s · height @(drone.Position is { } p ? p.Y.ToString("0") : "?") m</span>
+            </div>
+        </div>
+    </text>;
+
+    private static string StateText(string? state) => state switch
+    {
+        "ToSupply" => "heading to pick up",
+        "ToDemand" => "delivering",
+        "Loading" => "loading",
+        "Unloading" => "unloading",
+        "Done" => "finishing",
+        "NotAttributed" => "waiting for a task",
+        "Returning" => "returning to a station",
+        null or "" => "",
+        _ => state
+    };
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}

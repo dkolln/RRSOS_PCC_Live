@@ -14,6 +14,7 @@ namespace RRSOS.PCC.Dashboard
         public PlayerData? Player { get; set; }
         public PlanetData? Planet { get; set; }
         public VehicleData? Vehicle { get; set; }
+        public DronesData? Drones { get; set; }
     }
 
     public sealed class Vec3
@@ -98,5 +99,48 @@ namespace RRSOS.PCC.Dashboard
         public double? YawDegrees { get; set; }
         public InventoryData? Trunk { get; set; }
         public InventoryData? Gear { get; set; }
+    }
+
+    /// <summary>The drones that are in the air right now. Drones docked in a station are in the world file, as part of the station.</summary>
+    public sealed class DronesData
+    {
+        public List<DroneData> Flying { get; set; } = new();
+    }
+
+    public sealed class DroneData
+    {
+        public int Id { get; set; }
+        public string? Group { get; set; }
+        public string? Name { get; set; }
+        public Vec3? Position { get; set; }
+        public double YawDegrees { get; set; }
+
+        /// <summary>Metres per second.</summary>
+        public double Speed { get; set; }
+
+        /// <summary>The game's task state: NotAttributed, ToSupply, ToDemand, Loading, Unloading, Done; or "Returning" when it has no task and is heading for a station.</summary>
+        public string? State { get; set; }
+
+        public InventoryData? Cargo { get; set; }
+
+        /// <summary>What it was sent to carry, and where from and to (null when it has no task).</summary>
+        public NamedThing? Moving { get; set; }
+        public PlaceData? From { get; set; }
+        public PlaceData? To { get; set; }
+    }
+
+    public sealed class NamedThing
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public string Label => string.IsNullOrWhiteSpace(Name) ? Id ?? "?" : Name!;
+    }
+
+    public sealed class PlaceData
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public Vec3? Position { get; set; }
+        public string Label => string.IsNullOrWhiteSpace(Name) ? Id ?? "?" : Name!;
     }
 }

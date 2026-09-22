@@ -1,6 +1,6 @@
 @* A small map of the bases with you in the middle and the game.s north up. Hover a base for its name under the map;
    click one to show what it holds (click it again to go back to the nearest). Ported from RRSOS-PCC. *@
-<div class="base-map @(Dim ? "is-dim" : "")">
+<div class="base-map @(Open ? "is-open" : "") @(Dim ? "is-dim" : "")" @onclick="() => OnMapClick.InvokeAsync()">
 
     @if (Bases.Count == 0)
     {
@@ -38,7 +38,7 @@
                 <g class="map-pip @(b.Kind == BaseKind.Base ? "is-base" : "is-outpost") @(b.Id == SelectedId ? "selected" : "") @(b.Id == PinnedId ? "pinned" : "") @(b.Distance > Range ? "far" : "")"
                    transform="translate(@Inv($"{x:0.##} {y:0.##}"))"
                    role="button" aria-label="@PipLabel(b)"
-                   @onclick="() => OnSelect.InvokeAsync(b.Id)"
+                   @onclick="() => OnSelect.InvokeAsync(b.Id)" @onclick:stopPropagation
                    @onmouseenter="() => _hoverId = b.Id"
                    @onmouseleave="() => _hoverId = null">
                     <title>@PipLabel(b)</title>
@@ -103,6 +103,14 @@
 
     [Parameter]
     public EventCallback<long> OnSelect { get; set; }
+
+    /// <summary>True when this map's detail panel is showing in the right column.</summary>
+    [Parameter]
+    public bool Open { get; set; }
+
+    /// <summary>Raised when the user clicks the map background (not a specific base pip).</summary>
+    [Parameter]
+    public EventCallback OnMapClick { get; set; }
 
     /// <summary>Drawn faded, when the reading is old.</summary>
     [Parameter]

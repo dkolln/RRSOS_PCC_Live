@@ -1,0 +1,116 @@
+.notes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+}
+
+.notes-toolbar {
+    display: flex;
+    align-items: center;
+}
+
+.notes-add {
+    background: none;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+    color: #7ab8ff;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    cursor: pointer;
+}
+
+.notes-add:hover {
+    border-color: #4a7fa5;
+    color: #cfe4ff;
+}
+
+.notes-form {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.notes-input {
+    flex: 1;
+    background: #0a0f18;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+    color: #cfe4ff;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 0;
+}
+
+.notes-input:focus {
+    outline: none;
+    border-color: #4a7fa5;
+}
+
+.notes-save,
+.notes-cancel {
+    background: none;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+    color: #7f9db9;
+    font-size: 0.8rem;
+    padding: 3px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.notes-save:hover { color: #4fd18b; border-color: #4fd18b; }
+.notes-cancel:hover { color: #ff6b6b; border-color: #ff6b6b; }
+
+.notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    min-height: 0;
+    scrollbar-color: #24384d #0b0f17;
+    scrollbar-width: thin;
+}
+
+.note-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 6px;
+    background: #0e1520;
+    border: 1px solid #1a2a3a;
+    border-radius: 4px;
+    font-size: 0.82rem;
+}
+
+.note-text {
+    flex: 1;
+    color: #cfe4ff;
+    word-break: break-word;
+}
+
+.note-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.note-btn,
+.note-del {
+    background: none;
+    border: none;
+    color: #5f7d99;
+    font-size: 0.7rem;
+    padding: 1px 4px;
+    cursor: pointer;
+}
+
+.note-btn:hover { color: #7ab8ff; }
+.note-del:hover { color: #ff6b6b; }
+
+.notes-empty {
+    color: #5f7d99;
+    font-style: italic;
+    font-size: 0.82rem;
+}

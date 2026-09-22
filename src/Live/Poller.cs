@@ -81,7 +81,8 @@ namespace RRSOS.PCC.Live
                 json.Str("planetId", player.Planet)
                     .Raw("player", Section("player", () => PlayerSection(player)))
                     .Raw("planet", Section("planet", PlanetReader.Fragment))
-                    .Raw("vehicle", Section("vehicle", VehicleReader.Fragment));
+                    .Raw("vehicle", Section("vehicle", VehicleReader.Fragment))
+                    .Raw("drones", Section("drones", DroneReader.Fragment));
             }
 
             return json.End().ToString();

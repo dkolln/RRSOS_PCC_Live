@@ -111,9 +111,23 @@ Plugin cost: the world pass walks the game's placed objects (thousands) and then
 5 seconds, on the main thread. It stops after roughly 2 ms per frame and carries on next frame; the pass reports its own
 `scan.workMs` and `scan.worstFrameMs` in the file so the cost can be read off after a real session.
 
+## Discovered API (drones, from the decompiled code, build 25296421)
+
+Read from the decompile only; **not yet run in the game** (test plan, section 10).
+
+| Want | Where | Notes |
+|---|---|---|
+| Drones in the air | `Object.FindObjectsByType<Drone>()`; `Drone` is a `MonoBehaviour` in `SpaceCraft` | A drone in a station is put away (`gameObject.SetActive(false)` and despawned), so only flying ones are active. Re-list every few seconds, read the rest each second |
+| A drone's world object | `drone.GetComponent<WorldObjectAssociated>().GetWorldObject()` | Its group id is `Drone` plus a tier (`Drone2` in a save). Use this, not `Drone.GetDronePlanetHash()`, which dereferences a field that is null until the drone joins the fleet |
+| Live position and heading | `drone.transform.position`, `transform.eulerAngles.y`; speed `drone.forwardSpeed` (a public field, metres per second) | The game moves drones with a job system on their transforms |
+| Its cargo | `drone.GetDroneInventory()` | Null until the drone is in the fleet |
+| What it is doing | `drone.GetLogisticTask()` (null: no job, it goes to a station); `LogisticTask.GetTaskState()`: `NotAttributed`, `ToSupply`, `ToDemand`, `Loading`, `Unloading`, `Done` | `GetWorldObjectToMove()` is the item, `GetSupplyInventoryWorldObject()` and `GetDemandInventoryWorldObject()` the machines it picks up from and delivers to |
+| Stations | constructed world objects with group id `DroneStation*` (`DroneStation1` in a save), scene component `MachineDroneStation` | Its storage (`GetDroneStationInventory()`, the same as the world object's linked inventory) holds the docked drones as items. `GetNumberOfDronesInStation()` counts those whose group is one of its `droneGroupsData` |
+| Others | `LogisticManager` keeps the fleet and the stations in private sets (`_droneFleet`, `_allDroneStations`) | Not used: the public components and world objects are enough |
+
 ## Open questions
 
 - How do `WorldUnitEnergy`'s increase and decrease map to power produced and power used? (module 5)
 - Is the vehicle object present in the scene while stowed in the pocket, or only when deployed? (module 4)
-- Is the `Drone` component only present while a drone is airborne? (module 4)
+- Is the `Drone` component only present while a drone is airborne? (module 4; the plugin assumes a docked drone is inactive, see test plan section 10.4)
 - Multiplayer: `playersControllers` may hold several players. Use `GetActivePlayerController()` (the local one).

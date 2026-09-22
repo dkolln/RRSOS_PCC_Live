@@ -9,9 +9,7 @@
     else
     {
         <div class="power-main">
-            <div class="power-side power-side-left">@GroupList(LeftGroups)</div>
-
-            <div class="power-center">
+            <div class="power-meter">
                 <Gauge Label="Power load"
                        Value="@Load"
                        Unknown="@(Data.ProducedKw <= 0)"
@@ -32,40 +30,39 @@
                 </div>
             </div>
 
-            <div class="power-side power-side-right">@GroupList(RightGroups)</div>
+            <div class="power-icons" title="@IconsTitle">
+                @foreach (var (icon, idx) in SortedIcons)
+                {
+                    <PowerIcon Kind="@icon" Index="@idx" />
+                }
+            </div>
         </div>
     }
 </div>
 
 @code {
-    // A base with dozens of one kind would otherwise fill the card.
     private const int MaxIconsPerGroup = 40;
 
-    // What each generator id is and which little picture draws it. Anything else gets a plain bolt.
     private static readonly Dictionary<string, (string Icon, string Name)> Known = new(StringComparer.OrdinalIgnoreCase)
     {
         ["EnergyGenerator1"] = ("windmill", "Wind Turbine"),
-        ["EnergyGenerator2"] = ("sun", "Solar Panel T1"),
-        ["EnergyGenerator3"] = ("sun-large", "Solar Panel T2"),
-        ["EnergyGenerator4"] = ("atom", "Nuclear Reactor T1"),
-        ["EnergyGenerator5"] = ("atoms", "Nuclear Reactor T2"),
-        ["EnergyGenerator6"] = ("starburst", "Fusion Generator")
+        ["EnergyGenerator2"] = ("sun",      "Solar Panel T1"),
+        ["EnergyGenerator3"] = ("sun-large","Solar Panel T2"),
+        ["EnergyGenerator4"] = ("atom",     "Nuclear Reactor T1"),
+        ["EnergyGenerator5"] = ("atoms",    "Nuclear Reactor T2"),
+        ["EnergyGenerator6"] = ("starburst","Fusion Generator")
     };
 
-    // Wind and solar go left of the dial; nuclear, fusion and unknown go right.
-    private static readonly HashSet<string> LeftIcons = new(StringComparer.OrdinalIgnoreCase) { "windmill", "sun", "sun-large" };
+    private static readonly string[] TypeOrder = { "windmill", "sun", "sun-large", "atom", "atoms", "starburst", "bolt" };
 
     [Parameter]
     public PowerData? Data { get; set; }
 
-    /// <summary>Drawn faded, when the reading is old.</summary>
     [Parameter]
     public bool Dim { get; set; }
 
     private bool Short => Data is not null && Data.UsedKw > Data.ProducedKw;
-
     private float Load => Data is null || Data.ProducedKw <= 0 ? 0f : (float)Math.Clamp(Data.UsedKw / Data.ProducedKw, 0, 1);
-
     private string LoadText => Data is null || Data.ProducedKw <= 0 ? "--" : $"{Data.UsedKw / Data.ProducedKw:P0}";
 
     private sealed record Group(string Icon, int Count, string Title);
@@ -75,29 +72,25 @@
         : Data.Generators.Select(g =>
         {
             var known = Known.TryGetValue(g.Id, out var k);
-            var name = known ? k.Name : g.Id;
-            return new Group(known ? k.Icon : "bolt", g.Count, $"{name} ×{g.Count}: {Kw(g.Kw)}");
+            return new Group(known ? k.Icon : "bolt", g.Count, $"{(known ? k.Name : g.Id)} ×{g.Count}: {Kw(g.Kw)}");
         });
 
-    private IEnumerable<Group> LeftGroups => Groups.Where(g => LeftIcons.Contains(g.Icon));
-
-    private IEnumerable<Group> RightGroups => Groups.Where(g => !LeftIcons.Contains(g.Icon));
-
-    private RenderFragment GroupList(IEnumerable<Group> groups) => @<text>
-        @foreach (var group in groups)
+    private IEnumerable<(string Icon, int Index)> SortedIcons
+    {
+        get
         {
-            <div class="power-gen-group" title="@group.Title" role="img" aria-label="@group.Title">
-                @for (var i = 0; i < Math.Min(group.Count, MaxIconsPerGroup); i++)
-                {
-                    <PowerIcon Kind="@group.Icon" Index="@i" />
-                }
-                @if (group.Count > MaxIconsPerGroup)
-                {
-                    <span class="power-gen-more">+@(group.Count - MaxIconsPerGroup)</span>
-                }
-            </div>
+            var idx = 0;
+            foreach (var type in TypeOrder)
+            {
+                var group = Groups.FirstOrDefault(g => g.Icon == type);
+                if (group is null) continue;
+                for (var i = 0; i < Math.Min(group.Count, MaxIconsPerGroup); i++)
+                    yield return (type, idx++);
+            }
         }
-    </text>;
+    }
+
+    private string IconsTitle => string.Join(", ", Groups.Select(g => g.Title));
 
     private static string Kw(double kw) => $"{kw:N1} kW";
 }

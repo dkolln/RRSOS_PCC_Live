@@ -100,6 +100,21 @@ function Build([int] $tick) {
       gear = @{ size = 8; items = $vgear }
     }
   }
+  # Two drones in the air, circling near the Main base: one empty and heading to pick something up, one carrying iron.
+  $angle = $tick * 0.15
+  $flying = @(
+    @{ id = 501; group = 'Drone2'; name = 'Drone T2'; position = @{ x = 800 + 40 * [Math]::Cos($angle); y = 41; z = 620 + 40 * [Math]::Sin($angle) }
+       yawDegrees = ((-$angle * 180 / [Math]::PI) % 360 + 360) % 360; speed = 9.5; state = 'ToSupply'
+       cargo = @{ size = 4; items = @() }; moving = @{ id = 'Iron'; name = 'Iron' }
+       from = @{ id = 'Container1'; name = 'Storage Container'; position = @{ x = 806; y = 35; z = 617 } }
+       to = @{ id = 'VegetableGrower2'; name = 'Vegetable Grower T2'; position = @{ x = 772.25; y = 36; z = 579.75 } } }
+    @{ id = 502; group = 'Drone2'; name = 'Drone T2'; position = @{ x = 800 + 25 * [Math]::Cos(-$angle * 2); y = 44; z = 620 + 25 * [Math]::Sin(-$angle * 2) }
+       yawDegrees = (($angle * 2 * 180 / [Math]::PI) % 360 + 360) % 360; speed = 11.2; state = 'ToDemand'
+       cargo = @{ size = 4; items = @(@{ id = 'Iron'; name = 'Iron'; count = 4 }) }; moving = @{ id = 'Iron'; name = 'Iron' }
+       from = @{ id = 'Container1'; name = 'Storage Container'; position = @{ x = 808; y = 35; z = 620 } }
+       to = @{ id = 'AutoCrafter1'; name = 'Auto-Crafter'; position = @{ x = 810; y = 35; z = 600 } } }
+  )
+  $doc.drones = @{ flying = $flying }
   return $doc
 }
 
@@ -160,8 +175,18 @@ function BuildWorld([int] $tick) {
       @{ id = 'Container1'; name = 'Storage Container'; position = (P 790 35 640); count = 1 }
       @{ id = 'Foundation'; name = 'Foundation'; position = (P 800 35 630); count = 4 }
       @{ id = 'ice'; name = 'Ice'; position = (P 367 141 966); count = 9 }
+      @{ id = 'Rod-iridium'; name = 'Iridium Rod'; position = (P 809 35 636); count = 2 }
+      @{ id = 'PulsarQuartz'; name = 'Pulsar Quartz'; position = (P 811 35 632); count = 3 }
+      @{ id = 'Vegetable3Growable'; name = 'Mushroom Plant'; position = (P 795 35 640); count = 6 }
+      @{ id = 'Drone2'; name = 'Drone T2'; position = (P 805 36 628); count = 1 }
     )
   }
+
+  $doc.droneStations = @(
+    @{ id = 401; group = 'DroneStation1'; name = 'Drone Station'; position = (P 790 35.5 600); size = 10; docked = 3; items = @(@{ id = 'Drone2'; name = 'Drone T2'; count = 3 }) }
+    @{ id = 402; group = 'DroneStation1'; name = 'Drone Station'; position = (P 822 35 640); size = 10; docked = 1; items = @(@{ id = 'Drone2'; name = 'Drone T2'; count = 1 }, @{ id = 'Iron'; name = 'Iron'; count = 2 }) }
+    @{ id = 403; group = 'DroneStation1'; name = 'Drone Station'; position = (P 608 30 322); size = 10; docked = 2; items = @(@{ id = 'Drone2'; name = 'Drone T2'; count = 2 }) }
+  )
 
   $doc.extractors = @(
     (Mine 301 'OreExtractor3' (P 932 23 551) 'Titanium' 'Titanium' 8 8)
