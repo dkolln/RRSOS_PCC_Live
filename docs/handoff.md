@@ -38,17 +38,18 @@ player, vehicle, power and planet data "all look good".
   ore, gas, water and algae extractors (product, size, count, contents). It also reports its own cost (`scan`). See `contract.md`, "The world file".
 - **Dashboard:** `WorldFileService` reads that file and works out the bases with `BaseDirectory` (a base is a pod with a door;
   door plus connection is a "Base", else an "Outpost"; things belong to the nearest base within 100 m; names from signs, then
-  a saved name, then a pool: `BaseNames`). New tabs in the top bar: **Main**, **Base**, **Extractors**. Inactive tabs are hidden, not removed, so their
-  state survives. The **compact Bases map** is a fourth instrument in the Player card's top row (`NavDisplay`'s new `Extra` slot);
-  hover shows a name under it, click jumps to the Base tab with that base pinned. The **Base tab** has the big map (zoom, Fit, pin,
-  "Follow nearest", sticky nearest via `BaseSelector`) and the contents (stored grouped by name, type or category, ready to harvest, loose items, search across
-  bases). The **Extractors tab** groups ore by product, then gas, water and algae, with position, distance, direction, fill bar and contents.
-- **Ported from RRSOS-PCC (copied, not referenced):** `BaseMap` (with `Compact`), `BaseContents` (built on the existing `ItemList`), `BaseSelector`,
+  a saved name, then a pool: `BaseNames`). **One page, no tabs** (the owner's layout, after a first version with Main, Base and Extractors tabs): three columns, sized for 2560 x 1440.
+  Left: **Player, with Vehicle under it**. Middle: **Planet**. Right: the **Base card** over the **Extractors card**. The Player card's top row is compass, elevation and the
+  **Bases map** (`NavDisplay`'s `Extra` slot; its position map is switched off with `ShowPosition="false"`). Hover a base on the map for its name; click it to pin it (click again,
+  or "Follow nearest", to go back; sticky nearest via `BaseSelector`). The Base card has three lists, **folded to begin with**, each showing 20 rows and then scrolling:
+  Stored (by name), Ready to harvest and Boneyard. Backpack, gear and trunk can be folded too (`ItemList`'s `Collapsible`; they start open). The Extractors card groups ore by product,
+  then gas, water and algae, with position, distance, direction, fill bar and contents, and scrolls.
+- **Ported from RRSOS-PCC (copied, not referenced):** `BaseMap` (small version only now), `BaseContents` (built on the existing `ItemList`), `BaseSelector`,
   the extractor grouping, the item-type table (`Assets/worldobjectdata.json` and `ItemType`/`ItemCatalog`) and the two name pools.
 - **Checked without the game:** the plugin compiles against the game's assemblies with no warnings. The dashboard was run against the fake world
   (`tools/sample-live.ps1`) and against **your real save `Custom-2`** through `tools/save-to-world.ps1`: 16 door pods found (1 Base, 15 Outposts), the same count as
-  counting the save by hand, names identical to RRSOS-PCC's saved ones, 38 extractors, Main with 4049 stored items. Main still fits 2560 x 1440 without scrolling and the top row does not wrap.
-- **What the save-based check cannot show:** whether the plugin's game calls return what the decompiled code suggests (see `test-plan.md` section 9.8,
+  counting the save by hand, names identical to RRSOS-PCC's saved ones, 38 extractors, Main with 4049 stored items. The page fits 2560 x 1440 with nothing clipped (Player and Vehicle share the left column 59 to 41; the backpack shows in full).
+- **What the save-based check cannot show:** whether the plugin's game calls return what the decompiled code suggests (see `test-plan.md` section 9.7,
   the list of assumptions), and how much the world pass costs in a real session (`scan.workMs` and `scan.worstFrameMs` in the file).
 
 Not yet confirmed by the owner from earlier: the Energy Levels and Terraformation screen comparisons, the backpack contents,
@@ -58,14 +59,15 @@ See `test-plan.md` (tick items off as they are done).
 ## Next
 
 1. **Test section 9 of `test-plan.md` in the game** (the owner asked for a detailed list to work through on return). Start with 9.1
-   (does the file appear, are the counts right, what does `scan` say). Anything that fails will most likely be one of the assumptions in 9.8.
+   (does the file appear, are the counts right, what does `scan` say). Anything that fails will most likely be one of the assumptions in 9.7.
 2. Fix what the game shows to be wrong. The likely suspects, in order: pods missing (the "constructed objects" list or the planet hash), every
    pod an outpost (panel numbers), an empty "Ready to harvest" (secondary storage), ore groups all "Unset" (`GetLinkedGroups`), dropped items not listed as loose (the scene-id rule).
 3. Decide a few small things the owner has not been asked yet:
    - **Base names:** the live dashboard keeps its own `basedata.json` (so it never depends on RRSOS-PCC). The bases with signs get the same names in both apps; unsigned ones get
      pool names that may differ. Seeding from RRSOS-PCC's file is possible (both key by the pod's game id) if the owner wants identical names.
-   - Whether gas extractors, the genetic extractor and the water-life collector belong on the Extractors tab (gas is in; the other two are not).
-   - The Extractors tab lists every ore group as its own row, which is tall; a denser layout might suit a 2560 x 1440 screen better.
+   - Whether gas extractors, the genetic extractor and the water-life collector belong on the Extractors card (gas is in; the other two are not).
+   - **Far bases cannot be picked:** the Bases map only reaches half the range that would hold every base, and it is now the only way to choose a base. If that bites, options are a wider map or a small list of bases.
+   - Removed on request when the layout changed: the big map and its zoom, the Group by Name/Type/Category buttons, and the search box. The code for grouping by type is gone with them (`ItemCatalog` is still used to leave machines and building parts out).
 4. Then module 8 (optional): drones, a local HTTP feed, an in-game overlay.
 
 ## Working rules that emerged (from the owner)

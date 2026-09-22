@@ -30,6 +30,8 @@
     </div>
 
     <!-- Map: a fixed square with the world origin (0, 0) in the middle and north up. The scale grows to fit how far out you have been. -->
+    @if (ShowPosition)
+    {
     <div class="nav-panel" title="Position @PositionText">
         @if (AroundFlat is not null)
         {
@@ -89,6 +91,7 @@
         <div class="nav-label">Position</div>
         <div class="nav-caption">@PositionText</div>
     </div>
+    }
 
     <!-- Altimeter: a tape that scrolls past a fixed pointer, like an aircraft instrument. -->
     <div class="nav-panel nav-panel-tall" title="Elevation @ElevationText">
@@ -140,6 +143,10 @@
 </div>
 
 @code {
+    /// <summary>False leaves out the position map and its coordinates (the Player card shows the bases instead).</summary>
+    [Parameter]
+    public bool ShowPosition { get; set; } = true;
+
     /// <summary>An extra instrument drawn after the others in the row.</summary>
     [Parameter]
     public RenderFragment? Extra { get; set; }

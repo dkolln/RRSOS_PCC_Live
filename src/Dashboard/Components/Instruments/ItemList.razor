@@ -1,7 +1,8 @@
-@* A titled list of items and counts, packed into columns so a big backpack still fits on screen. *@
+@* A titled list of items and counts, packed into columns so a big backpack still fits on screen. Click the title to fold
+   it away (when Collapsible); with MaxRows it stops growing after that many rows and scrolls instead. *@
 <div class="items @(Dim ? "is-dim" : "")">
-    <div class="items-title">
-        <span>@Title</span>
+    <div class="items-title @(Collapsible ? "is-clickable" : "")" @onclick="Toggle" title="@(Collapsible ? (_open ? "Click to fold" : "Click to unfold") : "")">
+        <span>@if (Collapsible){ <span class="items-caret">@(_open ? "▼" : "▶")</span> }@Title</span>
         <span class="items-count" title="@(Data is null ? "" : $"{Kinds} kinds of item, {Total} in all")">
             @if (Data is null)
             {
@@ -14,7 +15,11 @@
         </span>
     </div>
 
-    @if (Data is null)
+    @if (!_open)
+    {
+        @* folded away *@
+    }
+    else if (Data is null)
     {
         <div class="items-empty">no data</div>
     }
@@ -24,7 +29,7 @@
     }
     else
     {
-        <div class="items-columns" style="column-count: @Columns">
+        <div class="items-columns @(MaxRows is not null ? "is-scrolling" : "")" style="@ColumnStyle">
             @foreach (var item in Sorted)
             {
                 <div class="item" title="@item.Id">
@@ -50,6 +55,32 @@
     /// <summary>Drawn faded, when the reading is old.</summary>
     [Parameter]
     public bool Dim { get; set; }
+
+    /// <summary>Lets the user fold the list away by clicking its title.</summary>
+    [Parameter]
+    public bool Collapsible { get; set; }
+
+    /// <summary>With Collapsible, starts folded. Only read once, when the list first appears.</summary>
+    [Parameter]
+    public bool StartCollapsed { get; set; }
+
+    /// <summary>Stops the list growing after this many rows; the rest scrolls. Meant for a single column.</summary>
+    [Parameter]
+    public int? MaxRows { get; set; }
+
+    // Columns (none for a single column: a height-capped multi-column box would grow sideways instead of scrolling), and a height
+    // cap when the list is meant to scroll. A row is 1.08rem: 0.8rem text at line-height 1.35.
+    private string ColumnStyle => (Columns > 1 ? $"column-count: {Columns};" : "") + (MaxRows is { } rows ? $" max-height: calc({rows} * 1.08rem);" : "");
+
+    private bool _open = true;
+
+    protected override void OnInitialized() => _open = !(Collapsible && StartCollapsed);
+
+    private void Toggle()
+    {
+        if (Collapsible)
+            _open = !_open;
+    }
 
     private IEnumerable<ItemData> Sorted => Data!.Items.OrderBy(i => i.Label, StringComparer.CurrentCultureIgnoreCase);
 

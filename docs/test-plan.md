@@ -57,7 +57,7 @@ Open `BepInEx\LogOutput.log` after a session.
 
 Already verified in an earlier build: position, yaw and vitals (the position matched a save to four decimals).
 
-- [ ] **Position:** the coordinates under the map and the altimeter number match what you expect; walk and both change smoothly.
+- [ ] **Elevation:** the altimeter number matches what you expect and changes smoothly as you climb. (The Player card no longer shows a position map or coordinates; the position is in the file, and the Bases map is where you are.)
 - [ ] **Compass:** face each of N, NE, E, SE, S, SW, W, NW using the **in-game compass**. The heading dial should agree
   each time. (North is world +X, east is world -Z; measured, but only with two runs.)
 - [ ] **Vitals:** the four dials read sensibly. **Oxygen max** should be your tank's size (was 370 with the current
@@ -109,7 +109,7 @@ Already verified in an earlier build: position, yaw and vitals (the position mat
 ## 6. Dashboard (layout and behaviour)
 
 - [ ] At **2560 x 1440, browser zoom 100%**: all three cards fit with nothing scrolling and nothing cut off, even with a
-  full backpack. (Browser full screen, F11, is the intended way to run it.) The tabs (Main, Base, Extractors) are in the top bar, so they take no room from the cards; the small Bases map sits in the Player card's top row (section 9.3).
+  full backpack. (Browser full screen, F11, is the intended way to run it.) There are no tabs any more: the page is one screen (Player over Vehicle, Planet, Base over Extractors; section 9.3).
 - [ ] Other sizes (1920 x 1080): note what breaks; the layout is designed for 2K and is not responsive yet.
 - [ ] **Stale detection:** close the game with the dashboard open: within about 6 seconds the status becomes
   `GAME NOT RUNNING - showing the last reading, from HH:MM:SS`, the data dims but stays visible.
@@ -146,7 +146,7 @@ These are the likely places for surprises. Each is a guess, made from reading th
 8. **Multiplayer** is unsupported: only the local player is read.
 9. **Drones** are not in the file yet. Bases and extractors are (section 9).
 
-## 9. Base and Extractors (plugin 0.3.0, dashboard tabs Main / Base / Extractors)
+## 9. Base and Extractors (plugin 0.3.0; on the Main page: the Bases map, the Base card and the Extractors card)
 
 **Nothing in this section has been run in the game yet.** It was built from the decompiled game code and checked against
 fake data and against your real save `Custom-2` (converted with `tools\save-to-world.ps1`): 16 door pods found, 1 base and
@@ -179,7 +179,7 @@ the log. If you change anything, rebuild (`dotnet build src/Live/Live.csproj`, g
 
 Compare with RRSOS-PCC on the same save (it decides the same way: a pod with a door; door plus connection is a Base).
 
-- [ ] The Base tab title `n bases, m outposts` (and the number on the tab) matches RRSOS-PCC's Bases list for a save made a moment ago.
+- [ ] The Base card title `n bases, m outposts` matches RRSOS-PCC's Bases list for a save made a moment ago.
   Known, intended differences: this counts a door pod called `EscapePod` if it had a door (RRSOS-PCC's match misses that spelling; yours has no panels, so none today),
   and the larger `Pod4x`/`Pod9xC` modules are not bases in either.
 - [ ] **Base versus Outpost:** a pod with a door and a corridor connection is drawn as a diamond and called `base`; a door only is a dot and `outpost`.
@@ -187,47 +187,44 @@ Compare with RRSOS-PCC on the same save (it decides the same way: a pod with a d
 - [ ] **Names:** a base with a sign next to it (within about 6 metres) shows the sign's text. Bases without a sign get a name from a list (Greek names for bases, NATO letters for outposts).
   Stop and restart the dashboard: **the same bases have the same names** (they are saved in `%LOCALAPPDATA%\RRSOS-PCC-Live\basedata.json`).
   Put a sign by an unnamed base: it takes the sign's name. Change the sign's text: the name follows.
-- [ ] **New and removed bases:** build a new door pod: it appears within about 10 seconds. Deconstruct one: it disappears and, if you were pinned to it, the Base tab goes back to the nearest one.
-- [ ] Positions: the pip for a base you are standing next to is in the middle of the map, on top of you.
+- [ ] **New and removed bases:** build a new door pod: it appears within about 10 seconds. Deconstruct one: it disappears from the map, and if you were pinned to it the Base card goes back to the nearest one.
+- [ ] Positions: the pip for a base you are standing next to is in the middle of the Bases map, on top of you.
 
-### 9.3 The small map on the Player card (Main tab)
+### 9.3 The layout (one page, no tabs) and the Bases map on the Player card
 
-- [ ] It sits in the same row as the compass, position map and elevation strip, labelled `BASES`, you in the middle, north up, the light cone showing which way you face (turn and it follows).
-- [ ] **Main still fits 2560 x 1440 with no scrolling** and nothing cut off, browser at 100% (F11). Check with a full backpack. The Player card's top row must **not** wrap onto two lines.
-- [ ] The bottom-right label (`250 m`, `500 m`...) is the map's range. Bases farther than that are left off this small map (they are on the Base tab).
-- [ ] **Hover** a base: its name appears under the map with its distance and direction, and whether it is a base or an outpost. Move away: it shows the base the Base tab is showing (or nothing, if that one is off this small map).
-- [ ] **Click** a base: the page jumps to the Base tab with that base selected and pinned (the dashed ring on the big map, a lock next to its name).
-- [ ] Walk between two bases: the pips slide sensibly and the compass directions in the caption (`120m NE`) agree with the in-game compass.
+The page is three columns: **Player with Vehicle under it**, then **Planet**, then **Base and Extractors** stacked. There are no tabs.
 
-### 9.4 The big map (Base tab)
+- [ ] **The whole page fits 2560 x 1440 with no scrolling** (browser at 100%, F11) and nothing is cut off, with a full backpack. Only the lists inside cards scroll.
+- [ ] The Player card's top row is the compass, the elevation strip and the **Bases map** (the position map and the coordinates are gone; the Vehicle card still has its own map of where the truck is).
+- [ ] **Backpack** (33 or more kinds) shows in full, or scrolls inside its own area. Vehicle **trunk** the same. A trunk with 30 kinds should scroll rather than push anything off the page.
+- [ ] Click the title of Backpack, Gear or Trunk: it folds away and back. (They start open. Say if you would rather they start folded.)
+- [ ] The Bases map: you in the middle, north up, the light cone shows which way you face (turn and it follows). The label at its bottom right (`250 m`...) is its range. Bases farther than that are left off it.
+- [ ] **Hover** a base: its name appears under the map with distance, direction and whether it is a base or an outpost. Move away: it shows the base the Base card is showing.
+- [ ] **Click** a base: the Base card switches to it and shows a lock and **Follow nearest**. Click the same base again, or the button: back to the nearest.
+- [ ] Walk between two bases: the pips slide, the compass letters in the caption (`120m NE`) agree with the in-game compass, and the Base card does not flip back and forth (it changes only when another base is 15 m closer).
 
-- [ ] Every base is on it, you in the middle. `-`, `+` and `Fit` change the range (`Fit` shows the farthest base). A base past the edge is pinned to the edge on its bearing, faded.
-- [ ] Hover shows the name under the map. **Click** a base to pin it (dashed ring, lock); click it again to go back to following the nearest.
-- [ ] **Follow nearest** (button, top right of the contents) does the same.
-- [ ] **Sticky nearest:** stand between two bases and walk slowly. The shown base must not flip back and forth; it changes only when another is clearly closer (15 m).
-- [ ] Switch to Main and back: the map's zoom, the pinned base, the search text and the group-by choice are all kept (nothing resets).
+### 9.4 Base card (top right)
 
-### 9.5 Base contents (Base tab, right side)
+The card names the base (`Main`, `120m NW`, `base` or `outpost`) and has three lists, **all folded to begin with**: `Stored`, `Ready to harvest` and `Boneyard (loose)`
+(the last two side by side). Click a title to open it; it shows 20 rows and then scrolls. Pick a base you know well (a room with a few chests).
 
-Pick a base whose contents you know well (a room with a few chests).
-
-- [ ] **Stored** lists what is in the base's containers. By default grouped by category. `Name` shows the game's own display names (localized), `Type` and `Category` use RRSOS-PCC's table
-  and should read like RRSOS-PCC does. **Add 5 Iron to a chest in that base: within about 10 seconds Iron goes up by 5** (in `Name`). Take some out: it goes down.
+- [ ] **Stored** lists what is in the base's containers, by the game's own (localized) names. **Add 5 Iron to a chest in that base: within about 10 seconds Iron goes up by 5.** Take some out: it goes down.
 - [ ] Items in **machines** with storage (auto-crafters, incubators, growers) are counted as stored too (RRSOS-PCC does the same).
 - [ ] Nothing that is a **machine or a building part** is listed as stored (no `Foundation`, no placed chests).
 - [ ] **Ready to harvest:** plants that have finished growing in a Vegetable Grower or Outdoor Farm, by name. Harvest one: the count drops. Plants still growing are not listed here (but do count under `Stored`, as in RRSOS-PCC).
 - [ ] **Boneyard (loose):** drop 3 Iron on the floor inside a base: within about 10 seconds `Iron 3` (or more) appears here. Pick them up: gone.
   It must not fill up with the landscape's own rocks or the loot in wrecks. **Likely surprise:** plants you grew outdoors and other things you placed in the open (that are items, not machines)
   may appear here; note which.
+- [ ] The three lists scroll after 20 rows, and the number on each title is the total item count.
 - [ ] **Range:** something in a chest more than 100 metres from every base is listed nowhere (it belongs to no base). Something 60 m from base A and 90 m from base B belongs to A.
 - [ ] Launched rockets (the hidden storage far away) never show up in any base.
-- [ ] **Search:** type an item name (or part of its id). Every base that has it is listed with how many are stored / loose and how far, nearest first.
-  Only items in containers within reach of a base can be found; items in your backpack or truck are not included.
-- [ ] Compare the whole list with RRSOS-PCC for the same base on a fresh save. Small differences (a few items) are expected while things move; large ones are not, so note the base and the item.
+- [ ] Compare the Stored list with RRSOS-PCC's for the same base on a fresh save. Small differences (a few items) are expected while things move; large ones are not, so note the base and the item.
+- [ ] The list of bases is only reachable through the Bases map, which shows half the range that would hold every base. **A base too far to be on that map cannot be picked.** Tell me if that is a problem in practice.
+- [ ] (Removed on request: the big map, the Group by Name/Type/Category buttons and the search box.)
 
-### 9.6 Extractors tab
+### 9.5 Extractors card (under the Base card)
 
-The tab label shows how many extractors it found (ore, gas, water and algae machines; RRSOS-PCC does not show gas ones).
+The card's title shows how many it found (ore, gas, water and algae machines; RRSOS-PCC does not show gas ones). It takes the rest of the column and scrolls.
 
 - [ ] **Ore extractors** are grouped under the ore each one **is set to mine**, with a header `n items x/y full` per ore. Change one extractor's ore in the game: it moves to the other group within about 10 seconds.
 - [ ] Each machine shows `X ... Z ...` (matches its position: compare with the coordinates you see standing next to it), **distance and direction from you** (updates as you walk, every second), a **fill bar** `count / slots`, and its contents.
@@ -237,14 +234,15 @@ The tab label shows how many extractors it found (ore, gas, water and algae mach
 - [ ] Click a group header (or an ore's header) to fold it; it stays folded while data refreshes.
 - [ ] Extractors on another planet, and kinds not listed here (the genetic extractor, the water-life collector), are not shown. Note if you have any and want them.
 
-### 9.7 Dashboard behaviour
+### 9.6 Dashboard behaviour
 
-- [ ] Close the game with the dashboard open: within about 6 seconds all three tabs dim but keep their last data, and the status says `GAME NOT RUNNING`.
-- [ ] Quit to the main menu: Base and Extractors say `Waiting for live data.` or `No world loaded.`, not an error, and the tab numbers disappear.
+- [ ] Close the game with the dashboard open: within about 6 seconds everything dims but keeps its last data, and the status says `GAME NOT RUNNING`.
+- [ ] Quit to the main menu: the Base and Extractors cards say `No world loaded.` (or `Waiting for live data.`), not an error.
 - [ ] Open the dashboard **before** the game, and after it: both work (as in section 1).
 - [ ] Keep the dashboard open for an hour while playing: no growth in its memory (Task Manager), no warnings in its console window. (The plugin's file is rewritten every 5 seconds; the dashboard re-reads it when it changes.)
+- [ ] Which lists you have folded or opened survives new readings (they must not spring shut every second).
 
-### 9.8 What I assumed (the likely places for surprises)
+### 9.7 What I assumed (the likely places for surprises)
 
 1. **`GetConstructedWorldObjects()` contains the pods, signs, extractors and chests** (the game adds everything that is a building, or a buildable item, that is not from the scene). If pods are missing, this is why.
 2. **`GetIsPlaced()` (position not zero) means "in the world"**, and the planet hash of a placed object equals the current planet's hash (the game compares them the same way).

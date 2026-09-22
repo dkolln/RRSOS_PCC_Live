@@ -1,6 +1,6 @@
-@* A map of the bases with you in the middle and the game's north up. Click a base to pick it. The full version (Base tab)
-   has zoom and Fit; the compact one (Player card) only reaches as far as the full map's inner ring. Ported from RRSOS-PCC. *@
-<div class="base-map @(Compact ? "compact" : "") @(Dim ? "is-dim" : "")">
+@* A small map of the bases with you in the middle and the game.s north up. Hover a base for its name under the map;
+   click one to show what it holds (click it again to go back to the nearest). Ported from RRSOS-PCC. *@
+<div class="base-map @(Dim ? "is-dim" : "")">
 
     @if (Bases.Count == 0)
     {
@@ -60,19 +60,7 @@
             <text class="map-range" x="130" y="130">@Range m</text>
         </svg>
 
-        @if (!Compact)
-        {
-            <div class="map-controls">
-                <button class="map-btn" @onclick="ZoomOut" title="Zoom out">−</button>
-                <button class="map-btn" @onclick="ZoomIn" title="Zoom in">+</button>
-                <button class="map-btn @(_range is null ? "active" : "")" @onclick="Fit" title="Fit every base">Fit</button>
-                <span class="map-legend">◆ base &nbsp;● outpost &nbsp;○ shown &nbsp;┄ pinned</span>
-            </div>
-        }
-        else
-        {
-            <div class="map-label">Bases</div>
-        }
+        <div class="map-label">Bases</div>
 
         @* The name of the base under the mouse, or else the one being shown. Kept off the map so it never covers anything. *@
         <div class="map-caption @(_hoverId is not null && _hoverId != SelectedId ? "is-hover" : "")" aria-live="polite">
@@ -116,10 +104,6 @@
     [Parameter]
     public EventCallback<long> OnSelect { get; set; }
 
-    /// <summary>A small version with no controls, for the player card. It leaves out bases beyond half the full map's range.</summary>
-    [Parameter]
-    public bool Compact { get; set; }
-
     /// <summary>Drawn faded, when the reading is old.</summary>
     [Parameter]
     public bool Dim { get; set; }
@@ -130,8 +114,8 @@
     // The base under the mouse, if any.
     private long? _hoverId;
 
-    // The compact map only draws what is inside its range.
-    private IEnumerable<BaseView> ShownBases => Compact ? Bases.Where(b => b.Distance <= Range) : Bases;
+    // Only bases inside the range are drawn (the rest are still found by walking towards them).
+    private IEnumerable<BaseView> ShownBases => Bases.Where(b => b.Distance <= Range);
 
     // Hover wins. Otherwise the base being shown, unless it is off this small map.
     private BaseView? LabelBase
@@ -142,15 +126,12 @@
                 return Bases.FirstOrDefault(b => b.Id == hovered);
 
             var shown = Bases.FirstOrDefault(b => b.Id == SelectedId);
-            return Compact && shown is not null && shown.Distance > Range ? null : shown;
+            return shown is not null && shown.Distance > Range ? null : shown;
         }
     }
 
     // Several of these share a page, and SVG ids are page-wide.
     private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
-
-    // Null means "fit every base"; otherwise the radius in world units the user zoomed to.
-    private int? _range;
 
     private float _heading;
     private float _turn;
@@ -184,24 +165,8 @@
         }
     }
 
-    // The compact map stops at the full map's inner ring: half of the range that fits every base.
-    private int Range => Compact ? Math.Max(RangeSteps[0], FitRange / 2) : _range ?? FitRange;
-
-    private void ZoomIn()
-    {
-        var current = Range;
-        var smaller = RangeSteps.Where(step => step < current).ToArray();
-        _range = smaller.Length > 0 ? smaller[^1] : RangeSteps[0];
-    }
-
-    private void ZoomOut()
-    {
-        var current = Range;
-        var larger = RangeSteps.Where(step => step > current).ToArray();
-        _range = larger.Length > 0 ? larger[0] : RangeSteps[^1];
-    }
-
-    private void Fit() => _range = null;
+    // The map reaches half of the range that would fit every base, so the near ones are not squashed together in the middle.
+    private int Range => Math.Max(RangeSteps[0], FitRange / 2);
 
     // You are at the centre and the game's north is up. Anything past the edge is pinned to it, on its bearing.
     private (float X, float Y) Place(BaseView b)

@@ -54,3 +54,28 @@
     color: #e6f2ff;
     font-variant-numeric: tabular-nums;
 }
+
+/* Foldable lists: the title is the button */
+.items-title.is-clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.items-title.is-clickable:hover {
+    color: #cfe4ff;
+}
+
+.items-caret {
+    display: inline-block;
+    width: 1.1em;
+    font-size: 0.7rem;
+    color: #7f9db9;
+}
+
+/* A capped list scrolls inside itself */
+.items-columns.is-scrolling {
+    overflow-y: auto;
+    padding-right: 6px;
+    scrollbar-color: #24384d #0b0f17;
+    scrollbar-width: thin;
+}

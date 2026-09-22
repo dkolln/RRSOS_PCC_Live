@@ -15,21 +15,14 @@ Planet Crafter  --(plugin, once a second)-->  live.json        --(watches)-->  D
 
 ## What the dashboard shows
 
-Three tabs in the top bar, laid out for a 2560 x 1440 monitor. Inactive tabs are hidden, not removed, so nothing resets when you switch.
+One page, laid out for a 2560 x 1440 monitor, three columns, nothing scrolls except the lists inside cards:
 
-**Main**: three cards, nothing scrolls.
-
-| Player | Planet | Vehicle |
+| Left | Middle | Right |
 |---|---|---|
-| compass, position map, altimeter, and a small **map of the bases around you** (hover for a name, click to open it on the Base tab) | six terraformation dials with live rates | compass, map with you in the middle and the truck placed relative to you, altimeter |
-| oxygen, health, thirst, toxicity | rocket count and multiplier under each dial | trunk contents |
-| backpack contents | power dial (produced, used, left) and a picture per generator | equipped modules |
-| worn gear | | |
+| **Player**: compass, altimeter, and a **map of the bases around you** (hover for a name, click to pick one), oxygen, health, thirst, toxicity, backpack and worn gear | **Planet**: six terraformation dials with live rates, rocket count and multiplier under each, power dial and a picture per generator | **Base**: what the base you are at (or picked on the map) holds: stored items, crops ready to harvest, loose items, each folded until you open it and scrolling after 20 rows |
+| **Vehicle**: compass, map with you in the middle and the truck placed relative to you, altimeter, trunk contents, equipped modules | | **Extractors**: every ore, gas, water and algae machine, grouped (ore by what it mines), with its fill level, position, and distance and direction from you |
 
-**Base**: a big map of every base and outpost (zoom, Fit, click to pin one, "Follow nearest" to go back) beside what the chosen
-base holds: stored items (by name, type or category), crops ready to harvest, loose items, and a search across all bases.
-
-**Extractors**: every ore, gas, water and algae machine, grouped (ore by what it mines), with its fill level, position, and distance and direction from you.
+The backpack, gear and trunk lists can be folded by clicking their titles.
 
 The only control is **LAUNCH PC**, which starts the game through Steam. Nothing on the page can change the game.
 
@@ -83,8 +76,8 @@ Built one at a time.
 | 3 | **Player**: position, yaw, vitals | done and verified in the game (position matches a save exactly) |
 | 4 | **Inventories and vehicle**: backpack, gear, vehicle position, trunk, gear | done: run in the game, all sections arrive (vehicle position matches the save); detailed checks still open in the test plan |
 | 5 | **Planet**: world-unit values and live rates, power and generators, rockets | done: run in the game; rocket multipliers match the wiki maths exactly, power and generators plausible; screen comparisons still open |
-| 6 | **Dashboard**: one page for Player, Planet, Vehicle; Launch PC | done (now three tabs): fake data in every state at 2560 x 1440, then live with the real game (the owner: "beautiful") |
-| 7 | **Base and Extractors**: base data and maps (compact on the Player card, big on a Base tab), extractor data and tab | built (plugin 0.3.0, second file `live-world.json`); checked on fake data and a real save, **not yet run in the game**: see section 9 of docs/test-plan.md |
+| 6 | **Dashboard**: one page for Player, Planet, Vehicle; Launch PC | done: fake data in every state at 2560 x 1440, then live with the real game (the owner: "beautiful") |
+| 7 | **Base and Extractors**: base data, a map of nearby bases on the Player card, a Base card and an Extractors card on the one page | built (plugin 0.3.0, second file `live-world.json`); checked on fake data and a real save, **not yet run in the game**: see section 9 of docs/test-plan.md |
 | 8 | **Optional**: drones, local HTTP feed, in-game overlay | later |
 
 ## License

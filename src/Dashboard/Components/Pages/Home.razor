@@ -21,17 +21,6 @@
     <header class="topbar">
         <div class="brand">RRSOS PCC <span>LIVE</span></div>
 
-        @* Every tab stays in the page and the inactive ones are only hidden, so nothing resets when you switch
-           (the player's map trail keeps recording, the selected base and open lists are kept). *@
-        <nav class="tabs" role="tablist">
-            <button class="tab @(_tab == HomeTab.Main ? "active" : "")" role="tab" aria-selected="@(_tab == HomeTab.Main)"
-                    @onclick="() => _tab = HomeTab.Main">Main</button>
-            <button class="tab @(_tab == HomeTab.Base ? "active" : "")" role="tab" aria-selected="@(_tab == HomeTab.Base)"
-                    @onclick="() => _tab = HomeTab.Base">Base@(_views.Count > 0 ? $" ({_views.Count})" : "")</button>
-            <button class="tab @(_tab == HomeTab.Extractors ? "active" : "")" role="tab" aria-selected="@(_tab == HomeTab.Extractors)"
-                    @onclick="() => _tab = HomeTab.Extractors">Extractors@(extractors.Count > 0 ? $" ({extractors.Count})" : "")</button>
-        </nav>
-
         <div class="status status-@status.ToString().ToLowerInvariant()">
             <span class="dot">●</span>
             <span class="status-text">@StatusText(status, data, running)</span>
@@ -46,51 +35,85 @@
         </button>
     </header>
 
-    <main class="grid @PaneClass(HomeTab.Main)">
+    @* Everything on one page, sized for 2560 x 1440: you and your truck, the planet, and the base you are at with the extractors. *@
+    <main class="grid">
 
-        <!-- PLAYER -->
-        <section class="card">
-            <h2>Player <span class="who">@player?.Name</span></h2>
+        <div class="col">
 
-            @if (player is null)
-            {
-                <div class="empty">@EmptyText(status)</div>
-            }
-            else
-            {
-                @if (player.Position is { } position)
+            <!-- PLAYER -->
+            <section class="card card-player">
+                <h2>Player <span class="who">@player?.Name</span></h2>
+
+                @if (player is null)
                 {
-                    <NavDisplay Position="@(new Vector3((float)position.X, (float)position.Y, (float)position.Z))"
-                                Heading="@Compass.HeadingFromYaw(player.YawDegrees)">
-                        <Extra>
-                            @* The bases around you. Click one to open it on the Base tab. *@
-                            <BaseMap Compact="true" Bases="@_views" PlayerFlat="@_playerFlat" PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
-                                     SelectedId="@_selectedBaseId" PinnedId="@_pinnedBaseId" OnSelect="ShowBase" Dim="@dim" EmptyText="no bases" />
-                        </Extra>
-                    </NavDisplay>
+                    <div class="empty">@EmptyText(status)</div>
                 }
-
-                <div class="vitals">
-                    @if (player.Vitals is { } vitals)
+                else
+                {
+                    @if (player.Position is { } position)
                     {
-                        <Gauge Label="Oxygen" Value="@Fraction(vitals.Oxygen, player.VitalsMax?.Oxygen, vitals.Oxygen)"
-                               MaxLabel="@Max(player.VitalsMax?.Oxygen ?? vitals.Oxygen)" WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Oxygen is null)" />
-                        <Gauge Label="Health" Value="@Fraction(vitals.Health, player.VitalsMax?.Health, 100)"
-                               WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Health is null)" />
-                        <Gauge Label="Thirst" Value="@Fraction(vitals.Thirst, player.VitalsMax?.Thirst, 100)"
-                               WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Thirst is null)" />
-                        <Gauge Label="Toxicity" Value="@Fraction(vitals.Toxic, player.VitalsMax?.Toxic, 100)"
-                               HigherIsWorse="true" WarnAt="0.5f" CritAt="0.8f" Unknown="@(vitals.Toxic is null)" />
+                        @* Which way you face, how high you are, and the bases around you (click one to show what it holds). *@
+                        <NavDisplay Position="@(new Vector3((float)position.X, (float)position.Y, (float)position.Z))"
+                                    Heading="@Compass.HeadingFromYaw(player.YawDegrees)" ShowPosition="false">
+                            <Extra>
+                                <BaseMap Bases="@_views" PlayerFlat="@_playerFlat" PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                         SelectedId="@_selectedBaseId" PinnedId="@_pinnedBaseId" OnSelect="TogglePin" Dim="@dim" EmptyText="no bases" />
+                            </Extra>
+                        </NavDisplay>
                     }
-                </div>
 
-                <div class="fill">
-                    <ItemList Title="Backpack" Data="@player.Backpack" Columns="4" Dim="@dim" />
-                </div>
+                    <div class="vitals">
+                        @if (player.Vitals is { } vitals)
+                        {
+                            <Gauge Label="Oxygen" Value="@Fraction(vitals.Oxygen, player.VitalsMax?.Oxygen, vitals.Oxygen)"
+                                   MaxLabel="@Max(player.VitalsMax?.Oxygen ?? vitals.Oxygen)" WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Oxygen is null)" />
+                            <Gauge Label="Health" Value="@Fraction(vitals.Health, player.VitalsMax?.Health, 100)"
+                                   WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Health is null)" />
+                            <Gauge Label="Thirst" Value="@Fraction(vitals.Thirst, player.VitalsMax?.Thirst, 100)"
+                                   WarnAt="0.5f" CritAt="0.2f" Unknown="@(vitals.Thirst is null)" />
+                            <Gauge Label="Toxicity" Value="@Fraction(vitals.Toxic, player.VitalsMax?.Toxic, 100)"
+                                   HigherIsWorse="true" WarnAt="0.5f" CritAt="0.8f" Unknown="@(vitals.Toxic is null)" />
+                        }
+                    </div>
 
-                <ItemList Title="Gear" Data="@player.Equipment" Columns="3" Dim="@dim" />
-            }
-        </section>
+                    <div class="fill">
+                        <ItemList Title="Backpack" Data="@player.Backpack" Columns="4" Dim="@dim" Collapsible="true" />
+                    </div>
+
+                    <ItemList Title="Gear" Data="@player.Equipment" Columns="3" Dim="@dim" Collapsible="true" />
+                }
+            </section>
+
+            <!-- VEHICLE -->
+            <section class="card card-vehicle">
+                <h2>Vehicle</h2>
+
+                @if (data is null)
+                {
+                    <div class="empty">@EmptyText(status)</div>
+                }
+                else if (vehicle is null)
+                {
+                    <div class="empty">@(data.InWorld ? "No vehicle yet." : EmptyText(status))</div>
+                }
+                else
+                {
+                    @* With a position: the vehicle drawn relative to the player. Without one it is stowed (pocket or portal). *@
+                    <NavDisplay Position="@(vehicle.Position is { } v ? new Vector3((float)v.X, (float)v.Y, (float)v.Z) : default)"
+                                Heading="@Compass.HeadingFromYaw(vehicle.YawDegrees ?? 0)"
+                                Known="@(vehicle.Position is not null)"
+                                AroundFlat="@(player?.Position is { } p ? new Vector2((float)p.X, (float)p.Z) : null)"
+                                AroundHeading="@(player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees))" />
+
+                    <div class="fill">
+                        <ItemList Title="Trunk" Data="@vehicle.Trunk" Columns="3" Dim="@dim" Collapsible="true" />
+                    </div>
+
+                    <ItemList Title="Gear" Data="@vehicle.Gear" Columns="3" Dim="@dim" Collapsible="true" />
+                }
+            </section>
+
+        </div>
 
         <!-- PLANET -->
         <section class="card">
@@ -107,84 +130,32 @@
             }
         </section>
 
-        <!-- VEHICLE -->
-        <section class="card">
-            <h2>Vehicle</h2>
+        <div class="col">
 
-            @if (data is null)
-            {
-                <div class="empty">@EmptyText(status)</div>
-            }
-            else if (vehicle is null)
-            {
-                <div class="empty">@(data.InWorld ? "No vehicle yet." : EmptyText(status))</div>
-            }
-            else
-            {
-                @* With a position: the vehicle drawn relative to the player. Without one it is stowed (pocket or portal). *@
-                <NavDisplay Position="@(vehicle.Position is { } v ? new Vector3((float)v.X, (float)v.Y, (float)v.Z) : default)"
-                            Heading="@Compass.HeadingFromYaw(vehicle.YawDegrees ?? 0)"
-                            Known="@(vehicle.Position is not null)"
-                            AroundFlat="@(player?.Position is { } p ? new Vector2((float)p.X, (float)p.Z) : null)"
-                            AroundHeading="@(player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees))" />
+            <!-- BASE: what the base you are at (or picked on the map) holds -->
+            <section class="card card-base">
+                <h2>Base <span class="who">@BaseCountText()</span></h2>
 
-                <div class="fill">
-                    <ItemList Title="Trunk" Data="@vehicle.Trunk" Columns="3" Dim="@dim" />
-                </div>
-
-                <ItemList Title="Gear" Data="@vehicle.Gear" Columns="3" Dim="@dim" />
-            }
-        </section>
-
-    </main>
-
-    <!-- BASE: every base on a big map, and what the chosen one holds -->
-    <main class="grid grid-base @PaneClass(HomeTab.Base)">
-
-        <section class="card">
-            <h2>Bases <span class="who">@BaseCountText()</span></h2>
-
-            <div class="scroll">
-                <BaseMap Bases="@_views" PlayerFlat="@_playerFlat" PlayerHeading="@PlayerHeading(player)"
-                         SelectedId="@_selectedBaseId" PinnedId="@_pinnedBaseId" OnSelect="TogglePin" Dim="@dim"
-                         EmptyText="@BasesEmptyText(status, world)" />
-            </div>
-        </section>
-
-        <section class="card">
-            <h2>Base contents <span class="who">@world?.PlanetId</span></h2>
-
-            <div class="scroll">
-                <BaseContents SelectedBase="@SelectedBase" AllBases="@_views" IsPinned="@(_pinnedBaseId is not null)" OnFollowNearest="Unpin"
+                <BaseContents SelectedBase="@SelectedBase" IsPinned="@(_pinnedBaseId is not null)" OnFollowNearest="Unpin"
                               Dim="@dim" EmptyText="@BasesEmptyText(status, world)" />
-            </div>
-        </section>
+            </section>
 
-    </main>
+            <!-- EXTRACTORS -->
+            <section class="card card-extractors">
+                <h2>Extractors <span class="who">@(extractors.Count > 0 ? extractors.Count.ToString() : "")</span></h2>
 
-    <!-- EXTRACTORS -->
-    <main class="grid grid-single @PaneClass(HomeTab.Extractors)">
+                <div class="scroll">
+                    <ExtractorList Data="@extractors" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim"
+                                   EmptyText="@(world is null || !world.InWorld ? EmptyText(status) : "No extractors found.")" />
+                </div>
+            </section>
 
-        <section class="card">
-            <h2>Extractors <span class="who">@world?.PlanetId</span></h2>
-
-            <div class="scroll">
-                <ExtractorList Data="@extractors" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim"
-                               EmptyText="@(world is null || !world.InWorld ? EmptyText(status) : "No extractors found.")" />
-            </div>
-        </section>
+        </div>
 
     </main>
 </div>
 
 @code {
-    private enum HomeTab { Main, Base, Extractors }
-
-    private HomeTab _tab = HomeTab.Main;
-
-    // Inactive tabs are hidden with CSS, not removed, so they keep their state.
-    private string PaneClass(HomeTab tab) => _tab == tab ? "" : "pane-hidden";
-
     // How much closer another base must be before the contents switch to it.
     private const float BaseSwitchThreshold = 15f;
 
@@ -194,7 +165,7 @@
 
     private long? _selectedBaseId;
 
-    // Set by clicking a base on the big map or the small one; null means "show the nearest".
+    // Set by clicking a base on the map; null means "show the nearest".
     private long? _pinnedBaseId;
 
     private BaseView? SelectedBase => _views.FirstOrDefault(b => b.Id == _selectedBaseId);
@@ -227,7 +198,7 @@
         StateHasChanged();
     });
 
-    // Works out where the bases are relative to the player, and which one the Base tab shows.
+    // Works out where the bases are relative to the player, and which one the Base card shows.
     private void Refresh()
     {
         var bases = World.Bases.Bases;
@@ -254,19 +225,11 @@
         _selectedBaseId = _pinnedBaseId ?? BaseSelector.Choose(_views, _selectedBaseId, BaseSwitchThreshold);
     }
 
-    // Clicking a base on the big map pins it; clicking the pinned one again goes back to following the nearest.
+    // Clicking a base on the map pins it; clicking the pinned one again goes back to following the nearest.
     private void TogglePin(long id)
     {
         _pinnedBaseId = _pinnedBaseId == id ? null : id;
         UpdateSelection();
-    }
-
-    // Clicking a base on the Player card's small map: pin it and go to the Base tab to see it.
-    private void ShowBase(long id)
-    {
-        _pinnedBaseId = id;
-        UpdateSelection();
-        _tab = HomeTab.Base;
     }
 
     private void Unpin()
@@ -287,8 +250,6 @@
         World.Changed -= OnChanged;
         _timer?.Dispose();
     }
-
-    private static float PlayerHeading(PlayerData? player) => player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees);
 
     private string BaseCountText()
     {
