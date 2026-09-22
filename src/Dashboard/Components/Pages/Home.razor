@@ -3,6 +3,7 @@
 @inject LiveFileService Live
 @inject PCLauncherService Launcher
 @inject WorldFileService World
+@inject IJSRuntime JS
 
 @{
     var data = Live.Data;
@@ -30,6 +31,13 @@
         </div>
 
         <div class="spacer"></div>
+
+        <div class="vol-control">
+            <label class="vol-label">Vol</label>
+            <input type="range" class="vol-slider" min="0" max="1" step="0.05"
+                   value="@_volume.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
+                   @onchange="OnVolumeChanged" />
+        </div>
 
         <button class="launch" disabled="@running" @onclick="LaunchGame"
                 title="@(running ? "Planet Crafter is already running" : "Start Planet Crafter through Steam")">
@@ -231,7 +239,7 @@
     private long? _pinnedBaseId;
 
     // Which map's detail panel is open in column 3: "base", "drone", "vehicle", or null (= extractors)
-    private string? _activeMap;
+    private string? _activeMap = "base";
 
     // Recently-docked drones: held for 5 seconds after they leave the flying list
     private Dictionary<int, DroneData> _prevFlyingData = new();
@@ -239,11 +247,18 @@
 
     private Timer? _timer;
 
+    // Alerts
+    private double _volume = 0.8;
+    private readonly Dictionary<string, DateTime> _lastSpoken = new();
+    private const double AlertCooldownSecs = 40;
+
     private BaseView? SelectedBase => _views.FirstOrDefault(b => b.Id == _selectedBaseId);
 
     private void SelectMap(string? map)
     {
-        _activeMap = _activeMap == map ? null : map;
+        // toggling off any panel falls back to base, not extractors
+        // (extractors chip passes null explicitly, so null↔null stays as-is — handled by the chip)
+        _activeMap = _activeMap == map ? (map == null ? null : "base") : map;
         if (_activeMap != "base") { _pinnedBaseId = null; UpdateSelection(); }
     }
 
@@ -280,7 +295,42 @@
         }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
-    private void OnChanged() => _ = InvokeAsync(() => { Refresh(); StateHasChanged(); });
+    private void OnChanged() => _ = InvokeAsync(async () => { Refresh(); await CheckAlerts(Live.Data?.Player); StateHasChanged(); });
+
+    private async Task OnVolumeChanged(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var v))
+            _volume = v;
+        await JS.InvokeVoidAsync("pccAlerts.test", _volume);
+    }
+
+    private async Task CheckAlerts(PlayerData? player)
+    {
+        if (player?.Vitals is not { } vitals) return;
+
+        var o2 = Fraction(vitals.Oxygen, player.VitalsMax?.Oxygen, vitals.Oxygen);
+        var hp = Fraction(vitals.Health, player.VitalsMax?.Health, 100);
+        var th = Fraction(vitals.Thirst, player.VitalsMax?.Thirst, 100);
+
+        if      (o2 < 0.2f) await Speak("o2-crit", "Oxygen is critical");
+        else if (o2 < 0.5f) await Speak("o2-low",  "Oxygen is low");
+
+        if      (hp < 0.2f) await Speak("hp-crit", "Health is critical");
+        else if (hp < 0.5f) await Speak("hp-low",  "Health is low");
+
+        if      (th < 0.2f) await Speak("th-crit", "Thirst is critical");
+        else if (th < 0.5f) await Speak("th-low",  "Thirst is low");
+    }
+
+    private async Task Speak(string key, string text)
+    {
+        var now = DateTime.UtcNow;
+        if (_lastSpoken.TryGetValue(key, out var last) && (now - last).TotalSeconds < AlertCooldownSecs)
+            return;
+        _lastSpoken[key] = now;
+        await JS.InvokeVoidAsync("pccAlerts.speak", text, _volume);
+    }
 
     private void Refresh()
     {

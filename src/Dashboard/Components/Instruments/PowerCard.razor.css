@@ -19,22 +19,23 @@
 }
 
 .power-main {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px 8px;
+    align-items: start;
 }
 
 .power-meter {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    flex-shrink: 0;
-    width: 220px;
+    align-items: center;
+    min-width: 0;
 }
 
 .power-icons {
+    grid-column: 2 / 4;
     display: grid;
-    grid-template-columns: repeat(8, 28px);
+    grid-template-columns: repeat(auto-fill, 28px);
     gap: 3px;
     align-content: start;
 }
@@ -61,11 +62,15 @@
     color: #7f9db9;
 }
 
-.power-figure.left .num {
+.power-figure.surplus .num {
     color: #4fd18b;
 }
 
-.power-figure.short .num {
+.power-figure.reserve .num {
+    color: #ffd86b;
+}
+
+.power-figure.deficit .num {
     color: #ff6b6b;
 }
 
@@ -74,5 +79,13 @@
     gap: 14px;
     margin-top: 4px;
     font-size: 0.75rem;
-    color: #7f9db9;
+    justify-content: center;
+}
+
+.power-produced {
+    color: #4fd18b;
+}
+
+.power-used {
+    color: #ff6b6b;
 }

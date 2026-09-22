@@ -66,6 +66,26 @@
     flex: 1;
 }
 
+.vol-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vol-label {
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    color: #7f9db9;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.vol-slider {
+    width: 90px;
+    accent-color: #4a7fa5;
+    cursor: pointer;
+}
+
 .launch {
     padding: 8px 18px;
     background: #14202e;
