@@ -128,6 +128,14 @@
     to { transform: rotate(360deg); }
 }
 
+/* With a Transmission Antenna in the world, the sweep turns with its dish instead (radar.js sets --radar-angle every
+   frame). The bright leading edge is 40 degrees round from where the wedge starts, so it is turned back by that much
+   to put the edge on the dish. */
+:root.radar-synced .radar-sweep {
+    animation: none;
+    transform: rotate(calc(var(--radar-angle, 0deg) - 40deg));
+}
+
 /* You */
 .map-turn {
     transform-origin: 70px 70px;

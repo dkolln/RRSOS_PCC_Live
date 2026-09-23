@@ -15,6 +15,9 @@ namespace RRSOS.PCC.Dashboard
         public PlanetData? Planet { get; set; }
         public VehicleData? Vehicle { get; set; }
         public DronesData? Drones { get; set; }
+
+        /// <summary>Each Transmission Antenna's spinning dish (plugin 0.6.0 and later). Null or empty when there are none.</summary>
+        public List<AntennaData>? Antennas { get; set; }
     }
 
     public sealed class Vec3
@@ -99,6 +102,20 @@ namespace RRSOS.PCC.Dashboard
         public double? YawDegrees { get; set; }
         public InventoryData? Trunk { get; set; }
         public InventoryData? Gear { get; set; }
+    }
+
+    /// <summary>
+    /// A Transmission Antenna's dish: its compass heading (0 north, 90 east) at <see cref="SampledAtMs"/> (Unix time,
+    /// milliseconds), and how fast it turns, clockwise from above (0 while the game is paused). From these its heading at
+    /// any moment after is heading + rate × seconds since.
+    /// </summary>
+    public sealed class AntennaData
+    {
+        public int Id { get; set; }
+        public Vec3? Position { get; set; }
+        public double Heading { get; set; }
+        public double DegreesPerSecond { get; set; }
+        public long SampledAtMs { get; set; }
     }
 
     /// <summary>The drones that are in the air right now. Drones docked in a station are in the world file, as part of the station.</summary>

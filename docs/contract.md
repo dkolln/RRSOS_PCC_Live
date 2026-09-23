@@ -85,8 +85,30 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
 - Fields are only ever added within a schema version; anything removed or changed bumps `schemaVersion`.
 - Readers must ignore fields they do not know.
 
+## Antennas (added in plugin 0.6.0)
+
+**In `live.json`, `antennas`**: each Transmission Antenna (group `ComAntenna`) and where its dish points.
+
+```json
+"antennas": [
+  { "id": 207872392, "position": { "x": 1102.62, "y": 19.15, "z": 595.25 },
+    "heading": 103.1, "degreesPerSecond": 50, "sampledAtMs": 1790186583591 }
+]
+```
+
+- The dish is a part called `Radar_Base_01`, which the game spins with its `Turn_Move` script about its own vertical
+  axis, clockwise from above, at 50 degrees a second (one turn in 7.2 s; found with a probe in the game).
+- `heading` is the compass bearing (0 north, 90 east) of that part's **forward** axis at `sampledAtMs` (Unix time,
+  milliseconds). The dish itself **faces 90 degrees anticlockwise of it**: calibrated in the game by clicking when the
+  dish faced north, which gave -78, i.e. -90 plus the usual early click. `degreesPerSecond` is 0 while the game is paused.
+- Its heading at any later moment is `heading + degreesPerSecond × seconds since sampledAtMs`. The dashboard's mini-map
+  sweeps follow the nearest antenna this way (`wwwroot/js/radar.js`, with the -90 built in); a button under the maps
+  ("Antenna faces N") lets a player re-calibrate, kept per browser.
+
 ## Changes
 
+- **Plugin 0.6.0**: `live.json` gains `antennas` (see "Antennas").
+- **Plugin 0.5.0**: the world file loses `loose` and gains `planetHash`; the boneyard comes from the save (see "The boneyard").
 - **World file, schema 1** (plugin 0.3.0): new file `live-world.json` (see above). `live.json` gains a `drones` section (see "Drones").
 - **Schema 1** (plugin 0.2.0): the string `planet` became `planetId` (it clashed with the `planet` object);
   added `vitalsMax`, `backpack`, `equipment`, `planet`, `vehicle`.

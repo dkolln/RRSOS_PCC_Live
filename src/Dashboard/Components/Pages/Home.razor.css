@@ -168,6 +168,44 @@
     font-style: italic;
 }
 
+/* Under the mini maps while the sweeps follow an antenna: line them up with the dish you see in the game. */
+.radar-calibrate {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: #7f9db9;
+}
+
+.radar-north {
+    padding: 3px 12px;
+    background: rgba(79, 209, 139, 0.12);
+    border: 1px solid #2f6b4c;
+    border-radius: 3px;
+    color: #4fd18b;
+    font-family: inherit;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.radar-north:hover {
+    background: rgba(79, 209, 139, 0.25);
+}
+
+.radar-north:active {
+    background: rgba(79, 209, 139, 0.4);
+}
+
+.radar-reset {
+    padding: 0;
+    background: none;
+    border: none;
+    color: #ff9a6b;
+    font-family: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .vitals {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
