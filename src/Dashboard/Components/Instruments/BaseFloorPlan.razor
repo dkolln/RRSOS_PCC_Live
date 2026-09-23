@@ -1,0 +1,163 @@
+@* One base from above, one floor at a time, north up. ▲ and ▼ step between floors; the floor label between them goes
+   back to following you (the floor you are standing on while you are at this base, else the ground floor). The floor
+   below shows faintly under the one being shown. Pieces, walls and ladders come from FloorPlan. *@
+<div class="plan @(Dim ? "is-dim" : "")">
+    <div class="plan-title">
+        <span>Floor plan</span>
+        <span class="plan-meta">@Meta</span>
+    </div>
+
+    @if (Plan is null || Plan.Floors.Count == 0)
+    {
+        <div class="plan-empty">@EmptyText</div>
+    }
+    else
+    {
+        var index = FloorIndex;
+        var floor = Plan.Floors[index];
+        var below = index > 0 ? Plan.Floors[index - 1] : null;
+
+        <div class="plan-frame">
+            <svg viewBox="@ViewBox" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor @floor.Number of @Plan.Floors.Count">
+                @if (below is not null)
+                {
+                    @foreach (var piece in below.Pieces)
+                    {
+                        <polygon class="plan-below" points="@Points(piece.Points)" />
+                    }
+                }
+
+                @foreach (var piece in floor.Pieces)
+                {
+                    <polygon class="plan-piece part-@Css(piece.Part)" points="@Points(piece.Points)"><title>@piece.Label</title></polygon>
+                }
+
+                @foreach (var wall in floor.Walls)
+                {
+                    <line class="plan-wall part-@Css(wall.Part)"
+                          x1="@N(wall.Points[0].X)" y1="@N(-wall.Points[0].Y)" x2="@N(wall.Points[1].X)" y2="@N(-wall.Points[1].Y)"><title>@wall.Label</title></line>
+                }
+
+                @foreach (var hatch in floor.Hatches)
+                {
+                    <polygon class="plan-hatch part-@Css(hatch.Part)" points="@Points(hatch.Points)"><title>@hatch.Label</title></polygon>
+                }
+
+                @foreach (var spot in floor.Containers)
+                {
+                    <rect class="plan-box" x="@N(spot.X - 0.45f)" y="@N(-spot.Y - 0.45f)" width="0.9" height="0.9"><title>Container</title></rect>
+                }
+
+                @if (PlayerFloor == index && PlayerPosition is { } p)
+                {
+                    var en = Compass.ToEastNorth(new Vector2(p.X, p.Z));
+                    <g class="plan-you" transform="translate(@N(en.X) @N(-en.Y)) rotate(@N(PlayerHeading))">
+                        <title>You</title>
+                        <path d="M 0 -1.6 L 1.1 1.2 L 0 0.6 L -1.1 1.2 Z" />
+                    </g>
+                }
+            </svg>
+
+            <div class="plan-north">N ↑</div>
+
+            @if (Plan.Floors.Count > 1)
+            {
+                <div class="floor-controls">
+                    <button class="floor-btn" type="button" title="Up a floor" @onclick="Up" disabled="@(index >= Plan.Floors.Count - 1)">▲</button>
+                    <button class="floor-label @(_manual is null ? "is-auto" : "")" type="button"
+                            title="@(_manual is null ? "Following you" : "Click to go back to following you")" @onclick="Follow">F@(floor.Number)</button>
+                    <button class="floor-btn" type="button" title="Down a floor" @onclick="Down" disabled="@(index <= 0)">▼</button>
+                </div>
+            }
+        </div>
+
+        <div class="plan-legend">
+            <span class="key key-wall">wall</span>
+            <span class="key key-glass">window</span>
+            <span class="key key-door">door</span>
+            <span class="key key-opening">corridor</span>
+            <span class="key key-ladder">ladder</span>
+            <span class="key key-box">container</span>
+        </div>
+    }
+</div>
+
+@code {
+    private const float Pad = 2.5f;
+
+    /// <summary>The base's plan. Null when the world file has no building pieces for it.</summary>
+    [Parameter]
+    public FloorPlan? Plan { get; set; }
+
+    /// <summary>Which base the plan is for: the floor picked by hand is dropped when this changes.</summary>
+    [Parameter]
+    public long BaseId { get; set; }
+
+    /// <summary>Where the player is (raw world X, Y, Z) and which way they face (compass degrees). Null when unknown.</summary>
+    [Parameter]
+    public Vector3? PlayerPosition { get; set; }
+
+    [Parameter]
+    public float PlayerHeading { get; set; }
+
+    [Parameter]
+    public bool Dim { get; set; }
+
+    [Parameter]
+    public string EmptyText { get; set; } = "No building pieces reported for this base.";
+
+    // A floor picked with the buttons (an index into Plan.Floors). Null follows the player.
+    private int? _manual;
+    private long? _forBase;
+
+    protected override void OnParametersSet()
+    {
+        if (_forBase != BaseId)
+        {
+            _forBase = BaseId;
+            _manual = null;
+        }
+
+        if (Plan is not null && _manual >= Plan.Floors.Count)
+            _manual = null;
+    }
+
+    // The floor the player is standing on, when they are at this base.
+    private int? PlayerFloor => PlayerPosition is { } p && Plan is not null ? Plan.FloorIndexAt(p) : null;
+
+    private int FloorIndex => _manual ?? PlayerFloor ?? 0;
+
+    private void Up() => _manual = Math.Min(Plan!.Floors.Count - 1, FloorIndex + 1);
+    private void Down() => _manual = Math.Max(0, FloorIndex - 1);
+    private void Follow() => _manual = null;
+
+    private string Meta
+    {
+        get
+        {
+            if (Plan is null || Plan.Floors.Count == 0)
+                return "";
+
+            var floors = Plan.Floors.Count == 1 ? "1 floor" : $"floor {Plan.Floors[FloorIndex].Number} of {Plan.Floors.Count}";
+            return Plan.Measured ? floors : $"{floors} · approximate";
+        }
+    }
+
+    // The whole base (every floor) fits, so stepping between floors never moves or rescales the drawing. SVG y runs down: north is -y.
+    private string ViewBox
+    {
+        get
+        {
+            var min = Plan!.Min;
+            var max = Plan.Max;
+            return $"{N(min.X - Pad)} {N(-max.Y - Pad)} {N(max.X - min.X + 2 * Pad)} {N(max.Y - min.Y + 2 * Pad)}";
+        }
+    }
+
+    private static string Points(IReadOnlyList<Vector2> points) =>
+        string.Join(" ", points.Select(p => $"{N(p.X)},{N(-p.Y)}"));
+
+    private static string Css(PlanPart part) => part.ToString().ToLowerInvariant();
+
+    private static string N(float value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

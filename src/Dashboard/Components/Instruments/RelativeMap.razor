@@ -10,9 +10,14 @@
                 <stop offset="0" stop-color="#7ab8ff" stop-opacity="0.6" />
                 <stop offset="1" stop-color="#7ab8ff" stop-opacity="0" />
             </linearGradient>
+            <linearGradient id="radar-sweep-fade-@_uid" gradientUnits="userSpaceOnUse" x1="70" y1="6" x2="111.15" y2="20.98">
+                <stop offset="0" stop-color="#4fd18b" stop-opacity="0" />
+                <stop offset="1" stop-color="#4fd18b" stop-opacity="0.95" />
+            </linearGradient>
         </defs>
 
         <rect class="rel-face" x="6" y="6" width="128" height="128" rx="6" />
+
         <circle class="rel-ring" cx="70" cy="70" r="32" />
         <circle class="rel-ring" cx="70" cy="70" r="64" />
         <line class="rel-cross" x1="70" y1="6" x2="70" y2="134" />
@@ -34,15 +39,32 @@
             </g>
         }
 
+        @* A fake radar sweep, purely decorative. Drawn last (on top of the target) with mix-blend-mode:screen, so
+           the target only brightens for the instant the sweep's light is actually over it — real-time pixel
+           compositing, not a pre-scheduled animation, so it can never drift out of sync as the player moves and
+           the target's position shifts underneath it. *@
+        <g class="radar-sweep">
+            <path d="M 70 70 L 70 6 A 64 64 0 0 1 111.15 20.98 Z" fill="url(#radar-sweep-fade-@_uid)" />
+        </g>
+
         <text class="rel-range">@Range m</text>
     </svg>
 
-    <div class="rel-caption @(Known ? "" : "is-stowed")">@Caption</div>
+    <div class="zoom-controls">
+        <button class="zoom-btn" type="button" title="Zoom in" @onclick="ZoomIn" @onclick:stopPropagation disabled="@(Range <= RangeSteps[0])">+</button>
+        <button class="zoom-btn" type="button" title="Zoom out" @onclick="ZoomOut" @onclick:stopPropagation disabled="@(Range >= RangeSteps[^1])">&minus;</button>
+        <button class="zoom-btn zoom-reset" type="button" title="Reset zoom" @onclick="ResetZoom" @onclick:stopPropagation disabled="@(_zoomIndex is null)">&times;</button>
+    </div>
+
+    @if (ShowCaption)
+    {
+        <div class="rel-caption @(Known ? "" : "is-stowed")">@Caption</div>
+    }
 </div>
 
 @code {
     private const float MapHalf = 64f;
-    private static readonly int[] RangeSteps = { 50, 100, 250, 500, 1000, 2000, 3000, 5000, 10000, 20000 };
+    private static readonly int[] RangeSteps = { 10, 20, 40, 70, 100, 250, 500, 1000, 2000, 3000, 5000, 10000, 20000 };
 
     /// <summary>Where the player stands (raw world X, Z).</summary>
     [Parameter]
@@ -62,6 +84,11 @@
 
     [Parameter]
     public string Name { get; set; } = "Vehicle";
+
+    /// <summary>False hides this component's own caption line, for callers (the Player card's mini map) that
+    /// already show their own label and caption underneath.</summary>
+    [Parameter]
+    public bool ShowCaption { get; set; } = true;
 
     // Several of these could share a page, and SVG ids are page-wide.
     private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
@@ -91,7 +118,38 @@
     private float Distance => Vector2.Distance(PlayerFlat, TargetFlat);
 
     // The smallest round radius that holds the target with a little room to spare.
-    private int Range => RangeSteps.FirstOrDefault(step => Distance * 1.15f <= step, RangeSteps[^1]);
+    private int AutoRange => RangeSteps.FirstOrDefault(step => Distance * 1.15f <= step, RangeSteps[^1]);
+
+    // A manual override (an index into RangeSteps) from the zoom buttons, so a target sitting right on top of the
+    // player marker can be spread out enough to see clearly. Null follows AutoRange.
+    private int? _zoomIndex;
+
+    private int Range => _zoomIndex is { } idx ? RangeSteps[idx] : AutoRange;
+
+    private void ZoomIn()
+    {
+        var idx = _zoomIndex ?? IndexAtLeast(AutoRange);
+        _zoomIndex = Math.Max(0, idx - 1);
+    }
+
+    private void ZoomOut()
+    {
+        var idx = _zoomIndex ?? IndexAtLeast(AutoRange);
+        _zoomIndex = Math.Min(RangeSteps.Length - 1, idx + 1);
+    }
+
+    private void ResetZoom() => _zoomIndex = null;
+
+    private static int IndexAtLeast(int value)
+    {
+        for (var i = 0; i < RangeSteps.Length; i++)
+        {
+            if (RangeSteps[i] >= value)
+                return i;
+        }
+
+        return RangeSteps.Length - 1;
+    }
 
     // The target, north up and pinned to the edge on its bearing if it is off the scale.
     private Vector2 Offset

@@ -47,6 +47,8 @@ namespace RRSOS.PCC.Live
         private readonly List<string> _containers = new List<string>();
         private readonly List<string> _extractors = new List<string>();
         private readonly List<string> _stations = new List<string>();
+        private readonly List<string> _structures = new List<string>();
+        private readonly List<WorldObject> _structureObjects = new List<WorldObject>();
         private readonly List<Vector2> _podFlat = new List<Vector2>();
         private readonly Dictionary<string, KeyValuePair<Vector3, Tally>> _loose = new Dictionary<string, KeyValuePair<Vector3, Tally>>();
 
@@ -76,6 +78,20 @@ namespace RRSOS.PCC.Live
                 VisitConstructed(constructed[i], candidates);
 
                 if ((i % CheckEvery) == CheckEvery - 1 && _frame.Elapsed.TotalMilliseconds >= FrameBudgetMs)
+                {
+                    EndChunk();
+                    yield return null;
+                    _frame.Restart();
+                }
+            }
+
+            // Pass 1b: the building pieces' shapes, for the floor plans. Reading a piece's colliders and panels is much
+            // more work than the other visits, so the frame budget is checked after every one.
+            for (var i = 0; i < _structureObjects.Count; i++)
+            {
+                VisitStructure(_structureObjects[i]);
+
+                if (_frame.Elapsed.TotalMilliseconds >= FrameBudgetMs)
                 {
                     EndChunk();
                     yield return null;
@@ -172,6 +188,9 @@ namespace RRSOS.PCC.Live
                 var id = group.GetId();
                 var kind = ExtractorKind(id);
 
+                if (IsStructure(id))
+                    _structureObjects.Add(o);
+
                 if (kind != null)
                     _extractors.Add(ExtractorJson(o, id, kind));
                 else if (id.StartsWith("DroneStation", StringComparison.OrdinalIgnoreCase))
@@ -220,10 +239,18 @@ namespace RRSOS.PCC.Live
         {
             try
             {
-                // Only things the player (or a machine) put in the world: the game numbers everything that is part of the
-                // landscape itself (rocks, wreck loot) below 200,000,000, and those are not "loose items in a base".
-                if (_looseCapped || !(o?.GetGroup() is GroupItem) || !o.GetIsPlaced()
-                    || WorldObjectsIdHandler.IsWorldObjectFromScene(o.GetId()) || !OnThisPlanet(o))
+                // Only things the player (or a machine) put in the world. WorldObjectsIdHandler.IsWorldObjectFromScene
+                // (confirmed from the game's own source: it's literally "id < 200,000,000", and every id handed out
+                // during play is >= 201,000,000) only tells you whether an object has existed since the world was
+                // generated — not whether it's an embedded, unminable vein versus a loose chunk sitting on the ground.
+                // World generation scatters some ore directly as loose, walk-up-and-grab chunks, which legitimately
+                // belong in the boneyard despite having a "from scene" id (confirmed in-game: 14 of 23 already-loose
+                // Titanium chunks next to a live base were silently dropped by this check alone). GetIsPlaced() plus
+                // GetGroup() is GroupItem already do the real work of telling "lying on the ground" apart from
+                // anything else, and the dashboard's own ore/alloy/quartz/rod filter (IsBoneyardMaterial) keeps
+                // actual wreck loot and decorative containers out regardless of id, so this check is dropped rather
+                // than narrowed.
+                if (_looseCapped || !(o?.GetGroup() is GroupItem) || !o.GetIsPlaced() || !OnThisPlanet(o))
                     return;
 
                 var position = o.GetPosition();
@@ -259,6 +286,23 @@ namespace RRSOS.PCC.Live
         // A living compartment. The dashboard decides which of them are bases (see docs/contract.md).
         private static bool IsPod(string id) =>
             id.StartsWith("pod", StringComparison.OrdinalIgnoreCase) || id.Equals("Escapepod", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// A piece the floor plans draw: pods of every shape, foundations, launch and trade platforms, the vehicle
+        /// platform, domes, labs, the T2 aquarium and ladders. (Pods are also reported in "pods", which is what decides
+        /// the bases.) The T1 aquarium is furniture that stands inside a pod, so it is left out.
+        /// </summary>
+        private static bool IsStructure(string id) =>
+            IsPod(id)
+            || id.StartsWith("Foundation", StringComparison.OrdinalIgnoreCase)
+            || id.IndexOf("Platform", StringComparison.OrdinalIgnoreCase) >= 0
+            || id.StartsWith("VehicleCrafter", StringComparison.OrdinalIgnoreCase)
+            || id.IndexOf("dome", StringComparison.OrdinalIgnoreCase) >= 0
+            || id.IndexOf("lab", StringComparison.OrdinalIgnoreCase) >= 0
+            || (id.StartsWith("Aquarium", StringComparison.OrdinalIgnoreCase)
+                && !id.Equals("Aquarium1", StringComparison.OrdinalIgnoreCase)
+                && !id.StartsWith("AquariumTube", StringComparison.OrdinalIgnoreCase))
+            || id.Equals("Ladder", StringComparison.OrdinalIgnoreCase);
 
         private static string ExtractorKind(string id)
         {
@@ -300,6 +344,233 @@ namespace RRSOS.PCC.Live
                 .Point("position", position.x, position.y, position.z)
                 .IntList("panels", o.GetPanelsId())
                 .End().ToString());
+        }
+
+        // ------------------------------------------------------------------ building pieces
+
+        /// <summary>
+        /// A building piece: where it stands, which way it turns, and its shape as the game has it right now. "box" is
+        /// the piece's solid colliders measured in its own frame (metres from its position, before its turn by "yaw"),
+        /// and "panelBoxes" does the same for each of its wall and floor panels, in the same order as "panels". Both are
+        /// null when the piece has no object in the scene to measure.
+        /// </summary>
+        private void VisitStructure(WorldObject o)
+        {
+            try
+            {
+                if (!NearAPod(o.GetPosition()))
+                    return;
+
+                var id = o.GetGroup().GetId();
+                var position = o.GetPosition();
+                var yaw = o.GetRotation().eulerAngles.y;
+                var go = o.GetGameObject();
+
+                string box = null, deckBox = null, panelBoxes = null;
+                if (go != null)
+                {
+                    var root = go.transform;
+                    position = root.position;
+                    yaw = root.rotation.eulerAngles.y;
+
+                    if (LocalBox(root, go, out var min, out var max))
+                        box = BoxJson(min, max);
+
+                    if (DeckBox(root, go, out var deckMin, out var deckMax))
+                        deckBox = BoxJson(deckMin, deckMax);
+
+                    panelBoxes = PanelBoxesJson(root, go);
+                }
+
+                _structures.Add(new Json().Begin()
+                    .Int("id", o.GetId())
+                    .Str("group", id)
+                    .Point("position", position.x, position.y, position.z)
+                    .Num("yaw", Math.Round(yaw, 1))
+                    .IntList("panels", o.GetPanelsId())
+                    .Raw("box", box)
+                    .Raw("deckBox", deckBox)
+                    .Raw("panelBoxes", panelBoxes)
+                    .End().ToString());
+            }
+            catch (Exception e)
+            {
+                Plugin.LogOnce("world:structure", $"Could not read a building piece: {e.GetType().Name}: {e.Message}");
+            }
+        }
+
+        private static string PanelBoxesJson(Transform root, GameObject go)
+        {
+            var panels = go.GetComponentsInChildren<Panel>();
+            if (panels == null || panels.Length == 0)
+                return null;
+
+            var parts = new List<string>(panels.Length);
+            foreach (var panel in panels)
+            {
+                var json = new Json().Begin()
+                    .Int("type", (int)panel.GetPanelType())
+                    .Int("sub", (int)panel.GetSubPanelType())
+                    .Bool("ceiling", panel.GetIsCeiling());
+
+                if (LocalBox(root, panel.gameObject, out var min, out var max))
+                    json.Point("min", min.x, min.y, min.z).Point("max", max.x, max.y, max.z);
+                else
+                    json.Null("min").Null("max");
+
+                parts.Add(json.End().ToString());
+            }
+
+            return Array(parts);
+        }
+
+        private static string BoxJson(Vector3 min, Vector3 max) =>
+            new Json().Begin().Point("min", min.x, min.y, min.z).Point("max", max.x, max.y, max.z).End().ToString();
+
+        /// <summary>A collider no taller than this counts as a slab, when looking for a piece's deck.</summary>
+        private const float SlabHeight = 2.5f;
+
+        /// <summary>
+        /// A piece's deck: its largest flat slab of collider, together with any other slabs whose top is level with it. For
+        /// a platform this is what you walk on, without the gantry and whatever else reaches up over it (a launch
+        /// platform's full box is 48 by 31 m and 36 m tall). The top of the box is the deck's height.
+        /// </summary>
+        private static bool DeckBox(Transform root, GameObject target, out Vector3 min, out Vector3 max)
+        {
+            var slabs = new List<LocalBounds>();
+            LocalBounds widest = null;
+
+            foreach (var one in ColliderBoxes(root, target))
+            {
+                if (one.Max.y - one.Min.y > SlabHeight)
+                    continue;
+
+                slabs.Add(one);
+                if (widest == null || Area(one) > Area(widest))
+                    widest = one;
+            }
+
+            var deck = new LocalBounds(root);
+            if (widest != null)
+            {
+                foreach (var slab in slabs)
+                {
+                    if (Mathf.Abs(slab.Max.y - widest.Max.y) <= 0.3f)
+                        deck.Add(slab);
+                }
+            }
+
+            min = deck.Min;
+            max = deck.Max;
+            return deck.Found;
+        }
+
+        private static float Area(LocalBounds b) => (b.Max.x - b.Min.x) * (b.Max.z - b.Min.z);
+
+        // Each solid collider under the target, as its own box in the root's frame.
+        private static IEnumerable<LocalBounds> ColliderBoxes(Transform root, GameObject target)
+        {
+            foreach (var c in target.GetComponentsInChildren<Collider>())
+            {
+                if (c == null || c.isTrigger || !c.enabled)
+                    continue;
+
+                var one = new LocalBounds(root);
+                if (c is BoxCollider b)
+                    one.Add(b.transform, b.center, b.size);
+                else if (c is MeshCollider m && m.sharedMesh != null)
+                    one.Add(m.transform, m.sharedMesh.bounds.center, m.sharedMesh.bounds.size);
+                else
+                    one.AddWorld(c.bounds);
+
+                if (one.Found)
+                    yield return one;
+            }
+        }
+
+        /// <summary>
+        /// The box around <paramref name="target"/>'s solid colliders (or, with none, its meshes), in
+        /// <paramref name="root"/>'s frame: metres from its position, before its rotation.
+        /// </summary>
+        private static bool LocalBox(Transform root, GameObject target, out Vector3 min, out Vector3 max)
+        {
+            var box = new LocalBounds(root);
+
+            foreach (var one in ColliderBoxes(root, target))
+                box.Add(one);
+
+            if (!box.Found)
+            {
+                foreach (var f in target.GetComponentsInChildren<MeshFilter>())
+                {
+                    if (f != null && f.sharedMesh != null)
+                        box.Add(f.transform, f.sharedMesh.bounds.center, f.sharedMesh.bounds.size);
+                }
+            }
+
+            min = box.Min;
+            max = box.Max;
+            return box.Found;
+        }
+
+        /// <summary>Grows a box, in one piece's own frame, around boxes found anywhere under it.</summary>
+        private sealed class LocalBounds
+        {
+            private readonly Quaternion _inverse;
+            private readonly Vector3 _origin;
+
+            public LocalBounds(Transform root)
+            {
+                _inverse = Quaternion.Inverse(root.rotation);
+                _origin = root.position;
+            }
+
+            public bool Found { get; private set; }
+            public Vector3 Min { get; private set; }
+            public Vector3 Max { get; private set; }
+
+            // A box in some child's own frame: its eight corners go through the child's transform into the world, then into the root's frame.
+            public void Add(Transform t, Vector3 center, Vector3 size)
+            {
+                var h = size * 0.5f;
+                for (var i = 0; i < 8; i++)
+                {
+                    var corner = center + new Vector3((i & 1) == 0 ? -h.x : h.x, (i & 2) == 0 ? -h.y : h.y, (i & 4) == 0 ? -h.z : h.z);
+                    Point(t.TransformPoint(corner));
+                }
+            }
+
+            // Another box already in the same root's frame.
+            public void Add(LocalBounds other)
+            {
+                if (!other.Found)
+                    return;
+
+                PointLocal(other.Min);
+                PointLocal(other.Max);
+            }
+
+            public void AddWorld(Bounds b)
+            {
+                for (var i = 0; i < 8; i++)
+                    Point(new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z));
+            }
+
+            private void Point(Vector3 world) => PointLocal(_inverse * (world - _origin));
+
+            private void PointLocal(Vector3 local)
+            {
+                if (!Found)
+                {
+                    Min = Max = local;
+                    Found = true;
+                }
+                else
+                {
+                    Min = Vector3.Min(Min, local);
+                    Max = Vector3.Max(Max, local);
+                }
+            }
         }
 
         // A drone station and what is in its storage (the drones docked in it, mostly). Its drones that are flying are in live.json.
@@ -541,6 +812,7 @@ namespace RRSOS.PCC.Live
                 .Raw("loose", Array(loose))
                 .Raw("extractors", Array(_extractors))
                 .Raw("droneStations", Array(_stations))
+                .Raw("structures", Array(_structures))
                 .End().ToString();
         }
 

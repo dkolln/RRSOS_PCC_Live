@@ -1,4 +1,4 @@
-.base-map {
+.extractor-map {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -47,20 +47,20 @@
     color: #ff9a6b;
 }
 
-.base-map {
+.extractor-map {
     cursor: pointer;
 }
 
-.base-map.is-open svg rect.map-face,
-.base-map.is-open svg rect.map-face {
+.extractor-map.is-open svg rect.map-face,
+.extractor-map.is-open svg rect.map-face {
     stroke: #4a7fa5;
 }
 
-.base-map.is-dim {
+.extractor-map.is-dim {
     opacity: 0.5;
 }
 
-.base-map svg {
+.extractor-map svg {
     width: 100%;
     max-width: 170px;
     height: auto;
@@ -114,7 +114,7 @@
 
 /* A fake radar sweep, 2 RPM (one turn every 30s), purely decorative. mix-blend-mode:plus-lighter is what makes a
    pip flare as the sweep's light passes over it: real-time pixel compositing (additive, so it saturates toward
-   white fast and reads clearly even on a 3px dot) against whatever pip is currently underneath, so it's always
+   white fast and reads clearly on a small dot) against whatever pip is currently underneath, so it's always
    correct and can never drift out of sync (unlike a pre-scheduled animation keyed to a pip's position at some
    past render). */
 .radar-sweep {
@@ -141,14 +141,10 @@
     filter: drop-shadow(0 0 3px #4fd18b);
 }
 
-/* Bases and outposts */
+/* Extractors */
 .map-pip {
-    --pip-color: #7ab8ff;
+    --pip-color: #ffd86b;
     cursor: pointer;
-}
-
-.map-pip.is-outpost {
-    --pip-color: #8fa3b8;
 }
 
 .map-hit {
@@ -170,7 +166,7 @@
     fill: #e6f2ff;
 }
 
-/* The base the contents are showing */
+/* The extractor the detail panel is showing */
 .map-select {
     fill: none;
     stroke: #e6f2ff;
@@ -186,13 +182,7 @@
     fill: #e6f2ff;
 }
 
-/* Picked by hand rather than simply the nearest */
-.map-pip.pinned .map-select {
-    stroke: #ffd86b;
-    stroke-dasharray: 2 1.6;
-}
-
-/* Name of the base under the mouse, or the one being shown. Two lines, always the same height, so the card never jumps. */
+/* Name of the extractor under the mouse, or the one being shown. Two lines, always the same height. */
 .map-label {
     margin-top: 2px;
     font-size: 0.8rem;
@@ -228,11 +218,6 @@
 .map-caption-meta {
     color: #7f9db9;
     font-size: 0.72rem;
-}
-
-/* Hovering a base other than the one being shown */
-.map-caption.is-hover .map-caption-name {
-    color: #9ac7ff;
 }
 
 @media (prefers-reduced-motion: reduce) {

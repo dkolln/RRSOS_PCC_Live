@@ -1,16 +1,17 @@
-@* A small map of the bases with you in the middle and the game.s north up. Hover a base for its name under the map;
-   click one to show what it holds (click it again to go back to the nearest). Ported from RRSOS-PCC. *@
-<div class="base-map @(Open ? "is-open" : "") @(Dim ? "is-dim" : "")" @onclick="() => OnMapClick.InvokeAsync()">
+@* A small map of the extractors around you, you in the middle and the game's north up. Hover a pip for what it is
+   (a native title tooltip); click it to see its contents. Click empty space to open the list, click it again to
+   close. The caption below is always the total count and the distance/direction to the nearest one, like Drones. *@
+<div class="extractor-map @(Open ? "is-open" : "") @(Dim ? "is-dim" : "")" @onclick="() => OnMapClick.InvokeAsync()">
 
-    @if (Bases.Count == 0)
+    @if (Placed.Count == 0)
     {
         <div class="map-empty">@EmptyText</div>
     }
     else
     {
-        <svg viewBox="0 0 140 140" role="group" aria-label="Map of the bases around you">
+        <svg viewBox="0 0 140 140" role="group" aria-label="Map of the extractors around you">
             <defs>
-                <linearGradient id="map-cone-fade-@_uid" x1="0" y1="1" x2="0" y2="0">
+                <linearGradient id="ext-cone-fade-@_uid" x1="0" y1="1" x2="0" y2="0">
                     <stop offset="0" stop-color="#7ab8ff" stop-opacity="0.6" />
                     <stop offset="1" stop-color="#7ab8ff" stop-opacity="0" />
                 </linearGradient>
@@ -31,33 +32,22 @@
 
             @* Where you are and which way you face *@
             <g class="map-turn" style="transform: rotate(@Inv($"{_turn:0.##}")deg)">
-                <path d="M 70 70 L 57.26 38.47 A 34 34 0 0 1 82.74 38.47 Z" fill="url(#map-cone-fade-@_uid)" />
+                <path d="M 70 70 L 57.26 38.47 A 34 34 0 0 1 82.74 38.47 Z" fill="url(#ext-cone-fade-@_uid)" />
             </g>
             <circle class="map-you" cx="70" cy="70" r="3.2" />
 
-            @* The base being shown is drawn last so nothing sits on top of it. *@
-            @foreach (var b in ShownBases.OrderBy(b => b.Id == SelectedId))
+            @* The extractor being shown is drawn last so nothing sits on top of it. *@
+            @foreach (var e in ShownExtractors.OrderBy(e => e.Id == SelectedId))
             {
-                var (x, y) = Place(b);
+                var (x, y) = Place(e.Position!);
 
-                <g class="map-pip @(b.Kind == BaseKind.Base ? "is-base" : "is-outpost") @(b.Id == SelectedId ? "selected" : "") @(b.Id == PinnedId ? "pinned" : "") @(b.Distance > Range ? "far" : "")"
+                <g class="map-pip @(e.Id == SelectedId ? "selected" : "") @(Distance(e) > Range ? "far" : "")"
                    transform="translate(@Inv($"{x:0.##} {y:0.##}"))"
-                   role="button" aria-label="@PipLabel(b)"
-                   @onclick="() => OnSelect.InvokeAsync(b.Id)" @onclick:stopPropagation
-                   @onmouseenter="() => _hoverId = b.Id"
-                   @onmouseleave="() => _hoverId = null">
-                    <title>@PipLabel(b)</title>
+                   role="button" aria-label="@PipLabel(e)"
+                   @onclick="() => OnSelect.InvokeAsync(e.Id)" @onclick:stopPropagation>
+                    <title>@PipLabel(e)</title>
                     <circle class="map-hit" r="6" />
-
-                    @if (b.Kind == BaseKind.Base)
-                    {
-                        <rect class="map-dot" x="-2.8" y="-2.8" width="5.6" height="5.6" transform="rotate(45)" />
-                    }
-                    else
-                    {
-                        <circle class="map-dot" r="2.6" />
-                    }
-
+                    <circle class="map-dot" r="2.6" />
                     <circle class="map-select" r="6" />
                 </g>
             }
@@ -79,20 +69,11 @@
             <button class="zoom-btn zoom-reset" type="button" title="Reset zoom" @onclick="ResetZoom" @onclick:stopPropagation disabled="@(_zoomIndex is null)">&times;</button>
         </div>
 
-        <div class="map-label">Bases</div>
+        <div class="map-label">Extractors</div>
 
-        @* The name of the base under the mouse, or else the one being shown. Kept off the map so it never covers anything. *@
-        <div class="map-caption @(_hoverId is not null && _hoverId != SelectedId ? "is-hover" : "")" aria-live="polite">
-            @if (LabelBase is { } label)
-            {
-                <span class="map-caption-name">@label.Name@(label.Id == PinnedId ? " 🔒" : "")</span>
-                <span class="map-caption-meta">@label.DisplayDistance @label.Direction · @(label.Kind == BaseKind.Outpost ? "outpost" : "base")</span>
-            }
-            else
-            {
-                <span class="map-caption-name">&nbsp;</span>
-                <span class="map-caption-meta">&nbsp;</span>
-            }
+        <div class="map-caption">
+            <span class="map-caption-name">@Extractors.Count extractor@(Extractors.Count == 1 ? "" : "s")</span>
+            <span class="map-caption-meta">@NearestText</span>
         </div>
     }
 </div>
@@ -101,9 +82,9 @@
     private const float MapHalf = 64f;
     private static readonly int[] RangeSteps = { 10, 20, 40, 70, 100, 250, 500, 1000, 1500, 2000, 3000, 5000, 10000, 20000 };
 
-    /// <summary>The bases, nearest first.</summary>
+    /// <summary>Every extractor the plugin found.</summary>
     [Parameter]
-    public IReadOnlyList<BaseView> Bases { get; set; } = Array.Empty<BaseView>();
+    public IReadOnlyList<ExtractorData> Extractors { get; set; } = Array.Empty<ExtractorData>();
 
     /// <summary>Where the player stands (raw world X, Z) and which way they face (compass degrees).</summary>
     [Parameter]
@@ -112,13 +93,9 @@
     [Parameter]
     public float PlayerHeading { get; set; }
 
-    /// <summary>The base the contents panel is showing.</summary>
+    /// <summary>The extractor the detail panel is showing.</summary>
     [Parameter]
     public long? SelectedId { get; set; }
-
-    /// <summary>The base picked by hand, if any. Null while the nearest base is being followed.</summary>
-    [Parameter]
-    public long? PinnedId { get; set; }
 
     [Parameter]
     public EventCallback<long> OnSelect { get; set; }
@@ -127,7 +104,7 @@
     [Parameter]
     public bool Open { get; set; }
 
-    /// <summary>Raised when the user clicks the map background (not a specific base pip).</summary>
+    /// <summary>Raised when the user clicks the map background (not a specific extractor pip).</summary>
     [Parameter]
     public EventCallback OnMapClick { get; set; }
 
@@ -136,26 +113,19 @@
     public bool Dim { get; set; }
 
     [Parameter]
-    public string EmptyText { get; set; } = "No bases found.";
+    public string EmptyText { get; set; } = "no extractors";
 
-    // The base under the mouse, if any.
-    private long? _hoverId;
+    private IReadOnlyList<ExtractorData> Placed => Extractors.Where(e => e.Position is not null).ToList();
 
-    // Only bases inside the range are drawn (the rest are still found by walking towards them).
-    private IEnumerable<BaseView> ShownBases => Bases.Where(b => b.Distance <= Range);
+    // Only extractors inside the range are drawn (the rest are still found by walking towards them).
+    private IEnumerable<ExtractorData> ShownExtractors => Placed.Where(e => Distance(e) <= Range);
 
-    // Hover wins. Otherwise the base being shown, unless it is off this small map.
-    private BaseView? LabelBase
-    {
-        get
-        {
-            if (_hoverId is long hovered)
-                return Bases.FirstOrDefault(b => b.Id == hovered);
+    // The closest extractor to the player, regardless of the current zoom range.
+    private ExtractorData? Nearest => Placed.OrderBy(Distance).FirstOrDefault();
 
-            var shown = Bases.FirstOrDefault(b => b.Id == SelectedId);
-            return shown is not null && shown.Distance > Range ? null : shown;
-        }
-    }
+    private string NearestText => Nearest is { } n
+        ? $"{(int)Distance(n)} m {Compass.GetCompassDirection(PlayerFlat, Flat(n.Position!))}"
+        : "none nearby";
 
     // Several of these share a page, and SVG ids are page-wide.
     private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
@@ -182,22 +152,26 @@
         _heading = heading;
     }
 
-    // The smallest round radius that still holds the farthest base.
+    private static Vector2 Flat(Vec3 position) => new((float)position.X, (float)position.Z);
+
+    private float Distance(ExtractorData e) => Vector2.Distance(PlayerFlat, Flat(e.Position!));
+
+    // The smallest round radius that still holds the farthest extractor.
     private int FitRange
     {
         get
         {
-            var far = Bases.Count > 0 ? Bases.Max(b => b.Distance) * 1.08f : 0f;
+            var far = Placed.Count > 0 ? Placed.Max(Distance) * 1.08f : 0f;
             return RangeSteps.FirstOrDefault(step => far <= step, RangeSteps[^1]);
         }
     }
 
-    // The map reaches half of the range that would fit every base, so the near ones are not squashed together in the middle.
+    // The map reaches half of the range that would fit every extractor, so the near ones are not squashed together.
     private int AutoRange => Math.Max(RangeSteps[0], FitRange / 2);
 
-    // A manual override (an index into RangeSteps) from the zoom buttons, so bases sitting right on top of each
-    // other near the centre can be spread out enough to click. Null follows AutoRange; anything further out than
-    // the zoomed-in range simply falls off the map's edge, which is fine.
+    // A manual override (an index into RangeSteps) from the zoom buttons, so extractors sitting right on top of
+    // each other near the centre can be spread out enough to click. Null follows AutoRange; anything further out
+    // than the zoomed-in range simply falls off the map's edge, which is fine.
     private int? _zoomIndex;
 
     private int Range => _zoomIndex is { } idx ? RangeSteps[idx] : AutoRange;
@@ -228,9 +202,9 @@
     }
 
     // You are at the centre and the game's north is up. Anything past the edge is pinned to it, on its bearing.
-    private (float X, float Y) Place(BaseView b)
+    private (float X, float Y) Place(Vec3 position)
     {
-        var offset = Compass.ToEastNorth(b.Flat - PlayerFlat) * (MapHalf / Range);
+        var offset = Compass.ToEastNorth(Flat(position) - PlayerFlat) * (MapHalf / Range);
         var length = offset.Length();
 
         if (length > MapHalf)
@@ -239,8 +213,21 @@
         return (70f + offset.X, 70f - offset.Y);
     }
 
-    private static string PipLabel(BaseView b) =>
-        $"{b.Name}, {b.DisplayDistance} {b.Direction}{(b.Kind == BaseKind.Outpost ? " (outpost)" : "")}";
+    private static string Title(ExtractorData e) => string.IsNullOrWhiteSpace(e.ProductName)
+        ? Kind(e.Kind)
+        : $"{Kind(e.Kind)} · {e.ProductName}";
+
+    private static string Kind(string kind) => kind switch
+    {
+        "ore" => "Ore",
+        "gas" => "Gas",
+        "water" => "Water",
+        "algae" => "Algae",
+        _ => kind
+    };
+
+    private string PipLabel(ExtractorData e) =>
+        $"{Title(e)}, {(int)Distance(e)} m {Compass.GetCompassDirection(PlayerFlat, Flat(e.Position!))}";
 
     private static string Inv(FormattableString s) => FormattableString.Invariant(s);
 }

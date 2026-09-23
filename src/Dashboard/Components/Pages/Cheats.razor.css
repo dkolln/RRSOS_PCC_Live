@@ -1,0 +1,250 @@
+.cheats {
+    display: grid;
+    grid-template-rows: 56px minmax(0, 1fr);
+    height: 100vh;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.cheats-topbar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 20px;
+    border-bottom: 1px solid #1a2a3a;
+    background: #0d121c;
+}
+
+.back-btn {
+    padding: 6px 14px;
+    background: #14202e;
+    border: 1px solid #2c4a68;
+    border-radius: 4px;
+    color: #cfe4ff;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.back-btn:hover {
+    background: #1b2c3f;
+    border-color: #7ab8ff;
+}
+
+.brand {
+    font-size: 1.1rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #ffd86b;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.live-warning {
+    color: #ff9a6b;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.cheats-body {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+h2 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #cfe4ff;
+}
+
+.hint {
+    color: #7f9db9;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.save-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.save-picker label {
+    color: #7f9db9;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
+.save-picker select {
+    padding: 6px 10px;
+    background: #0f141f;
+    border: 1px solid #1a2a3a;
+    border-radius: 4px;
+    color: #cfe4ff;
+    font: inherit;
+    min-width: 260px;
+}
+
+.config-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.config-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    background: #0f141f;
+    border: 1px solid #1a2a3a;
+    border-radius: 6px;
+}
+
+.config-row.has-error {
+    border-color: #ff6b6b;
+}
+
+.label-input,
+.product-input {
+    padding: 6px 10px;
+    background: #0b0f17;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+    color: #cfe4ff;
+    font: inherit;
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.label-input:focus,
+.product-input:focus {
+    outline: none;
+    border-color: #7ab8ff;
+}
+
+.product-combo {
+    position: relative;
+}
+
+.product-suggestions {
+    position: absolute;
+    z-index: 50;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    background: #0b0f17;
+    border: 1px solid #2c4a68;
+    border-radius: 4px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.product-suggestions li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.product-suggestions li:hover {
+    background: #16283b;
+}
+
+.product-name {
+    color: #cfe4ff;
+}
+
+.product-gid {
+    color: #5f7d99;
+    font-size: 0.75rem;
+}
+
+.row-del {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid #2c4a68;
+    border-radius: 4px;
+    color: #ff9a6b;
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+.row-del:hover {
+    background: rgba(255, 107, 107, 0.15);
+    border-color: #ff6b6b;
+}
+
+.row-error {
+    grid-column: 1 / -1;
+    color: #ff6b6b;
+    font-size: 0.75rem;
+}
+
+.add-row {
+    align-self: flex-start;
+    padding: 6px 14px;
+    background: #14202e;
+    border: 1px solid #2c4a68;
+    border-radius: 4px;
+    color: #cfe4ff;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.add-row:hover {
+    background: #1b2c3f;
+    border-color: #7ab8ff;
+}
+
+.resupply-btn {
+    align-self: flex-start;
+    padding: 10px 28px;
+    background: rgba(79, 209, 139, 0.12);
+    color: #4fd18b;
+    border: 1px solid rgba(79, 209, 139, 0.45);
+    border-radius: 4px;
+    font: inherit;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 150ms ease, box-shadow 150ms ease;
+}
+
+.resupply-btn:hover:not(:disabled) {
+    background: rgba(79, 209, 139, 0.24);
+    box-shadow: 0 0 8px rgba(79, 209, 139, 0.35);
+}
+
+.resupply-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

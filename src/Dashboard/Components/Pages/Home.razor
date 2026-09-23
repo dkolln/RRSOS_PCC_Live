@@ -4,6 +4,7 @@
 @inject PCLauncherService Launcher
 @inject WorldFileService World
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 @{
     var data = Live.Data;
@@ -43,6 +44,13 @@
                 title="@(running ? "Planet Crafter is already running" : "Start Planet Crafter through Steam")">
             @(running ? "PLANET CRAFTER RUNNING" : "LAUNCH PC")
         </button>
+
+        @if (status != LiveStatus.Live)
+        {
+            <button class="cheats" @onclick="GoToCheats" title="Edit a save file directly (only while the game is not in a world)">
+                CHEATS
+            </button>
+        }
     </header>
 
     <main class="grid">
@@ -78,27 +86,41 @@
                                           Dim="@dim" />
                             </Extra2>
                             <Extra3>
-                                @if (vehicle != null)
-                                {
-                                    var vFlat = vehicle.Position is { } vp
+                                @{
+                                    var vKnown = vehicle?.Position is not null;
+                                    var vFlat = vehicle?.Position is { } vp
                                         ? new Vector2((float)vp.X, (float)vp.Z)
                                         : _playerFlat;
-                                    <div class="vehicle-mini @(_activeMap == "vehicle" ? "is-open" : "")"
-                                         role="button" tabindex="0"
-                                         title="@(vehicle.Position != null ? "Click to see vehicle" : "Vehicle stowed")"
-                                         @onclick='() => SelectMap("vehicle")'>
-                                        <RelativeMap PlayerFlat="@_playerFlat"
-                                                     PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
-                                                     TargetFlat="@vFlat"
-                                                     Known="@(vehicle.Position != null)" />
-                                        <div class="nav-label">Vehicle</div>
-                                        @if (vehicle.Position is null)
-                                        {
-                                            <div class="nav-caption">stowed</div>
-                                        }
-                                    </div>
+                                    // Only one vehicle exists in the live data today; this is written so it
+                                    // still reads correctly if that ever becomes a list (count of positioned
+                                    // vehicles, nearest one's distance/direction).
+                                    var vCount = vKnown ? 1 : 0;
+                                    var vDist = vKnown ? (int)Vector2.Distance(_playerFlat, vFlat) : 0;
+                                    var vDir = vKnown ? Compass.GetCompassDirection(_playerFlat, vFlat) : "";
                                 }
+                                <div class="vehicle-mini @(_activeMap == "vehicle" ? "is-open" : "")"
+                                     role="button" tabindex="0"
+                                     title="@(vKnown ? "Click to see the vehicle" : "Click for vehicles")"
+                                     @onclick='() => SelectMap("vehicle")'>
+                                    <RelativeMap PlayerFlat="@_playerFlat"
+                                                 PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                                 TargetFlat="@vFlat"
+                                                 Known="@vKnown" ShowCaption="false" />
+                                    <div class="map-label">Vehicles</div>
+                                    <div class="map-caption">
+                                        <span class="map-caption-name">@vCount vehicle@(vCount == 1 ? "" : "s")</span>
+                                        <span class="map-caption-meta">@(vKnown ? $"{vDist} m {vDir}" : "no vehicles")</span>
+                                    </div>
+                                </div>
                             </Extra3>
+                            <Extra4>
+                                <ExtractorMap Extractors="@extractors" PlayerFlat="@_playerFlat"
+                                              PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                              SelectedId="@_selectedExtractorId"
+                                              Open="@(_activeMap == "extractor")"
+                                              OnMapClick='() => SelectMap("extractor")' OnSelect="SelectExtractor"
+                                              Dim="@dim" EmptyText="no extractors" />
+                            </Extra4>
                         </NavDisplay>
                     }
 
@@ -118,9 +140,8 @@
 
                     <div class="fill">
                         <ItemList Title="Backpack" Data="@player.Backpack" Columns="4" Dim="@dim" Collapsible="true" />
+                        <ItemList Title="Gear" Data="@player.Equipment" Columns="3" Dim="@dim" Collapsible="true" />
                     </div>
-
-                    <ItemList Title="Gear" Data="@player.Equipment" Columns="3" Dim="@dim" Collapsible="true" />
                 }
             </section>
         </div>
@@ -152,21 +173,18 @@
         @* ── Column 3: Detail panel ── *@
         <div class="col">
 
-            @* Small extractors chip — always visible, switches back to extractor list *@
-            <div class="ext-bar">
-                <button class="ext-link @(_activeMap == null ? "is-active" : "")"
-                        @onclick="() => SelectMap(null)">
-                    Extractors@(extractors.Count > 0 ? $" · {extractors.Count}" : "")
-                </button>
-            </div>
-
             @if (_activeMap == "base")
             {
                 <section class="card card-detail">
                     <h2>Base <span class="who">@BaseCountText()</span></h2>
-                    <BaseContents SelectedBase="@SelectedBase" IsPinned="@(_pinnedBaseId is not null)"
-                                  OnFollowNearest="UnpinBase" Dim="@dim"
-                                  EmptyText="@BasesEmptyText(status, world)" />
+                    <div class="scroll">
+                        <BaseContents SelectedBase="@SelectedBase" IsPinned="@(_pinnedBaseId is not null)"
+                                      OnFollowNearest="UnpinBase" Dim="@dim"
+                                      EmptyText="@BasesEmptyText(status, world)"
+                                      PlayerPosition="@(player?.Position is { } pp ? new Vector3((float)pp.X, (float)pp.Y, (float)pp.Z) : null)"
+                                      PlayerHeading="@(player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees))"
+                                      PlanEmptyText="@(world?.Structures.Count > 0 ? "No building pieces reported for this base." : "Floor plans need plugin 0.4.0 or later (restart the game after updating).")" />
+                    </div>
                 </section>
             }
             else if (_activeMap == "drone")
@@ -214,14 +232,22 @@
                     }
                 </section>
             }
-            else
+            else if (_activeMap == "extractor")
             {
-                @* Default: extractors list *@
                 <section class="card card-detail">
                     <h2>Extractors <span class="who">@(extractors.Count > 0 ? extractors.Count.ToString() : "")</span></h2>
                     <div class="scroll">
-                        <ExtractorList Data="@extractors" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim"
-                                       EmptyText="@(world is null || !world.InWorld ? EmptyText(status) : "No extractors found.")" />
+                        @if (_selectedExtractorId is { } exId && extractors.FirstOrDefault(e => e.Id == exId) is { } selected)
+                        {
+                            <ExtractorDetail Data="@selected" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)"
+                                             Dim="@dim" OnBack="UnselectExtractor" />
+                        }
+                        else
+                        {
+                            <ExtractorList Data="@extractors" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim"
+                                           NearestId="@NearestExtractorId(extractors)"
+                                           EmptyText="@(world is null || !world.InWorld ? EmptyText(status) : "No extractors found.")" />
+                        }
                     </div>
                 </section>
             }
@@ -237,9 +263,10 @@
     private Vector2 _playerFlat;
     private long? _selectedBaseId;
     private long? _pinnedBaseId;
+    private long? _selectedExtractorId;
 
-    // Which map's detail panel is open in column 3: "base", "drone", "vehicle", or null (= extractors)
-    private string? _activeMap = "base";
+    // Which map's detail panel is open in column 3: "base", "drone", "vehicle" or "extractor".
+    private string _activeMap = "base";
 
     // Recently-docked drones: held for 5 seconds after they leave the flying list
     private Dictionary<int, DroneData> _prevFlyingData = new();
@@ -254,12 +281,12 @@
 
     private BaseView? SelectedBase => _views.FirstOrDefault(b => b.Id == _selectedBaseId);
 
-    private void SelectMap(string? map)
+    private void SelectMap(string map)
     {
-        // toggling off any panel falls back to base, not extractors
-        // (extractors chip passes null explicitly, so null↔null stays as-is — handled by the chip)
-        _activeMap = _activeMap == map ? (map == null ? null : "base") : map;
+        // Toggling off any panel falls back to base.
+        _activeMap = _activeMap == map ? "base" : map;
         if (_activeMap != "base") { _pinnedBaseId = null; UpdateSelection(); }
+        if (_activeMap != "extractor") { _selectedExtractorId = null; }
     }
 
     private void OnBaseMapClick()
@@ -272,6 +299,7 @@
     {
         _activeMap = "base";
         _pinnedBaseId = _pinnedBaseId == id ? null : id;
+        _selectedExtractorId = null;
         UpdateSelection();
     }
 
@@ -280,6 +308,23 @@
         _pinnedBaseId = null;
         UpdateSelection();
     }
+
+    private void SelectExtractor(long id)
+    {
+        _activeMap = "extractor";
+        _selectedExtractorId = _selectedExtractorId == id ? null : id;
+    }
+
+    private void UnselectExtractor() => _selectedExtractorId = null;
+
+    // Nearest by flat distance, only meaningful while the extractor list (not a single extractor) is being shown.
+    private long? NearestExtractorId(List<ExtractorData> extractors) => extractors
+        .Where(e => e.Position is not null)
+        .OrderBy(e => Vector2.Distance(_playerFlat, Flat(e)))
+        .Select(e => (long?)e.Id)
+        .FirstOrDefault();
+
+    private static Vector2 Flat(ExtractorData e) => new((float)e.Position!.X, (float)e.Position.Z);
 
     protected override void OnInitialized()
     {
@@ -370,6 +415,8 @@
     }
 
     private void LaunchGame() { Launcher.Launch(); StateHasChanged(); }
+
+    private void GoToCheats() => Nav.NavigateTo("/cheats");
 
     public void Dispose()
     {

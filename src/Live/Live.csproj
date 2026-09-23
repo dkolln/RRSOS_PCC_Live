@@ -29,6 +29,11 @@
       <HintPath>$(GameManaged)UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- Colliders, measured for the floor plans' building shapes. -->
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(GameManaged)UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- The player and manager classes derive from the game's networking types. -->
     <Reference Include="Unity.Netcode.Runtime">
       <HintPath>$(GameManaged)Unity.Netcode.Runtime.dll</HintPath>

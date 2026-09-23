@@ -13,6 +13,18 @@
     font-style: italic;
 }
 
+.ex-nearest {
+    margin-top: 2px;
+}
+
+.ex-nearest-label {
+    color: #4fd18b;
+    font-size: 0.85rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
 .ex-group,
 .ex-sub {
     display: flex;

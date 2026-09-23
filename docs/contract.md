@@ -178,6 +178,37 @@ Everything is limited to the planet the player is on.
 `size` is the station's slot count, `docked` how many drones are in it, `items` everything in its storage. Stations are reported separately, so
 they are not also in `containers`.
 
+### Building pieces (added in plugin 0.4.0), for the floor plans
+
+**In `live-world.json`, `structures`**: every pod (all shapes), foundation, platform, dome, lab and ladder within 120 m of a pod.
+
+```json
+"structures": [
+  { "id": 202460591, "group": "pod", "position": { "x": 1120.5, "y": 25.5, "z": 632 }, "yaw": 0,
+    "panels": [1, 2, 1, 2, 5, 7],
+    "box": { "min": { "x": -4, "y": 0, "z": -4 }, "max": { "x": 4, "y": 6, "z": 4 } },
+    "panelBoxes": [ { "type": 1, "sub": 1, "ceiling": false, "min": { "x": -4, "y": 0, "z": 3.9 }, "max": { "x": 4, "y": 6, "z": 4.1 } } ] }
+]
+```
+
+(The numbers above show the shape only.)
+
+- `yaw` is Unity's, in degrees. `box` is the piece's solid colliders (or, with none, its meshes) measured **in the piece's
+  own frame**: metres from `position`, before turning by `yaw`. `panelBoxes` does the same for each of its `Panel`s, in
+  the same order as `panels`. `type` is 1 wall, 2 floor, 3 angled floor; `sub` uses the same codes as `panels`
+  (the game's `BuildPanelSubType`: 1 wall, 2 corridor, 3 glass, 4 door, 5 floor with light, 6 glass floor, 7 plain floor,
+  8 lab floor, 9 lab wall, 10 floor without light, 11 inside wall, 13 aquarium wall). Both are null when the piece has
+  no scene object to measure (and always in files made from a save by `tools\save-to-world.ps1`).
+- A piece belongs to the nearest base within 100 m, like a container. The dashboard's `FloorPlan` uses the measured
+  box when there is one, and a table of sizes otherwise (the plan then says "approximate"). From a save, a plain pod's
+  first four `panels` are its sides in the order +Z, -Z, +X, -X (worked out from which sides of neighbouring pods are
+  joined by corridors in two saves).
+- `deckBox` (plugin 0.4.1) is the piece's largest flat slab of collider plus any slabs level with it; for a platform
+  that is its deck, and its top is the deck's height. The full `box` of a launch platform is far bigger than the deck.
+- Floors are found from heights: a foundation counts at its top (2 m above its position when not measured), a launch,
+  trade or vehicle platform at its deck (5 m above its position when not measured), a ladder on the floor of the room it
+  stands in, anything else at its position; a gap of more than 2.5 m starts a new floor.
+
 ### What a base is (the dashboard's rules, ported from RRSOS-PCC)
 
 - A **base** is a pod (group `pod` or `EscapePod`) with a **door** in its `panels` (a 4). With a **connection** (a 2) as

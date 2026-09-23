@@ -108,6 +108,22 @@
     cursor: default;
 }
 
+.cheats {
+    padding: 8px 18px;
+    background: rgba(255, 216, 107, 0.1);
+    border: 1px solid rgba(255, 216, 107, 0.5);
+    border-radius: 4px;
+    color: #ffd86b;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.cheats:hover {
+    background: rgba(255, 216, 107, 0.2);
+    border-color: #ffd86b;
+}
+
 /* Three fixed columns: player | planet+notes | detail panel */
 .grid {
     display: grid;
@@ -158,10 +174,16 @@
     gap: 8px;
 }
 
-/* The long list takes whatever height is left; if it needs more it scrolls, rather than pushing the page or being cut off. */
+/* The long list(s) take whatever height is left; if they need more they scroll, rather than pushing the page or
+   being cut off. display:flex + a small gap only matters when there's more than one list inside (Backpack and
+   Gear share this box in the Player card), so they sit right after each other instead of Backpack stretching to
+   fill all the leftover space and shoving Gear down to the bottom of the card. */
 .fill {
     flex: 1;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     overflow-y: auto;
     scrollbar-color: #24384d #0b0f17;
     scrollbar-width: thin;
@@ -205,37 +227,6 @@
     scrollbar-width: thin;
 }
 
-/* ── Extractors chip bar at the top of column 3 ── */
-.ext-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-}
-
-.ext-link {
-    padding: 4px 12px;
-    background: #0e1520;
-    border: 1px solid #1a2a3a;
-    border-radius: 12px;
-    color: #7f9db9;
-    font-size: 0.8rem;
-    letter-spacing: 1px;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-}
-
-.ext-link:hover {
-    border-color: #4a7fa5;
-    color: #9ac7ff;
-}
-
-.ext-link.is-active {
-    border-color: #4a7fa5;
-    color: #7ab8ff;
-    background: #0e1928;
-}
-
 /* ── Vehicle mini-map in NavDisplay Extra3 slot ── */
 .vehicle-mini {
     display: flex;
@@ -255,6 +246,48 @@
 
 .vehicle-mini.is-open {
     border-color: #4a7fa5;
+}
+
+/* .map-label/.map-caption are declared per-component in BaseMap/DroneMap/ExtractorMap.razor.css, but this
+   markup lives in Home.razor (it's content passed into NavDisplay's Extra3 slot), and Blazor's CSS isolation
+   scopes a render fragment to the file it's written in, not the component it's rendered into — so those rules
+   never actually match here. Repeating them locally, matching DroneMap's exactly, is what makes "Vehicles" and
+   its two caption lines look and read like the other three maps. */
+.map-label {
+    margin-top: 2px;
+    font-size: 0.8rem;
+    color: #7ab8ff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.map-caption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 2.5em;
+    max-width: 100%;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.25;
+}
+
+.map-caption-name,
+.map-caption-meta {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.map-caption-name {
+    color: #e6f2ff;
+    font-weight: bold;
+}
+
+.map-caption-meta {
+    color: #7f9db9;
+    font-size: 0.72rem;
 }
 
 /* ── Vehicle detail panel inside column 3 ── */

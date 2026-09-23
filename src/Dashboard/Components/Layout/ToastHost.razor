@@ -1,0 +1,29 @@
+@implements IDisposable
+@inject ToastService Toasts
+
+@* The rrs- prefix matters: Bootstrap owns the plain ".toast" class and hides it (display: none). *@
+<div class="rrs-toast-host" role="status" aria-live="polite">
+    @foreach (var item in Toasts.Current)
+    {
+        @* @key keeps an element (and so its fade animation) alive while other toasts come and go. *@
+        <div @key="item.Id"
+             class="rrs-toast rrs-toast-@(item.Kind.ToString().ToLowerInvariant())"
+             style="--life: @Seconds(item.Life)s; --delay: @Seconds(item.Delay)s">
+            @item.Text
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toasts.Changed += OnChanged;
+
+    private void OnChanged()
+    {
+        try { _ = InvokeAsync(StateHasChanged); }
+        catch (ObjectDisposedException) { /* the circuit is already gone */ }
+    }
+
+    private static string Seconds(TimeSpan span) => span.TotalSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    public void Dispose() => Toasts.Changed -= OnChanged;
+}

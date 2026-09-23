@@ -12,7 +12,11 @@
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    @* Prerendering would run this component's OnInitialized twice (once statically, once for the real
+       circuit), each subscribing to LiveFileService/WorldFileService independently — on the first alert,
+       both instances' cooldowns are empty and the voice narrator speaks it twice. This app has no
+       first-paint/SEO need for prerendering, so it's simplest to just turn it off. *@
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="js/alerts.js"></script>
 </body>

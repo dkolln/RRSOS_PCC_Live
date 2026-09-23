@@ -19,6 +19,18 @@
     align-items: center;
 }
 
+.nav-extras-row {
+    margin-top: 4px;
+    flex-wrap: nowrap;
+}
+
+/* All four maps share one row: they shrink together rather than wrapping onto a second row. */
+.nav-extras-row .nav-panel {
+    flex: 1 1 0;
+    max-width: 130px;
+    min-width: 60px;
+}
+
 .nav-panel-tall {
     flex: 0 1 90px;
 }
