@@ -3,6 +3,10 @@ using RRSOS.PCC.Dashboard.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// This PC's own settings (see appsettings.json for the list), kept out of git. The command line still wins over them.
+builder.Configuration.AddJsonFile(Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json"), optional: true);
+builder.Configuration.AddCommandLine(args);
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

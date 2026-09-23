@@ -8,8 +8,7 @@ namespace RRSOS.PCC.Dashboard
     {
         public static string DetectFolder(IConfiguration config)
         {
-            var configured = config["SaveSettings:SavePath"];
-            if (!string.IsNullOrWhiteSpace(configured) && Directory.Exists(configured))
+            if (LivePaths.Setting(config, "SaveSettings:SavePath") is { } configured && Directory.Exists(configured))
                 return configured;
 
             // The game keeps saves in LocalLow, which has no SpecialFolder entry.
