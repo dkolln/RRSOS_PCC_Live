@@ -1,10 +1,21 @@
 @* Every extractor, grouped: ore by what it mines, then gas, water and algae. Each shows how full it is, where it is and
-   which way from the player. Ported from RRSOS-PCC's Extractors card. *@
+   which way from the player. Ported from RRSOS-PCC's Extractors card. When NearestId is set (the map is open and
+   nothing specific is picked), that one extractor is also pinned to the top, and moves live as the player walks. *@
 <div class="extractors @(Dim ? "is-dim" : "")">
 
     @if (Groups.Count == 0)
     {
         <div class="extractors-empty">@EmptyText</div>
+    }
+
+    @if (NearestRow is { } nearest)
+    {
+        <div class="ex-nearest">
+            <span class="ex-nearest-label">Nearest</span>
+        </div>
+        <div class="ex-tiles">
+            @Tile(nearest)
+        </div>
     }
 
     @foreach (var group in Groups)
@@ -42,32 +53,7 @@
                     <div class="ex-tiles">
                         @foreach (var row in sub.Rows)
                         {
-                            <div class="ex-tile @(row.IsFull ? "is-full" : "")">
-                                <div class="ex-tile-head">
-                                    <span class="ex-pos">@row.Position</span>
-                                    <span class="ex-where">@row.Where</span>
-                                </div>
-
-                                <div class="ex-fill" title="@row.FillText">
-                                    <div class="ex-fill-bar" style="width: @Inv($"{row.FillFraction * 100:0.#}")%"></div>
-                                    <span class="ex-fill-text">@row.FillText</span>
-                                </div>
-
-                                @if (row.Data.Items.Count == 0)
-                                {
-                                    <div class="ex-none">no contents</div>
-                                }
-                                else
-                                {
-                                    @foreach (var item in row.Data.Items.OrderBy(i => i.Label, StringComparer.CurrentCultureIgnoreCase))
-                                    {
-                                        <div class="ex-line">
-                                            <span class="ex-line-name">@item.Label</span>
-                                            <span class="ex-line-count">@item.Count@(row.Data.Kind == "algae" && item.Ready > 0 ? $" ({item.Ready} ready)" : "")</span>
-                                        </div>
-                                    }
-                                }
-                            </div>
+                            @Tile(row)
                         }
                     </div>
                 }
@@ -93,6 +79,43 @@
 
     [Parameter]
     public string EmptyText { get; set; } = "No extractors found.";
+
+    /// <summary>The extractor nearest the player, pinned to the top of the list. Set only while the map is open
+    /// and nothing specific is picked (see Home.razor); left null otherwise.</summary>
+    [Parameter]
+    public long? NearestId { get; set; }
+
+    private Row? NearestRow => NearestId is { } id
+        ? Data.Where(e => e.Position is not null && e.Id == id).Select(ToRow).FirstOrDefault()
+        : null;
+
+    // The one tile layout, shared between the pinned "Nearest" row and the grouped list below it.
+    private RenderFragment<Row> Tile => row => @<div class="ex-tile @(row.IsFull ? "is-full" : "")">
+        <div class="ex-tile-head">
+            <span class="ex-pos">@row.Position</span>
+            <span class="ex-where">@row.Where</span>
+        </div>
+
+        <div class="ex-fill" title="@row.FillText">
+            <div class="ex-fill-bar" style="width: @Inv($"{row.FillFraction * 100:0.#}")%"></div>
+            <span class="ex-fill-text">@row.FillText</span>
+        </div>
+
+        @if (row.Data.Items.Count == 0)
+        {
+            <div class="ex-none">no contents</div>
+        }
+        else
+        {
+            @foreach (var item in row.Data.Items.OrderBy(i => i.Label, StringComparer.CurrentCultureIgnoreCase))
+            {
+                <div class="ex-line">
+                    <span class="ex-line-name">@item.Label</span>
+                    <span class="ex-line-count">@item.Count@(row.Data.Kind == "algae" && item.Ready > 0 ? $" ({item.Ready} ready)" : "")</span>
+                </div>
+            }
+        }
+    </div>;
 
     // What the user has clicked. The four kinds (ore, gas, water, algae) start open and the ore or gas under each starts folded;
     // a click flips that, and the choice survives new readings.

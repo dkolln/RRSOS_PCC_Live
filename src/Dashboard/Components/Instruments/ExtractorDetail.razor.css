@@ -1,0 +1,116 @@
+.ext-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+}
+
+.ext-detail.is-dim {
+    opacity: 0.5;
+}
+
+.ext-detail-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.ext-detail-name {
+    color: #e6f2ff;
+    font-size: 1.15rem;
+    font-weight: bold;
+}
+
+.ext-detail-meta {
+    color: #7f9db9;
+    font-size: 0.85rem;
+}
+
+.ext-detail-spacer {
+    flex: 1;
+}
+
+.ext-detail-btn {
+    padding: 2px 10px;
+    background: rgba(122, 184, 255, 0.12);
+    border: 1px solid rgba(122, 184, 255, 0.3);
+    border-radius: 3px;
+    color: #9ac7ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    cursor: pointer;
+}
+
+.ext-detail-btn:hover {
+    background: rgba(122, 184, 255, 0.22);
+}
+
+.ext-detail-pos {
+    color: #b7d3f2;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
+.ext-detail-empty {
+    color: #5f7d99;
+    font-style: italic;
+}
+
+/* How full: a bar behind the numbers */
+.ext-detail-fill {
+    position: relative;
+    height: 1.6em;
+    background: #0b0f17;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.ext-detail-fill-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: #1f4d7a;
+}
+
+.ext-detail-fill-bar.is-full {
+    background: #7a6420;
+}
+
+.ext-detail-fill-text {
+    position: relative;
+    display: block;
+    text-align: center;
+    line-height: 1.6em;
+    color: #e6f2ff;
+    font-variant-numeric: tabular-nums;
+}
+
+.ext-detail-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    background: #0e1520;
+    border: 1px solid #1a2a3a;
+    border-radius: 4px;
+    overflow-y: auto;
+}
+
+.ext-detail-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.85rem;
+}
+
+.ext-detail-line-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #b7d3f2;
+}
+
+.ext-detail-line-count {
+    color: #e6f2ff;
+    font-variant-numeric: tabular-nums;
+}

@@ -18,6 +18,9 @@ namespace RRSOS.PCC.Dashboard
         public List<ExtractorData> Extractors { get; set; } = new();
         public List<DroneStationData> DroneStations { get; set; } = new();
 
+        /// <summary>Building pieces near the pods, with their shapes (plugin 0.4.0 and later), for the floor plans.</summary>
+        public List<StructureData> Structures { get; set; } = new();
+
         /// <summary>
         /// The plugin writes null for a list the game gave it none of (a pod with no panels, say), and a null in the file
         /// replaces the empty list above. Put the empty lists back, so nothing downstream has to check.
@@ -30,6 +33,15 @@ namespace RRSOS.PCC.Dashboard
             Loose ??= new();
             Extractors ??= new();
             DroneStations ??= new();
+            Structures ??= new();
+
+            Structures.RemoveAll(s => s is null);
+            foreach (var structure in Structures)
+            {
+                structure.Group ??= "";
+                structure.Panels ??= new();
+                structure.PanelBoxes?.RemoveAll(p => p is null);
+            }
 
             Pods.RemoveAll(p => p is null);
             Signs.RemoveAll(s => s is null);
@@ -98,6 +110,61 @@ namespace RRSOS.PCC.Dashboard
         public string Group { get; set; } = "";
         public Vec3? Position { get; set; }
         public List<int> Panels { get; set; } = new();
+    }
+
+    /// <summary>
+    /// A building piece (a pod of any shape, a foundation, a platform, a dome, a lab or a ladder). <see cref="Box"/> and
+    /// <see cref="PanelBoxes"/> are measured in the piece's own frame: metres from <see cref="Position"/>, before it turns
+    /// by <see cref="Yaw"/>. Both are null when the plugin had nothing to measure (and always, from a save).
+    /// </summary>
+    public sealed class StructureData
+    {
+        public int Id { get; set; }
+        public string Group { get; set; } = "";
+        public Vec3? Position { get; set; }
+
+        /// <summary>Unity yaw in degrees (a turn about the vertical, clockwise from above).</summary>
+        public double Yaw { get; set; }
+
+        /// <summary>What fills each panel slot, as in the save (see <see cref="PanelCodes"/>).</summary>
+        public List<int> Panels { get; set; } = new();
+
+        public BoxData? Box { get; set; }
+
+        /// <summary>The piece's largest flat slab, and any level with it (plugin 0.4.1 and later): a platform's deck, whose top is the deck's height.</summary>
+        public BoxData? DeckBox { get; set; }
+
+        public List<PanelBoxData>? PanelBoxes { get; set; }
+    }
+
+    public sealed class BoxData
+    {
+        public Vec3? Min { get; set; }
+        public Vec3? Max { get; set; }
+    }
+
+    /// <summary>One panel of a piece: its kind (1 wall, 2 floor, 3 angled floor), what fills it (<see cref="PanelCodes"/>), and its box.</summary>
+    public sealed class PanelBoxData
+    {
+        public int Type { get; set; }
+        public int Sub { get; set; }
+        public bool Ceiling { get; set; }
+        public Vec3? Min { get; set; }
+        public Vec3? Max { get; set; }
+    }
+
+    /// <summary>The game's panel codes (DataConfig.BuildPanelSubType), as the save's "pnls" and the plugin write them.</summary>
+    public static class PanelCodes
+    {
+        public const int WallPlain = 1;
+        public const int WallCorridor = 2;
+        public const int WallGlass = 3;
+        public const int WallDoor = 4;
+        public const int WallLab = 9;
+        public const int WallInside = 11;
+        public const int WallWaterLife = 13;
+
+        public const int TypeWall = 1;
     }
 
     public sealed class SignData

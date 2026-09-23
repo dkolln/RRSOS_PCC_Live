@@ -34,10 +34,12 @@ namespace RRSOS.PCC.Dashboard
 
         private sealed class Row
         {
+            public string? Name { get; set; }
             public int Type { get; set; }
         }
 
         private readonly Dictionary<string, ItemType> _types = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<(string GId, string Name)> _products = new();
 
         public ItemCatalog(IWebHostEnvironment env, ILogger<ItemCatalog> log)
         {
@@ -49,7 +51,14 @@ namespace RRSOS.PCC.Dashboard
                 var rows = JsonSerializer.Deserialize<Dictionary<string, Row>>(stream, LiveJson.Options);
 
                 foreach (var pair in rows ?? new())
+                {
                     _types[pair.Key] = Enum.IsDefined(typeof(ItemType), pair.Value.Type) ? (ItemType)pair.Value.Type : ItemType.Unknown;
+
+                    if (!string.IsNullOrWhiteSpace(pair.Value.Name))
+                        _products.Add((pair.Key, pair.Value.Name!));
+                }
+
+                _products.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception e)
             {
@@ -57,6 +66,11 @@ namespace RRSOS.PCC.Dashboard
                 log.LogWarning(e, "Could not read {Path}; items will not be grouped by type or category", path);
             }
         }
+
+        /// <summary>Every game object with a display name, sorted by that name. The Cheats page's product picker
+        /// searches this list; nothing here filters it down, since worldobjectdata.json does not know which of
+        /// these can actually sit in a storage slot.</summary>
+        public IReadOnlyList<(string GId, string Name)> AllProducts => _products;
 
         /// <summary>The type for a game group id: the exact id, else the id without its trailing digits ("Iron1" is "Iron"), else Unknown.</summary>
         public ItemType TypeOf(string groupId)

@@ -1,28 +1,117 @@
 # Handoff: where things stand and what comes next
 
-Written at the end of the 2026-09-21 sessions so a new session (or a new person) can pick up cleanly. The first session
-built the player, planet, vehicle and dashboard modules; the second (later the same day) built **Base and Extractors**.
+Updated at the end of the 2026-09-22/23 session so a new session can pick up cleanly. The 2026-09-21 write-up below
+this point described Module 7/8 (Base, Extractors, Drones) as "built but not yet run in the game" — that has since
+happened and been iterated on heavily; treat this top section as current and the rest as history/background.
 
 ## Where everything is
 
-| What | Where |
-|---|---|
-| This project (plugin and live dashboard) | `C:\Users\david\source\repos\Planet Crafter\RRSOS-PCC-Live`, GitHub `dkolln/RRSOS_PCC_Live` (public) |
-| The save-file dashboard (stays save-only) | `C:\Users\david\source\repos\Planet Crafter\RRSOS-PCC`, GitHub `dkolln/RRSOS-PCC` |
-| The game | `C:\Program Files (x86)\Steam\steamapps\common\The Planet Crafter` (Unity 6000.3.2, Mono, Steam build 25296421) |
-| BepInEx 5.4.23.4 | installed in the game folder; details and undo steps in `install-log.md` |
-| Save backups (taken before installing) | `%USERPROFILE%\Documents\PlanetCrafter-SaveBackups\2026-09-21_1317\` |
-| The live files | `%LOCALAPPDATA%\RRSOS-PCC-Live\live.json` (once a second) and `live-world.json` (every 5 s); contract in `contract.md` |
-| The dashboard's base names | `%LOCALAPPDATA%\RRSOS-PCC-Live\basedata.json` (its own file; RRSOS-PCC's is separate) |
+Unchanged from before — see the table further down. One addition: decompiled game source (used this session to
+settle a real bug, see below) currently lives in two old scratchpad folders on this machine, not in the repo —
+these are the exact paths found and used on 2026-09-23, both still present at that point:
 
-Note that on this machine the repos live under `C:\Users\david` but the profile that owns `%LOCALAPPDATA%`, the saves
-(`...\AppData\LocalLow\MijuGames\Planet Crafter`) and the game's `%USERPROFILE%` is `C:\Users\dkoll`.
+```
+C:\Users\dkoll\AppData\Local\Temp\claude\C--Users-david-source-repos-Planet-Crafter-RRSOS-PCC-Live\c2dd33cb-7cbc-46d7-adbe-caf297b71495\scratchpad\decomp\SpaceCraft
+C:\Users\dkoll\AppData\Local\Temp\claude\C--Users-david-source-repos-Planet-Crafter-RRSOS-PCC\bd791197-e25f-4eb1-8f89-dda0e4b8fb25\scratchpad\decomp\SpaceCraft
+```
 
-Run it: build the plugin with the game closed (`dotnet build src/Live/Live.csproj`, it copies itself into
-`BepInEx\plugins`), start the dashboard (`dotnet run --project src/Dashboard`, http://localhost:5320), launch the game.
-Without the game, use `tools\sample-live.ps1` (fake data) or `tools\save-to-world.ps1` (a real save turned into the two files).
+The second one (the plain `RRSOS-PCC` one) is the more complete decompile of the two — it's the one that actually
+had `WorldObjectsIdHandler.cs`, `WorldObjectFromScene.cs` and `WorldObject.cs`; the `-Live` one was missing several
+classes the other had. Scratchpad folders get cleaned up eventually (they're tied to a specific past session, not
+guaranteed to persist); if neither path exists anymore, regenerate with the `ilspycmd` command at the bottom of
+this file — worth doing a search first (`find`/`Get-ChildItem` for `WorldObjectsIdHandler.cs` under
+`AppData\Local\Temp\claude\`) in case a newer scratchpad has it before re-running the ~30s decompile.
 
-## What works
+## Where the dashboard actually is now
+
+Well past "Base and Extractors, not yet tested." Current shape:
+
+- **One page, three columns** (unchanged layout philosophy). Player card's top row is Heading + Elevation; directly
+  under that, all **four mini-maps sit in a single row** (Bases, Drones, Vehicle, Extractors) — moved there
+  deliberately so they read as one cluster instead of being scattered across the row with the instruments.
+- **Every mini-map** (`BaseMap`, `DroneMap`, `RelativeMap`, `ExtractorMap`) now has:
+  - a decorative rotating radar sweep (2 RPM, 40° wide wedge) using `mix-blend-mode: plus-lighter` so a pip
+    visibly flares as the sweep's light crosses it — this is real-time pixel compositing, not a pre-scheduled CSS
+    animation, specifically because a scheduled version (tried first, via `animation-delay` computed from each
+    pip's angle) **drifted out of sync** as the player moved and pip bearings kept changing under a fixed
+    schedule. The blend-mode version can't drift; there's nothing to keep in sync.
+  - manual `+`/`−`/`×` zoom controls, because the auto-fit range could squash several close-together pips (e.g.
+    extractors right next to the player marker) into an unclickable cluster. Range steps now go down to 10m
+    (previously bottomed out at 100m/50m) so tight clusters can actually be separated.
+  - Drones and Vehicles and Extractors all show the same 3-line caption pattern under the map: label / count /
+    nearest-with-distance-and-direction (Extractors and Vehicles were changed this session to match Drones, which
+    already had it).
+- **Cheats page** (`/cheats`, route only reachable via a button next to LAUNCH PC, and only while the game is not
+  in a world): a generalized, configurable Resupply — pick a save file, add any number of (container label →
+  product) configs, Resupply clears each labelled container down to just that product. This is a from-scratch,
+  safer redesign of RRSOS-PCC's old hardcoded DaveFood/DaveWater/DaveOxygen resupply (empties by rewriting each
+  existing item's own `gId` in place rather than deleting/recreating records — see `SaveResupplyEngine.cs`'s doc
+  comment for the full reasoning). The live plugin itself is still strictly read-only; Cheats only ever edits the
+  save file on disk, same constraint the old RRSOS-PCC always had (main menu or closed only).
+- **Player card**: Backpack and Gear now share one scrollable box with a fixed 8px gap between them, instead of
+  Backpack's wrapper flex-growing to fill the whole card and shoving Gear down to the bottom with a huge gap.
+
+## This session's real bug: Boneyard undercounting a known ore pile
+
+Worth reading in full if boneyard counts ever look wrong again — this was chased down properly, not guessed at,
+and the final fix is confirmed correct against real game data.
+
+**Symptom:** the owner hand-counted 23 Titanium in one pile near a base; the dashboard's Boneyard showed 9.
+
+**Root cause:** `VisitLoose` in `src/Live/WorldScan.cs` excluded anything where
+`WorldObjectsIdHandler.IsWorldObjectFromScene(id)` was true. Pulled the actual decompiled source for that method:
+it is literally `id < 200,000,000`, and `WorldObjectsIdHandler.GetNewWorldObjectIdForDb()` proves anything created
+during play always gets `id >= 201,000,000`. So that check only ever answers "has this object existed since the
+world was generated" — never "is this an embedded, unminable resource" versus "a loose chunk sitting on the
+ground." World generation apparently scatters some ore directly as already-loose ground chunks (or an item
+started life as loot inside a scene-placed container), so a lot of genuinely-loose, pickupable material carries a
+"from scene" id and was being silently dropped from `live-world.json` before ever reaching the dashboard.
+
+**Fix:** removed that check from `VisitLoose`. It now relies on `GetIsPlaced()` + `GetGroup() is GroupItem` to
+identify real loose items; the dashboard's own `BaseDirectory.IsBoneyardMaterial` (ore/alloy/quartz/rod only)
+still keeps wreck loot and decorative containers out of the Boneyard, and that filter was never dependent on id
+range in the first place.
+
+**Verification, not just theory:** cross-checked against the raw save file (`Custom-1.json`) by parsing every
+individual Titanium/Cobalt/etc. object record directly and summing by distance from the base pod — matched the
+dashboard's live numbers exactly, material by material, after the fix. Also confirmed every loose entry the
+plugin reports carries real non-null position data (no phantom entries).
+
+**Note for future self:** this got reverted once mid-session (a live in-game test — removing an "unharvested"
+Cobalt piece — looked at first like it proved the fix was wrongly counting unmined ore deposits). It took actually
+reading the decompiled `WorldObjectsIdHandler` source to realize "from scene" only means "existed since world
+load," not "still embedded" — the two are unrelated. If this ever looks wrong again, don't re-add the id check
+without re-deriving this from the actual game source, not from the old comment's assumption.
+
+**Also explored this session (read-only, nothing built):**
+- Whether the game tracks item/container ownership at all — it does not. No owner/placer concept anywhere on
+  `WorldObject`; base "ownership" of anything is 100% a dashboard-side computation (nearest pod within 100m),
+  recomputed fresh every time, never stored.
+- Whether "items sitting on the Launch Platform" is queryable — checked by hand against the save (the platform is
+  an 8x4m `LaunchPlatform` piece, `Type` 6530, not currently reported in `live-world.json` at all since it has no
+  linked inventory and doesn't match any of `VisitConstructed`'s categories). Confirmed 0 items currently sit
+  within its real footprint. If this becomes a real feature request, it needs new plugin-side geometry work
+  (Renderer/Collider world bounds, read live) — nothing built, just scoped.
+
+## Not committed
+
+Nothing from this session (or several sessions before it — the owner's rule is commits only when asked) has been
+committed yet. The working tree currently has, on top of the 2026-09-21 base: the `WorldScan.cs` loose-item fix
+above, all four mini-map components (radar sweep + zoom on each), the Cheats page and its supporting services
+(`SaveResupplyEngine`, `SaveResupplyService`, `ResupplyConfigStore`, `SaveFolderResolver`, `ToastService`), and
+the Backpack/Gear spacing fix. Ask before committing or pushing, per the working rules below.
+
+## Next
+
+1. Keep an eye on Boneyard counts for a regression now that the id filter is gone — if actual landscape decoration
+   (wreck loot, a decorative crate) ever shows up as "loose material," the fix over-corrected and needs a
+   *narrower* distinguishing signal than id range (which is now confirmed unreliable for this).
+2. If "what's on this platform/foundation" becomes a real ask, it needs new plugin-side bounds-reading — scoped
+   above, not started.
+3. Commit the accumulated changes once the owner is ready.
+4. Continue down the original test-plan checklist below for anything not explicitly re-verified this session.
+
+## What works (original, still true)
 
 **Verified in the game (2026-09-21, plugin 0.2.0):** player position, yaw and vitals (with maximums), backpack, gear, six
 planet stats with live per-second rates, power (produced, used, generators by kind), rocket counts and multipliers, and
@@ -30,70 +119,58 @@ the vehicle (position, trunk, gear). Rocket multipliers matched the wiki maths e
 save, and the owner reviewed the dashboard live and was delighted. Later the same day the owner confirmed again that
 player, vehicle, power and planet data "all look good".
 
-**Built but NOT yet run in the game (plugin 0.3.0, this is what the next session must test): Base and Extractors.**
+**Base, Extractors and Drones (plugin 0.3.0):** now fully run and iterated on in the game across several sessions
+(see above for what changed most recently). Original build notes:
 
-- **Plugin:** a second file, `live-world.json`, written about every 5 seconds by `WorldPoller` (a coroutine), using
-  `WorldScan`, which walks the game's placed objects in three passes and spreads the work over frames (about 2 ms each). It reports **raw
+- **Plugin:** `live-world.json`, written about every 5 seconds by `WorldPoller` (a coroutine), using `WorldScan`, which
+  walks the game's placed objects in three passes and spreads the work over frames (about 2 ms each). It reports **raw
   facts**: pods with their panels, signs, containers (with their items) within 120 m of a pod, loose items near a pod, and
   ore, gas, water and algae extractors (product, size, count, contents). It also reports its own cost (`scan`). See `contract.md`, "The world file".
 - **Dashboard:** `WorldFileService` reads that file and works out the bases with `BaseDirectory` (a base is a pod with a door;
   door plus connection is a "Base", else an "Outpost"; things belong to the nearest base within 100 m; names from signs, then
-  a saved name, then a pool: `BaseNames`). **One page, no tabs** (the owner's layout, after a first version with Main, Base and Extractors tabs): three columns, sized for 2560 x 1440.
-  Left: **Player, with Vehicle under it**. Middle: **Planet**. Right: the **Base card** over the **Extractors card**. The Player card's top row is compass, elevation and the
-  **Bases map** (`NavDisplay`'s `Extra` slot; its position map is switched off with `ShowPosition="false"`). Hover a base on the map for its name; click it to pin it (click again,
-  or "Follow nearest", to go back; sticky nearest via `BaseSelector`). The Base card has three lists, **open on load**, each showing 10 rows and then scrolling (click a title to fold one):
-  Stored (by name), Ready to harvest and Boneyard (loose ore, ice, super alloy, quartz and rods only: decided in `BaseDirectory` by the item-type table, so plants, drones and vehicles never show). Backpack, gear and trunk can be folded too (`ItemList`'s `Collapsible`; they start open). The Extractors card groups ore by product (each ore starts folded, the four kinds open),
-  then gas, water and algae, with position, distance, direction, fill bar and contents, and scrolls.
-- **Ported from RRSOS-PCC (copied, not referenced):** `BaseMap` (small version only now), `BaseContents` (built on the existing `ItemList`), `BaseSelector`,
+  a saved name, then a pool: `BaseNames`).
+- **Ported from RRSOS-PCC (copied, not referenced):** `BaseMap`, `BaseContents` (built on the existing `ItemList`), `BaseSelector`,
   the extractor grouping, the item-type table (`Assets/worldobjectdata.json` and `ItemType`/`ItemCatalog`) and the two name pools.
-- **Checked without the game:** the plugin compiles against the game's assemblies with no warnings. The dashboard was run against the fake world
-  (`tools/sample-live.ps1`) and against **your real save `Custom-2`** through `tools/save-to-world.ps1`: 16 door pods found (1 Base, 15 Outposts), the same count as
-  counting the save by hand, names identical to RRSOS-PCC's saved ones, 38 extractors, Main with 4049 stored items. The page fits 2560 x 1440 with nothing clipped (Player and Vehicle share the left column 59 to 41; the backpack shows in full).
-- **What the save-based check cannot show:** whether the plugin's game calls return what the decompiled code suggests (see `test-plan.md` section 9.7,
-  the list of assumptions), and how much the world pass costs in a real session (`scan.workMs` and `scan.worstFrameMs` in the file).
 
-**Drones (also plugin 0.3.0, also not yet run in the game):** flying drones are read every second into `live.json` (`DroneReader`: `FindObjectsByType<Drone>` re-listed every 5 s, then positions, task and cargo);
-drone stations are in the world file (`droneStations`). The dashboard has a **drone map** in the Player card's top row (`DroneMap`: you in the middle, stations as squares, drones as arrows that glide between
-readings, the scale stepping up to hold the nearest one) and clicking it opens a **drone card** (`DroneList`) under the power card, in the Planet column: the Planet card shrinks to its content and the
-drone card takes the rest. Each flying drone shows its state, cargo, task (from and to) and speed; each station its position, distance, docked count and storage. See `contract.md` ("Drones") and `test-plan.md` section 10.
+**Drones:** flying drones are read every second into `live.json` (`DroneReader`: `FindObjectsByType<Drone>` re-listed every 5 s, then positions, task and cargo);
+drone stations are in the world file (`droneStations`). See `contract.md` ("Drones") and `test-plan.md` section 10.
 
-Not yet confirmed by the owner from earlier: the Energy Levels and Terraformation screen comparisons, the backpack contents,
-the compass in all eight directions, whether a stowed truck's trunk and gear still show, and the long main-menu wait.
+Not yet confirmed by the owner from the original list: the Energy Levels and Terraformation screen comparisons, the
+compass in all eight directions, whether a stowed truck's trunk and gear still show, and the long main-menu wait.
 See `test-plan.md` (tick items off as they are done).
-
-## Next
-
-1. **Test section 9 of `test-plan.md` in the game** (the owner asked for a detailed list to work through on return). Start with 9.1
-   (does the file appear, are the counts right, what does `scan` say). Anything that fails will most likely be one of the assumptions in 9.7.
-2. Fix what the game shows to be wrong. The likely suspects, in order: pods missing (the "constructed objects" list or the planet hash), every
-   pod an outpost (panel numbers), an empty "Ready to harvest" (secondary storage), ore groups all "Unset" (`GetLinkedGroups`), dropped items not listed as loose (the scene-id rule).
-3. Decide a few small things the owner has not been asked yet:
-   - **Base names:** the live dashboard keeps its own `basedata.json` (so it never depends on RRSOS-PCC). The bases with signs get the same names in both apps; unsigned ones get
-     pool names that may differ. Seeding from RRSOS-PCC's file is possible (both key by the pod's game id) if the owner wants identical names.
-   - Whether gas extractors, the genetic extractor and the water-life collector belong on the Extractors card (gas is in; the other two are not).
-   - **Far bases cannot be picked:** the Bases map only reaches half the range that would hold every base, and it is now the only way to choose a base. If that bites, options are a wider map or a small list of bases.
-   - Removed on request when the layout changed: the big map and its zoom, the Group by Name/Type/Category buttons, and the search box. The code for grouping by type is gone with them (`ItemCatalog` is still used to leave machines and building parts out).
-4. Test section 10 (drones) the same way; the likeliest surprise is `FindObjectsByType<Drone>` returning docked drones (or none).
-5. Then optional: a local HTTP feed, an in-game overlay.
 
 ## Working rules that emerged (from the owner)
 
-- Read-only, awareness not shortcuts. Never change game state.
+- Read-only toward the running game, awareness not shortcuts. Never change live game state — the plugin only
+  observes. Cheats/Resupply is a deliberate, separate exception scoped to editing the save file on disk while the
+  game is not in a world; it does not touch the running game.
 - RRSOS-PCC stays save-file based; do not make the two depend on each other.
-- Ask before committing or pushing in RRSOS-PCC. In this repo the owner asked for local commits per module and pushed on request.
-- Changing the game folder (installing or updating BepInEx or the plugin) needs the game closed, and the owner's go-ahead for anything new.
-  (The 0.3.0 plugin DLL was built into `BepInEx\plugins\RRSOS-PCC-Live` at the end of the second session, with the game closed, the same routine as before.)
-- Test the dashboard against fake data, then hand the owner a precise test list for the game (as in `test-plan.md`).
-- The owner's saves: `Custom-1.json` (newer, no vehicle yet) and `Custom-2.json` (older, mid-game, now flagged `modded`). Never edit them
-  (`save-to-world.ps1` only reads).
+- Ask before committing or pushing. Commits only when explicitly asked, even after a long stretch of changes.
+- Changing the game folder (installing or updating BepInEx or the plugin) needs the game closed for the build to
+  copy the DLL in, then the game needs a **full restart** (not just a world reload) to actually load new plugin
+  code — BepInEx does not hot-swap a running plugin from a file overwrite.
+- Test the dashboard against fake data (`tools\sample-live.ps1`) or a real save (`tools\save-to-world.ps1`) first;
+  for anything touching the plugin's read of live game state, verify with real data before trusting it (this
+  session's Boneyard bug is the case study for why — id-range assumptions and even a live in-game test can both
+  mislead if you don't cross-check against the actual game source).
+- The owner's saves: `Custom-1.json` (currently the active one) and `Custom-2.json` (older, larger, flagged
+  `modded`). Never edit them directly outside of Cheats/Resupply, which the owner explicitly drives.
 
 ## Facts worth remembering
 
 - Compass: north is world +X, east is world -Z (measured in the game). `Compass.ToEastNorth` in the dashboard, `PCMath.ToEastNorth` in RRSOS-PCC.
 - The game marks saves `modded: true` while `BepInEx\plugins` is non-empty. Cosmetic.
 - Fandom wiki pages cannot be fetched by tools (HTTP 402) but open fine in a browser; the wiki's tables match the game.
-- The vehicle is the world object with group id `VehicleTruck`; a stowed vehicle has no position.
-- Object ids: below 200,000,000 is the landscape's own; things the player builds or drops are 200,000,000 and up. Panel value 4 is a door, 2 a corridor connection.
+- The vehicle is the world object with group id `VehicleTruck`; a stowed vehicle has no position. The live data
+  model only tracks one vehicle today (`LiveData.Vehicle` is singular) — the Vehicles mini-map caption is
+  written to already read correctly as a count/nearest-of-many if that ever becomes a list, but nothing forces
+  that yet; the owner plans to test multi-vehicle behavior once they can build a second one in-game.
+- **Object ids** (corrected/expanded this session): `WorldObjectsIdHandler.IsWorldObjectFromScene(id)` is
+  literally `id < 200,000,000`, and `WorldObjectsIdHandler.GetNewWorldObjectIdForDb()` proves anything created
+  during play always gets `id >= 201,000,000`. This is purely an "object age" signal (existed since world load,
+  or created later) — **it is not a reliable signal for "is this a real, loose, pickupable item"** versus
+  landscape decoration. World generation can place genuinely-loose ore chunks directly, and they keep a
+  "from scene" id forever. Panel value 4 is a door, 2 a corridor connection (unrelated, still true).
 - A shell quirk on this machine: a long `bash` heredoc with several files in one command can fail to parse; write files one at a time.
 - To look at the dashboard while developing: the launch config in `.claude/launch.json` (ignored by git) starts it on fake or converted data; regenerate the decompile
   with `ilspycmd -p -o <a scratch folder> "<game>\Planet Crafter_Data\Managed\Assembly-CSharp.dll"` (about 30 seconds, kept out of the repo).

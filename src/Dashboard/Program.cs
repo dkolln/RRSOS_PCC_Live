@@ -18,6 +18,12 @@ builder.Services.AddSingleton<WorldFileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<WorldFileService>());
 builder.Services.AddSingleton<NotebookService>();
 
+// Cheats page: save-file editing while the game is not in a world (see docs/contract.md's read-only principle —
+// this never touches the running game, only the save on disk).
+builder.Services.AddSingleton<ResupplyConfigStore>();
+builder.Services.AddSingleton<SaveResupplyService>();
+builder.Services.AddScoped<ToastService>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

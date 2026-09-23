@@ -1,0 +1,178 @@
+.plan {
+    padding: 6px 10px 8px;
+    background: #0e1520;
+    border: 1px solid #1a2a3a;
+    border-radius: 4px;
+}
+
+.plan.is-dim {
+    opacity: 0.5;
+}
+
+/* Same look as the item lists' titles above it */
+.plan-title {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px 3px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #1a2a3a;
+    color: #7ab8ff;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.plan-meta {
+    color: #9ac7ff;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.plan-empty {
+    color: #5f7d99;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.plan-frame {
+    position: relative;
+    background: #0a1019;
+    border: 1px solid #14202e;
+    border-radius: 3px;
+}
+
+.plan-frame svg {
+    display: block;
+    width: 100%;
+    height: 280px;
+}
+
+/* Strokes stay the same width on screen however big the base is */
+.plan-frame svg * {
+    vector-effect: non-scaling-stroke;
+}
+
+.plan-below {
+    fill: none;
+    stroke: #2a3d52;
+    stroke-width: 1px;
+    stroke-dasharray: 3 3;
+}
+
+.plan-piece {
+    stroke-width: 1px;
+}
+
+.plan-piece.part-pod { fill: rgba(122, 184, 255, 0.16); stroke: #3a5a7a; }
+.plan-piece.part-foundation { fill: rgba(150, 165, 180, 0.10); stroke: #3d4a57; }
+.plan-piece.part-platform { fill: rgba(255, 154, 107, 0.12); stroke: #7a5440; }
+.plan-piece.part-dome { fill: rgba(79, 209, 139, 0.12); stroke: #2f6b4c; }
+.plan-piece.part-lab { fill: rgba(186, 140, 255, 0.14); stroke: #5a4a7a; }
+.plan-piece.part-aquarium { fill: rgba(80, 170, 230, 0.20); stroke: #2f6f9a; }
+.plan-piece.part-tower { fill: none; stroke: #ff9a6b; stroke-width: 1.5px; stroke-dasharray: 4 2; }
+.plan-piece.part-other { fill: rgba(150, 165, 180, 0.08); stroke: #3d4a57; }
+
+.plan-wall {
+    stroke-linecap: square;
+}
+
+.plan-wall.part-wall { stroke: #9ac7ff; stroke-width: 2.5px; }
+.plan-wall.part-glass { stroke: #6fe0ff; stroke-width: 2px; stroke-dasharray: 5 2; }
+.plan-wall.part-door { stroke: #ffb347; stroke-width: 3.5px; }
+.plan-wall.part-opening { stroke: #3a5a7a; stroke-width: 1px; stroke-dasharray: 2 3; }
+
+.plan-hatch {
+    fill: none;
+    stroke-width: 1.5px;
+}
+
+.plan-hatch.part-ladder { stroke: #e6f2ff; }
+.plan-hatch.part-ladderabove { stroke: #7f9db9; stroke-dasharray: 2 2; }
+
+.plan-box {
+    fill: #c9a66b;
+}
+
+.plan-you path {
+    fill: #4fd18b;
+    stroke: #0a1019;
+    stroke-width: 1px;
+}
+
+.plan-north {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    color: #7f9db9;
+    font-size: 0.75rem;
+    pointer-events: none;
+}
+
+.floor-controls {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+}
+
+.floor-btn,
+.floor-label {
+    min-width: 26px;
+    height: 20px;
+    padding: 0 4px;
+    background: rgba(14, 21, 32, 0.85);
+    border: 1px solid #24384d;
+    border-radius: 2px;
+    color: #9ac7ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.floor-btn:hover:not(:disabled),
+.floor-label:hover {
+    background: #16283b;
+    border-color: #4a7fa5;
+    color: #e6f2ff;
+}
+
+.floor-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* The floor label reads brighter while it is following you */
+.floor-label.is-auto {
+    color: #4fd18b;
+    border-color: #2f6b4c;
+}
+
+.plan-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 6px;
+    color: #7f9db9;
+    font-size: 0.72rem;
+}
+
+.key::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 0;
+    margin-right: 4px;
+    vertical-align: middle;
+    border-top: 2px solid;
+}
+
+.key-wall::before { border-color: #9ac7ff; }
+.key-glass::before { border-top-style: dashed; border-color: #6fe0ff; }
+.key-door::before { border-top-width: 3px; border-color: #ffb347; }
+.key-opening::before { border-top: 1px dotted #3a5a7a; }
+.key-ladder::before { width: 7px; height: 7px; border: 1.5px solid #e6f2ff; }
+.key-box::before { width: 7px; height: 7px; border: 0; background: #c9a66b; }

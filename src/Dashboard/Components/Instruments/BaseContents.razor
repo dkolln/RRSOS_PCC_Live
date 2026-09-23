@@ -47,6 +47,9 @@
                     <div class="contents-list loose"><ItemList Title="Boneyard (loose)" Data="@ByName(info.Loose)" Columns="1" MaxRows="10" Collapsible="true" /></div>
                 }
             </div>
+
+            <BaseFloorPlan Plan="@info.Plan" BaseId="@info.Id" PlayerPosition="@PlayerPosition"
+                           PlayerHeading="@PlayerHeading" Dim="@Dim" EmptyText="@PlanEmptyText" />
         </div>
     }
 </div>
@@ -70,6 +73,17 @@
 
     [Parameter]
     public string EmptyText { get; set; } = "No bases found.";
+
+    /// <summary>Where the player is (raw world X, Y, Z) and which way they face, for the floor plan. Null when unknown.</summary>
+    [Parameter]
+    public Vector3? PlayerPosition { get; set; }
+
+    [Parameter]
+    public float PlayerHeading { get; set; }
+
+    /// <summary>What the floor plan says when there is nothing to draw (an older plugin writes no building pieces).</summary>
+    [Parameter]
+    public string PlanEmptyText { get; set; } = "No building pieces reported for this base.";
 
     private static InventoryData ByName(IReadOnlyList<ItemCount> items) => new()
     {

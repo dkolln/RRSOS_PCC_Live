@@ -29,6 +29,9 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>Loose ore, alloy, quartz and rods lying on the ground (the "boneyard").</summary>
         public IReadOnlyList<ItemCount> Loose { get; init; } = Array.Empty<ItemCount>();
+
+        /// <summary>The base drawn from above, floor by floor. Null when the world file has no building pieces for it.</summary>
+        public FloorPlan? Plan { get; init; }
     }
 
     /// <summary>
@@ -75,6 +78,7 @@ namespace RRSOS.PCC.Dashboard
                 if (Nearest(found, container.Position) is not { } owner)
                     continue;
 
+                owner.Spots.Add(container.Position!);
                 AddStored(owner.Stored, container.Items, catalog);
                 AddStored(owner.Stored, container.Secondary, catalog);
 
@@ -92,6 +96,13 @@ namespace RRSOS.PCC.Dashboard
                 // The boneyard is raw material lying around the base (ore, ice, super alloy, quartz, rods). Plants, drones, vehicles and the like are left out.
                 if (Nearest(found, loose.Position) is { } owner && IsBoneyardMaterial(catalog, loose.Id))
                     Add(owner.Loose, loose.Id, loose.Label, loose.Count);
+            }
+
+            // Building pieces go to their nearest base too, for its floor plan.
+            foreach (var structure in world.Structures)
+            {
+                if (Nearest(found, structure.Position) is { } owner)
+                    owner.Pieces.Add(structure);
             }
 
             return new BaseDirectory(found.Select(d => d.ToInfo()).ToList());
@@ -170,6 +181,8 @@ namespace RRSOS.PCC.Dashboard
             public Dictionary<string, (string Name, int Count)> Stored { get; } = new();
             public Dictionary<string, (string Name, int Count)> Ready { get; } = new();
             public Dictionary<string, (string Name, int Count)> Loose { get; } = new();
+            public List<StructureData> Pieces { get; } = new();
+            public List<Vec3> Spots { get; } = new();
 
             public BaseInfo ToInfo() => new()
             {
@@ -179,7 +192,8 @@ namespace RRSOS.PCC.Dashboard
                 Flat = Flat,
                 Stored = ToList(Stored),
                 Ready = ToList(Ready),
-                Loose = ToList(Loose)
+                Loose = ToList(Loose),
+                Plan = FloorPlan.Build(Pieces, Spots)
             };
 
             private static List<ItemCount> ToList(Dictionary<string, (string Name, int Count)> counts) =>

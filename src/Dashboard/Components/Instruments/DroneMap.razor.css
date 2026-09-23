@@ -1,9 +1,50 @@
 .drone-map {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
     cursor: pointer;
+}
+
+.zoom-controls {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 2;
+    display: flex;
+    gap: 2px;
+}
+
+.zoom-btn {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(14, 21, 32, 0.85);
+    border: 1px solid #24384d;
+    border-radius: 2px;
+    color: #9ac7ff;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.zoom-btn:hover:not(:disabled) {
+    background: #16283b;
+    border-color: #4a7fa5;
+    color: #e6f2ff;
+}
+
+.zoom-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.zoom-btn.zoom-reset {
+    color: #ff9a6b;
 }
 
 .drone-map.is-dim {
@@ -15,12 +56,6 @@
     max-width: 170px;
     height: auto;
     overflow: visible;
-}
-
-.map-empty {
-    color: #5f7d99;
-    font-style: italic;
-    padding: 60px 0;
 }
 
 .map-face {
@@ -74,6 +109,21 @@
     fill: #5f7d99;
     font-size: 7px;
     text-anchor: end;
+}
+
+/* mix-blend-mode:plus-lighter is what makes a station or drone flare as the sweep's light passes over it:
+   real-time pixel compositing (additive, so it saturates toward white fast and reads clearly on a small item)
+   against whatever is currently underneath, so it's always correct and can never drift out of sync (unlike a
+   pre-scheduled animation keyed to an item's position at some past render). */
+.radar-sweep {
+    transform-origin: 70px 70px;
+    animation: radar-sweep-spin 30s linear infinite;
+    pointer-events: none;
+    mix-blend-mode: plus-lighter;
+}
+
+@keyframes radar-sweep-spin {
+    to { transform: rotate(360deg); }
 }
 
 /* You */
@@ -161,5 +211,10 @@
     .map-item,
     .drone-turn {
         transition: none;
+    }
+
+    .radar-sweep {
+        animation: none;
+        display: none;
     }
 }

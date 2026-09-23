@@ -101,9 +101,22 @@ foreach ($o in $objects.Values) {
   }
 }
 
+# ---- building pieces, for the floor plans: position, turn and panel codes only (a save holds no shapes, so "box" is null) ----
+# Unity yaw from the quaternion (x, y, z, w): 2 * atan2(y, w), exact for a piece that only turns about the vertical.
+function Yaw($rot) { $q = $rot -split ','; $y = 2 * [Math]::Atan2((Num $q[1]), (Num $q[3])) * 180 / [Math]::PI; [Math]::Round(((($y % 360) + 360) % 360), 1) }
+$structures = @()
+foreach ($o in $objects.Values) {
+  # As the plugin's IsStructure: the T1 aquarium (Aquarium1) is furniture inside a pod, so only the T2 and later count.
+  if (-not $o.pos -or $o.gId -notmatch '^(pod|EscapePod|Foundation|VehicleCrafter|Ladder$|Aquarium[2-9])|Platform|dome|lab') { continue }
+  $p = Pos $o.pos
+  if (-not (NearPod $p)) { continue }
+  $panels = @(); if ($o.pnls) { $panels = @($o.pnls -split ',' | ForEach-Object { [int]$_ }) }
+  $structures += @{ id = [int64]$o.id; group = $o.gId; position = $p; yaw = (Yaw $o.rot); panels = $panels; box = $null; panelBoxes = $null }
+}
+
 $now = [DateTime]::UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", $ci)
 $world = [ordered]@{ schemaVersion = 1; pluginVersion = 'save'; updatedAt = $now; inWorld = $true; planetId = $player.planetId
-                     pods = $pods; signs = $signs; containers = $containers; loose = @(); extractors = $extractors }
+                     pods = $pods; signs = $signs; containers = $containers; loose = @(); extractors = $extractors; structures = $structures }
 
 $rot = $player.playerRotation -split ','
 # Unity yaw from the quaternion (x, y, z, w): 2 * atan2(y, w) is exact for a body that only turns about the vertical.
@@ -122,7 +135,7 @@ function Write-Atomic($name, $doc) {
   Move-Item -Force "$file.tmp" $file
 }
 
-"{0} pods, {1} signs, {2} containers near a pod, {3} extractors" -f $pods.Count, $signs.Count, $containers.Count, $extractors.Count
+"{0} pods, {1} signs, {2} containers near a pod, {3} extractors, {4} building pieces" -f $pods.Count, $signs.Count, $containers.Count, $extractors.Count, $structures.Count
 
 $tick = 0
 do {

@@ -134,23 +134,33 @@
     </div>
     }
 
-    @* Extra instruments at the end of the row: the Player card puts base map, drone map, vehicle map here. *@
-    @if (Extra is not null)
-    {
-        <div class="nav-panel">@Extra</div>
-    }
-
-    @if (Extra2 is not null)
-    {
-        <div class="nav-panel">@Extra2</div>
-    }
-
-    @if (Extra3 is not null)
-    {
-        <div class="nav-panel">@Extra3</div>
-    }
-
 </div>
+
+@* A second row, just under the instruments: the Player card puts the base, drone, vehicle and extractor maps here. *@
+@if (Extra is not null || Extra2 is not null || Extra3 is not null || Extra4 is not null)
+{
+    <div class="nav-row nav-extras-row @(Known ? "" : "is-unknown")">
+        @if (Extra is not null)
+        {
+            <div class="nav-panel">@Extra</div>
+        }
+
+        @if (Extra2 is not null)
+        {
+            <div class="nav-panel">@Extra2</div>
+        }
+
+        @if (Extra3 is not null)
+        {
+            <div class="nav-panel">@Extra3</div>
+        }
+
+        @if (Extra4 is not null)
+        {
+            <div class="nav-panel">@Extra4</div>
+        }
+    </div>
+}
 
 @code {
     /// <summary>False leaves out the position map and its coordinates (the Player card shows the bases instead).</summary>
@@ -168,6 +178,10 @@
     /// <summary>A third extra instrument, after the second.</summary>
     [Parameter]
     public RenderFragment? Extra3 { get; set; }
+
+    /// <summary>A fourth extra instrument, after the third.</summary>
+    [Parameter]
+    public RenderFragment? Extra4 { get; set; }
 
     private const float TapePxPerMetre = 3f;
     private const int TapeReachMetres = 100;

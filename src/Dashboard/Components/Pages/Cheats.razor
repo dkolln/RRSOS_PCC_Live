@@ -1,0 +1,286 @@
+@page "/cheats"
+@implements IDisposable
+@inject SaveResupplyService Resupply
+@inject ResupplyConfigStore ConfigStore
+@inject ItemCatalog Catalog
+@inject ToastService Toasts
+@inject LiveFileService Live
+@inject NavigationManager Nav
+@inject IConfiguration Config
+@inject IJSRuntime JS
+
+<div class="cheats">
+
+    <header class="cheats-topbar">
+        <button class="back-btn" @onclick="GoHome">← Dashboard</button>
+        <div class="brand">CHEATS</div>
+        <div class="spacer"></div>
+        @if (Live.Status == LiveStatus.Live)
+        {
+            <div class="live-warning">The game just went live — returning to the dashboard…</div>
+        }
+    </header>
+
+    <main class="cheats-body">
+
+        <section class="save-picker">
+            <label for="save-select">Save file</label>
+            <select id="save-select" value="@_selectedSave" @onchange="OnSaveChanged">
+                <option value="">— choose a save —</option>
+                @foreach (var f in _saveFiles)
+                {
+                    <option value="@f">@f</option>
+                }
+            </select>
+            @if (_saveFiles.Count == 0)
+            {
+                <span class="hint">No save files found in @_saveFolder</span>
+            }
+        </section>
+
+        <section class="config-section">
+            <h2>Resupply configs</h2>
+            <p class="hint">
+                Type the exact text of a container (rename it in-game first), then pick the product it should hold.
+                RESUPPLY clears each labelled container down to just that product, up to its slot count.
+            </p>
+
+            <div class="config-list">
+                @foreach (var row in _rows)
+                {
+                    var duplicate = IsDuplicate(row);
+
+                    <div class="config-row @(duplicate ? "has-error" : "")" @key="row.Id">
+                        <input class="label-input" placeholder="Container label (e.g. Cheat-Quasar)"
+                               @bind="row.ContainerLabel" @bind:event="oninput" @onblur="Persist" />
+
+                        <div class="product-combo">
+                            <input class="product-input" placeholder="Search product…"
+                                   @bind="row.ProductQuery" @bind:event="oninput"
+                                   @onfocus="() => row.ShowSuggestions = true"
+                                   @onblur="() => HideSuggestionsDelayed(row)" />
+
+                            @if (row.ShowSuggestions)
+                            {
+                                var matches = Suggestions(row);
+
+                                @if (matches.Count > 0)
+                                {
+                                    <ul class="product-suggestions">
+                                        @foreach (var (gId, name) in matches)
+                                        {
+                                            <li @key="gId" @onmousedown="() => SelectProduct(row, gId, name)">
+                                                <span class="product-name">@name</span>
+                                                <span class="product-gid">@gId</span>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            }
+                        </div>
+
+                        <button class="row-del" title="Delete this config" @onclick="() => DeleteRow(row)">×</button>
+
+                        @if (duplicate)
+                        {
+                            <div class="row-error">Duplicate label — container labels must be unique</div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <button class="add-row" @onclick="AddRow">+ Add config</button>
+        </section>
+
+        <button class="resupply-btn" disabled="@(!CanResupply)" @onclick="RunResupply">
+            @(_busy ? "RESUPPLYING..." : "RESUPPLY")
+        </button>
+
+    </main>
+</div>
+
+@code {
+    private static readonly TimeSpan Stagger = TimeSpan.FromMilliseconds(350);
+    private const int MaxSuggestions = 20;
+
+    private sealed class ConfigRow
+    {
+        public string Id { get; init; } = Guid.NewGuid().ToString("N");
+        public string ContainerLabel { get; set; } = "";
+        public string ProductGId { get; set; } = "";
+        public string ProductName { get; set; } = "";
+        public string ProductQuery { get; set; } = "";
+        public bool ShowSuggestions { get; set; }
+    }
+
+    private List<ConfigRow> _rows = new();
+    private string _selectedSave = "";
+    private string _saveFolder = "";
+    private IReadOnlyList<string> _saveFiles = Array.Empty<string>();
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Live.Changed += OnLiveChanged;
+
+        _saveFolder = SaveFolderResolver.DetectFolder(Config);
+        _saveFiles = SaveFolderResolver.ListSaveFiles(_saveFolder);
+
+        var file = await ConfigStore.LoadAsync();
+        _selectedSave = file.SelectedSaveFile ?? "";
+        _rows = file.Configs.Select(c => new ConfigRow
+        {
+            Id = c.Id,
+            ContainerLabel = c.ContainerLabel,
+            ProductGId = c.ProductGId,
+            ProductName = c.ProductName,
+            ProductQuery = c.ProductName
+        }).ToList();
+
+        // Reached by a direct URL while the game happens to already be live.
+        if (Live.Status == LiveStatus.Live)
+            Nav.NavigateTo("/");
+    }
+
+    private void OnLiveChanged() => _ = InvokeAsync(() =>
+    {
+        if (Live.Status == LiveStatus.Live)
+            Nav.NavigateTo("/");
+        else
+            StateHasChanged();
+    });
+
+    public void Dispose() => Live.Changed -= OnLiveChanged;
+
+    private bool IsDuplicate(ConfigRow row)
+    {
+        var key = row.ContainerLabel.Trim();
+        return key.Length > 0 && _rows.Count(r => string.Equals(r.ContainerLabel.Trim(), key, StringComparison.OrdinalIgnoreCase)) > 1;
+    }
+
+    private bool HasDuplicates => _rows.Any(IsDuplicate);
+
+    private bool CanResupply =>
+        !_busy && Live.Status != LiveStatus.Live && !HasDuplicates
+        && !string.IsNullOrEmpty(_selectedSave)
+        && _rows.Any(r => r.ContainerLabel.Trim().Length > 0 && r.ProductGId.Length > 0);
+
+    private void GoHome() => Nav.NavigateTo("/");
+
+    private async Task OnSaveChanged(ChangeEventArgs e)
+    {
+        _selectedSave = e.Value?.ToString() ?? "";
+        await Persist();
+    }
+
+    private void AddRow() => _rows.Add(new ConfigRow());
+
+    private async Task DeleteRow(ConfigRow row)
+    {
+        _rows.Remove(row);
+        await Persist();
+    }
+
+    private IReadOnlyList<(string GId, string Name)> Suggestions(ConfigRow row)
+    {
+        var q = row.ProductQuery.Trim();
+
+        var source = q.Length == 0
+            ? Catalog.AllProducts
+            : Catalog.AllProducts.Where(p => p.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || p.GId.Contains(q, StringComparison.OrdinalIgnoreCase));
+
+        return source.Take(MaxSuggestions).ToList();
+    }
+
+    private async Task SelectProduct(ConfigRow row, string gId, string name)
+    {
+        row.ProductGId = gId;
+        row.ProductName = name;
+        row.ProductQuery = name;
+        row.ShowSuggestions = false;
+        await Persist();
+    }
+
+    private async Task HideSuggestionsDelayed(ConfigRow row)
+    {
+        // A suggestion click's mousedown must land before this blur's delay elapses, or the click is lost.
+        await Task.Delay(150);
+        row.ShowSuggestions = false;
+        row.ProductQuery = row.ProductName; // revert an abandoned edit back to the last committed selection
+        StateHasChanged();
+    }
+
+    private async Task Persist()
+    {
+        if (HasDuplicates)
+            return; // keep the rows in memory so the user can fix the clash; nothing is written until then
+
+        var file = new ResupplyConfigFile
+        {
+            SelectedSaveFile = _selectedSave,
+            Configs = _rows
+                .Select(r => new ResupplyConfig(r.Id, r.ContainerLabel.Trim(), r.ProductGId, r.ProductName))
+                .ToList()
+        };
+
+        try { await ConfigStore.SaveAsync(file); }
+        catch (InvalidOperationException) { /* belt-and-suspenders: HasDuplicates should already have caught this */ }
+    }
+
+    private async Task RunResupply()
+    {
+        if (!CanResupply)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Have you exited to the Main Menu?\n\nRESUPPLY edits your save file. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        StateHasChanged();
+
+        try
+        {
+            var path = Path.Combine(_saveFolder, _selectedSave);
+
+            var configs = _rows
+                .Where(r => r.ContainerLabel.Trim().Length > 0 && r.ProductGId.Length > 0)
+                .Select(r => new ResupplyConfig(r.Id, r.ContainerLabel.Trim(), r.ProductGId, r.ProductName))
+                .ToList();
+
+            ShowToasts(await Resupply.ResupplyAsync(path, configs));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void ShowToasts(ResupplyReport report)
+    {
+        if (!report.Success)
+        {
+            Toasts.Show("Resupply failed. " + report.Error, ToastKind.Error, TimeSpan.FromSeconds(9));
+            return;
+        }
+
+        var order = 0;
+
+        foreach (var line in report.Lines)
+        {
+            var delay = Stagger * order++;
+            var label = line.Config.ContainerLabel;
+            var product = line.Config.ProductName;
+
+            if (line.ContainersFound == 0)
+                Toasts.Show($"No container labelled \"{label}\"", ToastKind.Warning, delay: delay);
+            else if (line.Changed)
+                Toasts.Show($"{label}: +{line.ItemsAdded} added, {line.ItemsRelabeled} relabeled to {product}", ToastKind.Success, delay: delay);
+            else
+                Toasts.Show($"{label} already full of {product}", ToastKind.Info, delay: delay);
+        }
+    }
+}
