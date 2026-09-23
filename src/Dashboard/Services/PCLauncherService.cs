@@ -2,11 +2,14 @@ using System.Diagnostics;
 
 namespace RRSOS.PCC.Dashboard
 {
-    /// <summary>Starts The Planet Crafter through Steam and says whether it is running.</summary>
+    /// <summary>
+    /// Starts The Planet Crafter through Steam and says whether it is running. Both can be changed in settings
+    /// (<c>Game:LaunchUri</c>, <c>Game:ProcessName</c>), for a copy of the game that is not started through Steam.
+    /// </summary>
     public sealed class PCLauncherService
     {
-        private const string ProcessName = "Planet Crafter";
-        private const string SteamLaunchUri = "steam://rungameid/1284190";
+        private readonly string _processName;
+        private readonly string _launchUri;
 
         // Scanning every process is not free; the page asks often.
         private static readonly TimeSpan CacheFor = TimeSpan.FromSeconds(2);
@@ -15,6 +18,12 @@ namespace RRSOS.PCC.Dashboard
         private DateTime _checkedAtUtc = DateTime.MinValue;
         private bool _running;
 
+        public PCLauncherService(IConfiguration config)
+        {
+            _processName = LivePaths.Setting(config, "Game:ProcessName") ?? "Planet Crafter";
+            _launchUri = LivePaths.Setting(config, "Game:LaunchUri") ?? "steam://rungameid/1284190";
+        }
+
         public bool IsRunning()
         {
             lock (_lock)
@@ -22,7 +31,7 @@ namespace RRSOS.PCC.Dashboard
                 if (DateTime.UtcNow - _checkedAtUtc < CacheFor)
                     return _running;
 
-                var processes = Process.GetProcessesByName(ProcessName);
+                var processes = Process.GetProcessesByName(_processName);
                 try
                 {
                     _running = processes.Length > 0;
@@ -46,7 +55,7 @@ namespace RRSOS.PCC.Dashboard
 
             Process.Start(new ProcessStartInfo
             {
-                FileName = SteamLaunchUri,
+                FileName = _launchUri,
                 UseShellExecute = true
             });
 

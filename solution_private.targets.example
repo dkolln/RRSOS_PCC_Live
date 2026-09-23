@@ -1,5 +1,6 @@
 <!--
-  Copy this file to solution_private.targets (which git ignores) and edit the paths for your machine.
+  tools\setup.ps1 writes solution_private.targets for you (it finds the game in any Steam library). To do it by hand,
+  copy this file to solution_private.targets (which git ignores) and edit the path for your machine.
   Directory.Build.props picks it up automatically.
 -->
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">

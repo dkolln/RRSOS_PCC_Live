@@ -16,3 +16,6 @@ ref/
 ## Scratch
 *.log
 .claude/
+
+## This PC's own dashboard settings (see src/Dashboard/appsettings.json)
+appsettings.Local.json

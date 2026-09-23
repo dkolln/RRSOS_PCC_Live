@@ -1,12 +1,23 @@
 <Project>
 
-  <!-- Per-machine overrides (game folder). Optional: the default below is the usual Steam location. -->
+  <!-- Per-machine overrides (game folder), written by tools\setup.ps1, which finds the game in any Steam library. -->
   <Import Project="$(MSBuildThisFileDirectory)solution_private.targets" Condition="Exists('$(MSBuildThisFileDirectory)solution_private.targets')" />
 
-  <PropertyGroup>
+  <!-- Without it: the game in Steam's own folder, wherever Steam is installed; then the usual Steam location. -->
+  <PropertyGroup Condition="'$(GameDir)' == ''">
+    <SteamPath>$([MSBuild]::GetRegistryValueFromView('HKEY_CURRENT_USER\Software\Valve\Steam', 'SteamPath', null, RegistryView.Default))</SteamPath>
+    <GameDir Condition="'$(SteamPath)' != '' And Exists('$(SteamPath)\steamapps\common\The Planet Crafter\')">$(SteamPath)\steamapps\common\The Planet Crafter\</GameDir>
     <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\The Planet Crafter\</GameDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <GameManaged>$(GameDir)Planet Crafter_Data\Managed\</GameManaged>
     <PluginsFolder>$(GameDir)BepInEx\plugins\</PluginsFolder>
   </PropertyGroup>
+
+  <!-- Say clearly why the build cannot find the game's assemblies, instead of a wall of missing-type errors. -->
+  <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences" Condition="'$(MSBuildProjectName)' == 'Live' And !Exists('$(GameManaged)Assembly-CSharp.dll')">
+    <Error Text="The Planet Crafter was not found at '$(GameDir)'. Run tools\setup.ps1 (it finds the game in any Steam library and writes solution_private.targets), or pass -p:GameDir=&quot;&lt;the game's folder&gt;\&quot;." />
+  </Target>
 
 </Project>

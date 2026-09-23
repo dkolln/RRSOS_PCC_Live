@@ -44,15 +44,18 @@ page keeps the last reading, dimmed, and says so. `LAUNCH PC` is disabled while 
 
 ## Setup
 
-1. Install the .NET SDK (10 works) and the game (Steam).
-2. Install BepInEx 5.4.23.4 into the game folder: see [docs/install-log.md](docs/install-log.md) for exactly what that
-   adds and how to undo it. Playing with a plugin installed marks saves `"modded": true` (cosmetic, explained in
-   [docs/game-notes.md](docs/game-notes.md)); back your saves up first.
-3. If the game is not in `C:\Program Files (x86)\Steam\steamapps\common\The Planet Crafter\`, copy
-   `solution_private.targets.example` to `solution_private.targets` and set `GameDir`.
+**See [INSTALL.md](INSTALL.md)** for the full steps on a new PC, including BepInEx. In short:
+
+1. Install the .NET 10 SDK and the game (Steam), and back up your saves.
+2. Install BepInEx 5.4.23.4 (win x64) into the game folder and run the game once.
+3. `powershell -ExecutionPolicy Bypass -File tools\setup.ps1`: finds the game in any Steam library and writes
+   `solution_private.targets` for the build.
 4. Build the plugin (game closed): `dotnet build src/Live/Live.csproj`. It copies itself into
    `BepInEx\plugins\RRSOS-PCC-Live\`.
 5. Run the dashboard: press start on the `Dashboard` profile in Visual Studio, or `dotnet run --project src/Dashboard`. It opens a console window and your default browser at http://localhost:5320 (full screen, F11, on a 2K monitor).
+
+Settings for one PC go in `src\Dashboard\appsettings.Local.json` (git ignores it); every setting is listed in
+`src\Dashboard\appsettings.json`.
 
 To try the dashboard **without the game**, generate fake live files:
 `tools\sample-live.ps1 -Path .\sample\live.json -Loop`, then
