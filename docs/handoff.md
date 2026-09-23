@@ -1,7 +1,7 @@
 # Handoff: where things stand and what comes next
 
-Updated 2026-09-23, end of a long session. **Everything is committed and merged** (`master`, PRs #1 to #6 on
-github.com/dkolln/RRSOS_PCC_Live); nothing is waiting in the working tree. The plugin in the game folder is **0.6.0**.
+Updated 2026-09-23, end of a long session. **Everything is committed and merged** (`master`, PRs #1 to #8 on
+github.com/dkolln/RRSOS_PCC_Live); nothing is waiting in the working tree. The plugin in the game folder is **0.7.0**.
 This top section is current; the older write-ups further down are history.
 
 ## Where things are
@@ -14,7 +14,7 @@ This top section is current; the older write-ups further down are history.
 | Saves | `%USERPROFILE%\AppData\LocalLow\MijuGames\Planet Crafter` — `Custom-1.json` is the one being played, `Custom-2.json` older/bigger |
 | Decompiled game source | still present (checked 2026-09-23) at `C:\Users\dkoll\AppData\Local\Temp\claude\C--Users-david-source-repos-Planet-Crafter-RRSOS-PCC\bd791197-e25f-4eb1-8f89-dda0e4b8fb25\scratchpad\decomp\SpaceCraft` (686 files). Regenerate with the `ilspycmd` line at the bottom if it is gone |
 | Install on a new PC | `INSTALL.md` (BepInEx, `tools\setup.ps1`, build, settings, troubleshooting) |
-| Data formats | `docs/contract.md` — the authority on every field, and on the floor plans, the boneyard and the antennas |
+| Data formats | `docs/contract.md` — the authority on every field, and on the floor plans, the boneyard, the antennas and the vehicles |
 
 ## What was built this session (all in the game, confirmed by the owner)
 
@@ -42,6 +42,16 @@ This top section is current; the older write-ups further down are history.
   Antenna's dish is `Radar_Base_01`, spun by the game's `Turn_Move` at 50°/s clockwise; the dish faces −90° from that
   part's forward axis (calibrated by the owner with the "Antenna faces N" button under the mini maps, then confirmed
   by eye). All four mini-map sweeps follow the nearest antenna; without one they keep the decorative 2 RPM spin.
+- **Multiple vehicles** (plugin 0.7.0: `vehicles` in `live.json`, every `VehicleTruck`, oldest first; `vehicle` kept as
+  the first). `VehicleMap` / `VehicleList` / `VehicleDetail` work like the extractors: click the map for the list, a
+  pip or a truck for its detail, the map again to close. Trucks have no names in the game: "Truck 1, 2, ..." in the
+  order they were built. The owner has two in Custom-1: Truck 1 (id 204017955, on the vehicle platform) and Truck 2
+  (id 204906349).
+- **Hand edits to Custom-1, asked for by the owner** (outside Cheats; game closed; backed up to `save-backups\` first;
+  checked that undoing the edit gives back the original): copied Truck 2's three modules (Equipment increase T1,
+  Inventory increase T1, Lights T1) into Truck 1, and set Truck 1's trunk to 48 slots. Learned: the game raises a
+  truck's **module slots** itself on load when an Equipment increase module is in it (2 → 5), but does **not** raise
+  the **trunk** for an Inventory increase module; that one needed the save edited (30 → 48, matching Truck 2).
 - **Portability**: `tools\setup.ps1` (finds the game in any Steam library, writes `solution_private.targets`), build
   falls back to Steam's registry path and gives a clear error, every dashboard setting listed in `appsettings.json`,
   per-PC overrides in git-ignored `appsettings.Local.json`, `INSTALL.md`.
@@ -74,6 +84,10 @@ extractor or grower full, power deficit); loose items or flying drones drawn on 
   `live.json` (`player.position`, `yawDegrees`) and compare. Chat messages arrive seconds late, so anything timed (like
   the spinning dish) needs a button on the page instead.
 - Test anything that edits saves on a **copy** (scratch save folder + scratch `LiveFolder`), never the real files.
+- One-off save edits the owner asks for ("copy modules into the other truck"): only with the game closed (it would
+  overwrite them), dry run first, back up to `%LOCALAPPDATA%\RRSOS-PCC-Live\save-backups\`, edit only the records
+  involved (new records get fresh ids in 200,000,000 to 210,000,000), keep the file's BOM, and check that undoing the
+  edit gives back the original byte for byte. Explain any catch (like too few slots) and let the owner choose.
 
 
 ## History: what worked as of 2026-09-21 (details superseded above win)
@@ -126,10 +140,8 @@ See `test-plan.md` (tick items off as they are done).
 - Compass: north is world +X, east is world -Z (measured in the game). `Compass.ToEastNorth` in the dashboard, `PCMath.ToEastNorth` in RRSOS-PCC.
 - The game marks saves `modded: true` while `BepInEx\plugins` is non-empty. Cosmetic.
 - Fandom wiki pages cannot be fetched by tools (HTTP 402) but open fine in a browser; the wiki's tables match the game.
-- The vehicle is the world object with group id `VehicleTruck`; a stowed vehicle has no position. The live data
-  model only tracks one vehicle today (`LiveData.Vehicle` is singular) — the Vehicles mini-map caption is
-  written to already read correctly as a count/nearest-of-many if that ever becomes a list, but nothing forces
-  that yet; the owner plans to test multi-vehicle behavior once they can build a second one in-game.
+- A vehicle is a world object with group id `VehicleTruck`; a stowed vehicle has no position. Since plugin 0.7.0
+  every truck is reported (`vehicles`), and the dashboard shows them all (see "Multiple vehicles" above).
 - **Object ids** (corrected/expanded this session): `WorldObjectsIdHandler.IsWorldObjectFromScene(id)` is
   literally `id < 200,000,000`, and `WorldObjectsIdHandler.GetNewWorldObjectIdForDb()` proves anything created
   during play always gets `id >= 201,000,000`. This is purely an "object age" signal (existed since world load,
