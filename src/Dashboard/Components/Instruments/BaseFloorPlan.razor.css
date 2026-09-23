@@ -70,6 +70,7 @@
 .plan-piece.part-lab { fill: rgba(186, 140, 255, 0.14); stroke: #5a4a7a; }
 .plan-piece.part-aquarium { fill: rgba(80, 170, 230, 0.20); stroke: #2f6f9a; }
 .plan-piece.part-tower { fill: none; stroke: #ff9a6b; stroke-width: 1.5px; stroke-dasharray: 4 2; }
+.plan-piece.part-console { fill: #ffb347; stroke: #0a1019; stroke-width: 1px; }
 .plan-piece.part-other { fill: rgba(150, 165, 180, 0.08); stroke: #3d4a57; }
 
 .plan-wall {

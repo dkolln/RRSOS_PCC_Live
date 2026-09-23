@@ -11,6 +11,7 @@ namespace RRSOS.PCC.Dashboard
         Lab,
         Aquarium,
         Tower,
+        Console,
         Other,
 
         // Walls, drawn as lines over the pieces.
@@ -122,6 +123,7 @@ namespace RRSOS.PCC.Dashboard
             var pieces = structures
                 .Where(s => s.Position is not null)
                 .SelectMany(LaunchPlatformLevels)
+                .SelectMany(VehiclePlatformConsole)
                 .Select(s => new Piece(s))
                 .ToList();
 
@@ -221,6 +223,15 @@ namespace RRSOS.PCC.Dashboard
                 yield return Part(s, "LaunchTower", p.Y + height, 3, 15, -21, -15, Top);
         }
 
+        /// <summary>A vehicle platform's console, where vehicles are built: a small marker on its deck, at the spot found by standing at it.</summary>
+        private static IEnumerable<StructureData> VehiclePlatformConsole(StructureData s)
+        {
+            yield return s;
+
+            if (s.Group.StartsWith("VehicleCrafter", StringComparison.OrdinalIgnoreCase))
+                yield return Part(s, "Vehicle console", s.Position!.Y + PlatformDeck, -10.85, -9.65, -2.1, -0.9, 1);
+        }
+
         // A made-up piece that stands where the real one does and turns with it; "y" is chosen so it lands on the right floor.
         private static StructureData Part(StructureData s, string group, double y, double minX, double maxX, double minZ, double maxZ, double top) => new()
         {
@@ -279,6 +290,12 @@ namespace RRSOS.PCC.Dashboard
                 {
                     // Its shape is known (see LaunchPlatformOutline); its measured box reaches well past the deck.
                     (_minX, _maxX, _minZ, _maxZ, top) = (-21f, 27f, -27f, -3f, 0f);
+                    Measured = true;
+                }
+                else if (IsVehiclePlatform)
+                {
+                    // Its shape is known too (see VehiclePlatformRamp): the deck is the slab the plugin measured.
+                    (_minX, _maxX, _minZ, _maxZ, top) = (-12.72f, 5.55f, -10.92f, 8.56f, 0f);
                     Measured = true;
                 }
                 else if (MeasuredBox(data, Part) is { Min: { } bmin, Max: { } bmax })
@@ -341,6 +358,28 @@ namespace RRSOS.PCC.Dashboard
 
             private bool IsLaunchPlatform => Data.Group.Equals("LaunchPlatform", StringComparison.OrdinalIgnoreCase);
 
+            private bool IsVehiclePlatform => Data.Group.StartsWith("VehicleCrafter", StringComparison.OrdinalIgnoreCase);
+
+            /// <summary>
+            /// A vehicle platform's deck, in its own frame (x, z): the slab the plugin measured (X -12.72 to +5.55, 3 tiles of
+            /// 6.09 m; Z -10.92 to +8.56), with both of its -X corners cut on the diagonal, 6.09 m each way. Found by
+            /// standing on it: the +Z one is a diagonal piece between the ramp and the deck, the -Z one a drop-off; the
+            /// console stands in the middle of the -X edge left between them.
+            /// </summary>
+            private static readonly Vector2[] VehiclePlatformDeck =
+            {
+                new(-12.72f, -4.83f), new(-6.63f, -10.92f), new(5.55f, -10.92f), new(5.55f, 8.56f), new(-6.63f, 8.56f), new(-12.72f, 2.47f)
+            };
+
+            /// <summary>
+            /// Its ramp, which the vehicle drives up: off the deck's +Z side across the two +X tiles, out to where the
+            /// measured box ends. Found by standing on the ramp's far corners and its top.
+            /// </summary>
+            private static readonly Vector2[] VehiclePlatformRamp =
+            {
+                new(-6.63f, 8.56f), new(5.55f, 8.56f), new(5.55f, 19.78f), new(-6.63f, 19.78f)
+            };
+
             /// <summary>
             /// A launch platform's deck, in its own frame (x, z): 6 m tiles, 8 along its X (from -21 to +27) and 4 along its
             /// -Z (from -3 to -27), with the corner tile at +X on the last row missing. Seen in the game as 3 rows of 8 and
@@ -384,6 +423,12 @@ namespace RRSOS.PCC.Dashboard
                         .Select(i => i * MathF.PI * 2 / 32)
                         .Select(a => ToEastNorth(r * MathF.Cos(a), r * MathF.Sin(a)))
                         .ToList();
+                }
+
+                if (IsVehiclePlatform)
+                {
+                    Extras.Add(VehiclePlatformRamp.Select(p => ToEastNorth(p.X, p.Y)).ToList());
+                    return VehiclePlatformDeck.Select(p => ToEastNorth(p.X, p.Y)).ToList();
                 }
 
                 if (IsLaunchPlatform)
@@ -479,6 +524,8 @@ namespace RRSOS.PCC.Dashboard
                     return PlanPart.Foundation;
                 if (group.Equals("LaunchTower", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.Tower;
+                if (group.Equals("Vehicle console", StringComparison.OrdinalIgnoreCase))
+                    return PlanPart.Console;
                 if (group.Contains("Platform", StringComparison.OrdinalIgnoreCase) || group.StartsWith("VehicleCrafter", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.Platform;
                 if (group.StartsWith("Aquarium", StringComparison.OrdinalIgnoreCase))
