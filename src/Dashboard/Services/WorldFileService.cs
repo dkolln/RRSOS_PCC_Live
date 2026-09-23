@@ -5,7 +5,8 @@ namespace RRSOS.PCC.Dashboard
     /// <summary>
     /// Watches the plugin's world file (bases, containers, extractors: it changes every few seconds, not every second)
     /// and keeps the latest reading, with the bases already worked out from it. Like <see cref="LiveFileService"/>, it
-    /// does not care whether the game or this app started first.
+    /// does not care whether the game or this app started first. The bases' boneyards come from the last save instead
+    /// (see <see cref="SaveLooseService"/>), so the bases are worked out again when either changes.
     /// </summary>
     public sealed class WorldFileService : BackgroundService
     {
@@ -14,16 +15,37 @@ namespace RRSOS.PCC.Dashboard
         private readonly ILogger<WorldFileService> _log;
         private readonly BaseNames _names;
         private readonly ItemCatalog _catalog;
+        private readonly SaveLooseService _save;
         private readonly string _path;
+        private readonly object _buildLock = new();
         private DateTime _lastWriteUtc = DateTime.MinValue;
         private long _lastLength = -1;
 
-        public WorldFileService(ILogger<WorldFileService> log, IConfiguration config, BaseNames names, ItemCatalog catalog)
+        public WorldFileService(ILogger<WorldFileService> log, IConfiguration config, BaseNames names, ItemCatalog catalog, SaveLooseService save)
         {
             _log = log;
             _names = names;
             _catalog = catalog;
+            _save = save;
             _path = LivePaths.WorldFile(config);
+            _save.Changed += OnSaveRead;
+        }
+
+        // A newer save was read: the same world reading, with the boneyards from that save.
+        private void OnSaveRead()
+        {
+            if (Data is { } data)
+            {
+                SetBases(data);
+                Changed?.Invoke();
+            }
+        }
+
+        private void SetBases(WorldData data)
+        {
+            // On the main menu the plugin says "not in a world" and nothing else: that is no bases, not a failure.
+            lock (_buildLock)
+                Bases = data.InWorld ? BaseDirectory.Build(data, _save.Objects, _names, _catalog) : BaseDirectory.Empty;
         }
 
         /// <summary>The latest world reading, or null when the plugin has not written one.</summary>
@@ -80,8 +102,7 @@ namespace RRSOS.PCC.Dashboard
             _lastWriteUtc = info.LastWriteTimeUtc;
             _lastLength = info.Length;
 
-            // On the main menu the plugin says "not in a world" and nothing else: that is no bases, not a failure.
-            Bases = parsed.InWorld ? BaseDirectory.Build(parsed, _names, _catalog) : BaseDirectory.Empty;
+            SetBases(parsed);
             Data = parsed;
             Changed?.Invoke();
         }

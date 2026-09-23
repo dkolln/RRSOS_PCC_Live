@@ -108,7 +108,8 @@ The plugin (0.3.0 and later) writes them to a second file beside it. The dashboa
 
 ```json
 {
-  "schemaVersion": 1, "pluginVersion": "0.3.0", "updatedAt": "2026-09-21T12:00:05Z", "inWorld": true, "planetId": "Prime",
+  "schemaVersion": 1, "pluginVersion": "0.5.0", "updatedAt": "2026-09-21T12:00:05Z", "inWorld": true, "planetId": "Prime",
+  "planetHash": -1140328421,
   "scan": { "objectsVisited": 31240, "frames": 9, "workMs": 14.2, "worstFrameMs": 2.1 },
   "pods": [
     { "id": 204266353, "group": "pod", "position": { "x": 803, "y": 35, "z": 613.5 }, "panels": [4, 2, 3, 3, 5, 7] }
@@ -119,7 +120,6 @@ The plugin (0.3.0 and later) writes them to a second file beside it. The dashboa
       "items":     [ { "id": "Fertilizer1", "name": "Fertilizer", "count": 4 } ],
       "secondary": [ { "id": "Vegetable3Growable", "name": "Mushroom Plant", "count": 6, "ready": 4 } ] }
   ],
-  "loose": [ { "id": "Iron", "name": "Iron", "position": { "x": 812, "y": 34, "z": 604 }, "count": 3 } ],
   "extractors": [
     { "id": 205746819, "kind": "ore", "group": "OreExtractor3", "position": { "x": 932, "y": 23, "z": 551 },
       "product": "Titanium", "productName": "Titanium", "size": 8, "count": 8, "productCount": 8, "ready": 0,
@@ -136,7 +136,8 @@ The plugin (0.3.0 and later) writes them to a second file beside it. The dashboa
 | `pods[]` | Every living compartment on this planet (group id starting `pod`, or `EscapePod`). `panels` is what fills each of its sides, in the game's `BuildPanelSubType` numbers: **4 is a door (entrance), 2 a connection (corridor)**, 3 a window, 1 plain wall, 5 to 7 floors. The order is the game's (east, west, north, south, top, bottom). A list, `null` when the game has none for that object |
 | `signs[]` | Every placed sign and what it says (`text`). Base names come from signs |
 | `containers[]` | Placed objects with storage that hold something, within 120 m of some pod. `items` is the main storage, `secondary` any secondary storage (a grower keeps its plants there). Items are counted by kind. `ready` (only when above zero) counts plants in `secondary` that have finished growing (growth 100) |
-| `loose[]` | Items lying on the ground within 120 m of some pod, merged when they are the same kind within 4 m (`count`). Only things with an object id of 200,000,000 or more, so the landscape's own rocks and wreck loot are not listed. At most 4000 entries |
+| `planetHash` | The game's hash for the planet (0.5.0 and later). Each object in a save carries it as `"planet"`, so the dashboard can keep only this planet's loose items from the save |
+| `loose[]` | **Gone in 0.5.0.** Loose items were read live up to 0.4.1, but the counts were unreliable; the dashboard now reads them from the save (see "The boneyard" below) |
 | `extractors[]` | Ore, gas, water and algae machines. `kind` is `ore`, `gas`, `water` or `algae`. `product` and `productName` are what an ore or gas extractor is set to produce (null for water and algae). `size` is its slot count, `count` how many items it holds, `productCount` how many of those are the product, `ready` (algae) how many have finished growing. `items` is everything in it, by kind |
 | `position` | Raw world position, two decimals. Compass conventions belong to the reader, as in `live.json` |
 
@@ -219,5 +220,18 @@ they are not also in `containers`.
 - A container or a loose item belongs to the nearest base within **100 m** (flat distance). Machines and building parts
   (by RRSOS-PCC's table of item types) are not listed as stored items. The **boneyard** (loose items) is **loose raw material only**: the types Ore, Alloy, Quartz and Rod in that table
   (iron, cobalt, titanium, silicon, magnesium, iridium, aluminium, uranium, sulfur, obsidian, zeolite, osmium, ice, super alloy, the quartzes and the rods).
-  Plants, drones, vehicles and the rest that are lying about are not shown. The file still lists every loose item near a pod; this is decided in the dashboard.
+  Plants, drones, vehicles and the rest that are lying about are not shown.
+
+### The boneyard (from the save, dashboard 0.5.0 and later)
+
+Loose items are **not** read from the running game. The dashboard's `SaveLooseService` does what RRSOS-PCC does:
+
+- Every **10 seconds** it looks at the save folder (`SaveSettings:SavePath`, default `...\LocalLow\MijuGames\Planet Crafter`).
+  The newest `.json` there, leaving out the game's `Backup.json` copy, is the save being played.
+- When that file has been written since the last look (and not in the last 2 seconds, so it is not read half-written), it
+  reads every record with a `"pos"`. An item in a container, a backpack or a vehicle has no position in the save, so what is
+  left is what lies in the world (plus buildings and machines, which the raw-material filter above leaves out).
+- Only records whose `"planet"` matches the world file's `planetHash` are kept (all of them when either is missing).
+- The boneyard is therefore as fresh as the **last save**, autosave included. Its title on the Base card says when that was:
+  "Boneyard (save 12:14)". The save is only ever read.
 - **Ready to harvest** is the crops with `ready` in the planting tray of a grower (`VegetableGrower*`, `Farm1`).

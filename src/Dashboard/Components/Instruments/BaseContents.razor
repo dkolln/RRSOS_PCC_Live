@@ -44,7 +44,7 @@
 
                 @if (info.Loose.Count > 0)
                 {
-                    <div class="contents-list loose"><ItemList Title="Boneyard (loose)" Data="@ByName(info.Loose)" Columns="1" MaxRows="10" Collapsible="true" /></div>
+                    <div class="contents-list loose"><ItemList Title="@BoneyardTitle" Data="@ByName(info.Loose)" Columns="1" MaxRows="10" Collapsible="true" /></div>
                 }
             </div>
 
@@ -80,6 +80,13 @@
 
     [Parameter]
     public float PlayerHeading { get; set; }
+
+    /// <summary>When the save the boneyard was read from was written (local time). Null before one has been read.</summary>
+    [Parameter]
+    public DateTime? BoneyardSavedAt { get; set; }
+
+    // The boneyard comes from the last save, not live, so its title says how fresh it is.
+    private string BoneyardTitle => BoneyardSavedAt is { } at ? $"Boneyard (save {at:HH:mm})" : "Boneyard (loose)";
 
     /// <summary>What the floor plan says when there is nothing to draw (an older plugin writes no building pieces).</summary>
     [Parameter]

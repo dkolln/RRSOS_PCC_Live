@@ -39,6 +39,7 @@ namespace RRSOS.PCC.Dashboard
         }
 
         private readonly Dictionary<string, ItemType> _types = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _names = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<(string GId, string Name)> _products = new();
 
         public ItemCatalog(IWebHostEnvironment env, ILogger<ItemCatalog> log)
@@ -55,7 +56,10 @@ namespace RRSOS.PCC.Dashboard
                     _types[pair.Key] = Enum.IsDefined(typeof(ItemType), pair.Value.Type) ? (ItemType)pair.Value.Type : ItemType.Unknown;
 
                     if (!string.IsNullOrWhiteSpace(pair.Value.Name))
+                    {
                         _products.Add((pair.Key, pair.Value.Name!));
+                        _names[pair.Key] = pair.Value.Name!;
+                    }
                 }
 
                 _products.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
@@ -71,6 +75,13 @@ namespace RRSOS.PCC.Dashboard
         /// searches this list; nothing here filters it down, since worldobjectdata.json does not know which of
         /// these can actually sit in a storage slot.</summary>
         public IReadOnlyList<(string GId, string Name)> AllProducts => _products;
+
+        /// <summary>
+        /// A display name for a game group id, from the table, for things read from a save (which holds only ids; the
+        /// plugin gets names from the game itself). The id when the table has no name for it.
+        /// </summary>
+        public string NameOf(string groupId) =>
+            _names.TryGetValue(groupId, out var name) ? name : groupId;
 
         /// <summary>The type for a game group id: the exact id, else the id without its trailing digits ("Iron1" is "Iron"), else Unknown.</summary>
         public ItemType TypeOf(string groupId)

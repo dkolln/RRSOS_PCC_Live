@@ -3,7 +3,8 @@
 @inject LiveFileService Live
 @inject PCLauncherService Launcher
 @inject WorldFileService World
-@inject IJSRuntime JS
+@inject SaveLooseService Save
+@inject SpeechService Speech
 @inject NavigationManager Nav
 
 @{
@@ -183,6 +184,7 @@
                                       EmptyText="@BasesEmptyText(status, world)"
                                       PlayerPosition="@(player?.Position is { } pp ? new Vector3((float)pp.X, (float)pp.Y, (float)pp.Z) : null)"
                                       PlayerHeading="@(player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees))"
+                                      BoneyardSavedAt="@Save.SavedAtUtc?.ToLocalTime()"
                                       PlanEmptyText="@(world?.Structures.Count > 0 ? "No building pieces reported for this base." : "Floor plans need plugin 0.4.0 or later (restart the game after updating).")" />
                     </div>
                 </section>
@@ -276,8 +278,7 @@
 
     // Alerts
     private double _volume = 0.8;
-    private readonly Dictionary<string, DateTime> _lastSpoken = new();
-    private const double AlertCooldownSecs = 40;
+    private static readonly TimeSpan AlertCooldown = TimeSpan.FromSeconds(40);
 
     private BaseView? SelectedBase => _views.FirstOrDefault(b => b.Id == _selectedBaseId);
 
@@ -340,17 +341,18 @@
         }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
-    private void OnChanged() => _ = InvokeAsync(async () => { Refresh(); await CheckAlerts(Live.Data?.Player); StateHasChanged(); });
+    private void OnChanged() => _ = InvokeAsync(() => { Refresh(); CheckAlerts(Live.Data?.Player); StateHasChanged(); });
 
-    private async Task OnVolumeChanged(ChangeEventArgs e)
+    private void OnVolumeChanged(ChangeEventArgs e)
     {
         if (double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var v))
             _volume = v;
-        await JS.InvokeVoidAsync("pccAlerts.test", _volume);
+        Speech.Speak("Volume check", _volume);
     }
 
-    private async Task CheckAlerts(PlayerData? player)
+    // Spoken through Windows' default voice (see SpeechService), each at most once every AlertCooldown.
+    private void CheckAlerts(PlayerData? player)
     {
         if (player?.Vitals is not { } vitals) return;
 
@@ -358,24 +360,17 @@
         var hp = Fraction(vitals.Health, player.VitalsMax?.Health, 100);
         var th = Fraction(vitals.Thirst, player.VitalsMax?.Thirst, 100);
 
-        if      (o2 < 0.2f) await Speak("o2-crit", "Oxygen is critical");
-        else if (o2 < 0.5f) await Speak("o2-low",  "Oxygen is low");
+        if      (o2 < 0.2f) Speak("o2-crit", "Oxygen is critical");
+        else if (o2 < 0.5f) Speak("o2-low",  "Oxygen is low");
 
-        if      (hp < 0.2f) await Speak("hp-crit", "Health is critical");
-        else if (hp < 0.5f) await Speak("hp-low",  "Health is low");
+        if      (hp < 0.2f) Speak("hp-crit", "Health is critical");
+        else if (hp < 0.5f) Speak("hp-low",  "Health is low");
 
-        if      (th < 0.2f) await Speak("th-crit", "Thirst is critical");
-        else if (th < 0.5f) await Speak("th-low",  "Thirst is low");
+        if      (th < 0.2f) Speak("th-crit", "Thirst is critical");
+        else if (th < 0.5f) Speak("th-low",  "Thirst is low");
     }
 
-    private async Task Speak(string key, string text)
-    {
-        var now = DateTime.UtcNow;
-        if (_lastSpoken.TryGetValue(key, out var last) && (now - last).TotalSeconds < AlertCooldownSecs)
-            return;
-        _lastSpoken[key] = now;
-        await JS.InvokeVoidAsync("pccAlerts.speak", text, _volume);
-    }
+    private void Speak(string key, string text) => Speech.Alert(key, text, _volume, AlertCooldown);
 
     private void Refresh()
     {
