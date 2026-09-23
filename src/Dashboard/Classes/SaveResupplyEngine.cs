@@ -18,7 +18,9 @@ namespace RRSOS.PCC.Dashboard
 
     /// <summary>
     /// Empties and refills labelled storage containers in the text of a Planet Crafter save, driven by a list of
-    /// user-configured (container label, product) pairs from the Cheats page.
+    /// user-configured (container label, product) pairs from the Cheats page. A config with
+    /// <see cref="ResupplyConfig.ReplaceAll"/> off skips the emptying: what the container already holds is left
+    /// alone and only its free slots are filled.
     ///
     /// Generalized from RRSOS-PCC's SaveResupplier, which only ever topped up free slots for three hardcoded
     /// labels. This one first "empties" a container by rewriting every item it already holds to the target
@@ -59,8 +61,11 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>What one topped-up container's inventory record should look like afterwards.</summary>
         private sealed record InventoryExpectation(long InventoryId, List<long> NewIds, string InsertedText, string OldRaw, string NewRaw);
 
-        /// <summary>An inventory that had at least one edit applied, and what every item in it should be afterwards.</summary>
-        private sealed record TouchedInventory(long InventoryId, string GId);
+        /// <summary>
+        /// An inventory that had at least one edit applied, and what its items should be afterwards: every one of them,
+        /// or with <paramref name="OnlyIds"/> (a fill-only config) just the new ones, the rest being left as they were.
+        /// </summary>
+        private sealed record TouchedInventory(long InventoryId, string GId, IReadOnlyCollection<long>? OnlyIds);
 
         public static ResupplyOutcome Apply(string text, IReadOnlyList<ResupplyConfig> configs, Random? random = null)
         {
@@ -125,14 +130,15 @@ namespace RRSOS.PCC.Dashboard
                     var existing = SplitIds(inventory.WoIds!);
                     var free = (inventory.Size ?? 0) - existing.Count;
                     var changedHere = false;
+                    var addedIds = new List<long>();
 
                     foreach (var id in existing)
                     {
                         if (!objects.TryGetValue(id, out var item))
                             return Failed($"Inventory {liId} lists item {id}, which is not in the save.");
 
-                        if (string.Equals(item.GId, config.ProductGId, StringComparison.Ordinal))
-                            continue; // already the target product
+                        if (!config.ReplaceAll || string.Equals(item.GId, config.ProductGId, StringComparison.Ordinal))
+                            continue; // fill-only leaves what is there; or it is already the target product
 
                         var updated = GIdValue.Replace(item.Raw, m => m.Groups[1].Value + config.ProductGId + m.Groups[2].Value, 1);
 
@@ -154,12 +160,13 @@ namespace RRSOS.PCC.Dashboard
                         edits.Add(new Edit(container.Start, 0, items));
                         edits.Add(new Edit(inventory.Start, inventory.Length, updatedInventory));
                         inventoryExpectations.Add(new InventoryExpectation(liId, newIds, items, inventory.Raw, updatedInventory));
+                        addedIds.AddRange(newIds);
                         added += newIds.Count;
                         changedHere = true;
                     }
 
                     if (changedHere)
-                        touched.Add(new TouchedInventory(liId, config.ProductGId));
+                        touched.Add(new TouchedInventory(liId, config.ProductGId, config.ReplaceAll ? null : addedIds));
                 }
 
                 lines.Add(new ResupplyLine(config, containers.Count, relabeled, added));
@@ -314,8 +321,10 @@ namespace RRSOS.PCC.Dashboard
 
                 foreach (var id in held)
                 {
-                    if (!objects.TryGetValue(id, out var item) || item.GId != t.GId)
-                        problems.Add($"Item {id} in inventory {t.InventoryId} is missing or is not a {t.GId}.");
+                    if (!objects.TryGetValue(id, out var item))
+                        problems.Add($"Item {id} in inventory {t.InventoryId} is missing.");
+                    else if ((t.OnlyIds is null || t.OnlyIds.Contains(id)) && item.GId != t.GId)
+                        problems.Add($"Item {id} in inventory {t.InventoryId} is not a {t.GId}.");
                 }
             }
 
