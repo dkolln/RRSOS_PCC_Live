@@ -1,0 +1,62 @@
+@* One truck: where it is relative to you (the others shown faintly on the same map), its trunk and its modules.
+   Reached by clicking a truck's pip on VehicleMap, or a truck in VehicleList. The ExtractorDetail of trucks. *@
+<div class="veh-detail @(Dim ? "is-dim" : "")">
+
+    <div class="veh-detail-title">
+        <span class="veh-detail-name">@Name</span>
+        <span class="veh-detail-meta">@WhereText</span>
+        <span class="veh-detail-spacer"></span>
+        <button class="veh-detail-btn" @onclick="OnBack">← All vehicles</button>
+    </div>
+
+    @if (Data.Position is { } p && PlayerFlat is { } here)
+    {
+        <div class="veh-detail-map">
+            <RelativeMap PlayerFlat="@here" PlayerHeading="@PlayerHeading"
+                         TargetFlat="@(new Vector2((float)p.X, (float)p.Z))" Known="true" Name="@Name" />
+        </div>
+    }
+    else
+    {
+        <div class="veh-detail-stowed">Stowed in pocket.</div>
+    }
+
+    <ItemList Title="Trunk" Data="@Data.Trunk" Columns="3" Dim="@Dim" Collapsible="true" />
+    <ItemList Title="Gear" Data="@Data.Gear" Columns="3" Dim="@Dim" Collapsible="true" />
+</div>
+
+@code {
+    [Parameter]
+    public VehicleData Data { get; set; } = null!;
+
+    /// <summary>Its name: trucks have none in the game, so "Truck n" in the order they were built.</summary>
+    [Parameter]
+    public string Name { get; set; } = "Truck";
+
+    /// <summary>Where the player stands (raw world X, Z) and which way they face. Without a position, distance and the map are left out.</summary>
+    [Parameter]
+    public Vector2? PlayerFlat { get; set; }
+
+    [Parameter]
+    public float PlayerHeading { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    /// <summary>Raised by "All vehicles", to go back to the list.</summary>
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    private string WhereText
+    {
+        get
+        {
+            if (Data.Position is not { } p)
+                return "stowed";
+
+            var there = new Vector2((float)p.X, (float)p.Z);
+            return PlayerFlat is { } here ? $"{(int)Vector2.Distance(here, there)} m {Compass.GetCompassDirection(here, there)}" : "";
+        }
+    }
+}

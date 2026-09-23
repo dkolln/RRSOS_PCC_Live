@@ -1,0 +1,225 @@
+@* A small map of the trucks around you, you in the middle and the game's north up; the Extractors map, for trucks.
+   Hover a pip for which truck it is; click it to see that truck. Click empty space to open the list of trucks, click it
+   again to close. A stowed truck (in the pocket or a portal) has no place, so it is only in the list. The caption is the
+   number of trucks and the distance and direction to the nearest one out in the world. *@
+<div class="vehicle-map @(Open ? "is-open" : "") @(Dim ? "is-dim" : "")" @onclick="() => OnMapClick.InvokeAsync()">
+
+    <svg viewBox="0 0 140 140" role="group" aria-label="Map of the trucks around you">
+        <defs>
+            <linearGradient id="veh-cone-fade-@_uid" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stop-color="#7ab8ff" stop-opacity="0.6" />
+                <stop offset="1" stop-color="#7ab8ff" stop-opacity="0" />
+            </linearGradient>
+            <linearGradient id="radar-sweep-fade-@_uid" gradientUnits="userSpaceOnUse" x1="70" y1="6" x2="111.15" y2="20.98">
+                <stop offset="0" stop-color="#4fd18b" stop-opacity="0" />
+                <stop offset="1" stop-color="#4fd18b" stop-opacity="0.95" />
+            </linearGradient>
+        </defs>
+
+        <rect class="map-face" x="6" y="6" width="128" height="128" rx="6" />
+
+        <circle class="map-ring-line" cx="70" cy="70" r="32" />
+        <circle class="map-ring-line" cx="70" cy="70" r="64" />
+        <line class="map-cross" x1="70" y1="6" x2="70" y2="134" />
+        <line class="map-cross" x1="6" y1="70" x2="134" y2="70" />
+        <text class="map-north" x="76" y="17">N</text>
+        <text class="map-east" x="128" y="66">E</text>
+
+        @* Where you are and which way you face *@
+        <g class="map-turn" style="transform: rotate(@Inv($"{_turn:0.##}")deg)">
+            <path d="M 70 70 L 57.26 38.47 A 34 34 0 0 1 82.74 38.47 Z" fill="url(#veh-cone-fade-@_uid)" />
+        </g>
+        <circle class="map-you" cx="70" cy="70" r="3.2" />
+
+        @* The truck being shown is drawn last so nothing sits on top of it. *@
+        @foreach (var (v, name) in Shown.OrderBy(p => p.Vehicle.Id == SelectedId))
+        {
+            var (x, y) = Place(v.Position!);
+
+            <g class="map-pip @(v.Id == SelectedId ? "selected" : "") @(Distance(v) > Range ? "far" : "")"
+               transform="translate(@Inv($"{x:0.##} {y:0.##}"))"
+               role="button" aria-label="@PipLabel(v, name)"
+               @onclick="() => OnSelect.InvokeAsync(v.Id)" @onclick:stopPropagation>
+                <title>@PipLabel(v, name)</title>
+                <circle class="map-hit" r="6" />
+                <rect class="map-dot" x="-3" y="-3" width="6" height="6" rx="1.2" />
+                <circle class="map-select" r="6" />
+            </g>
+        }
+
+        @* The sweep, drawn last (on top of the pips): see BaseMap for why it is blended, not scheduled. *@
+        <g class="radar-sweep">
+            <path d="M 70 70 L 70 6 A 64 64 0 0 1 111.15 20.98 Z" fill="url(#radar-sweep-fade-@_uid)" />
+        </g>
+
+        <text class="map-range" x="130" y="130">@Range m</text>
+    </svg>
+
+    <div class="zoom-controls">
+        <button class="zoom-btn" type="button" title="Zoom in" @onclick="ZoomIn" @onclick:stopPropagation disabled="@(Range <= RangeSteps[0])">+</button>
+        <button class="zoom-btn" type="button" title="Zoom out" @onclick="ZoomOut" @onclick:stopPropagation disabled="@(Range >= RangeSteps[^1])">&minus;</button>
+        <button class="zoom-btn zoom-reset" type="button" title="Reset zoom" @onclick="ResetZoom" @onclick:stopPropagation disabled="@(_zoomIndex is null)">&times;</button>
+    </div>
+
+    <div class="map-label">Vehicles</div>
+
+    <div class="map-caption">
+        <span class="map-caption-name">@Vehicles.Count vehicle@(Vehicles.Count == 1 ? "" : "s")</span>
+        <span class="map-caption-meta">@NearestText</span>
+    </div>
+</div>
+
+@code {
+    private const float MapHalf = 64f;
+    private static readonly int[] RangeSteps = { 10, 20, 40, 70, 100, 250, 500, 1000, 1500, 2000, 3000, 5000, 10000, 20000 };
+
+    /// <summary>Every truck, oldest first (their names, "Truck 1" and so on, come from that order: see <see cref="Name"/>).</summary>
+    [Parameter]
+    public IReadOnlyList<VehicleData> Vehicles { get; set; } = Array.Empty<VehicleData>();
+
+    /// <summary>Where the player stands (raw world X, Z) and which way they face (compass degrees).</summary>
+    [Parameter]
+    public Vector2 PlayerFlat { get; set; }
+
+    [Parameter]
+    public float PlayerHeading { get; set; }
+
+    /// <summary>The truck the detail panel is showing.</summary>
+    [Parameter]
+    public int? SelectedId { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnSelect { get; set; }
+
+    /// <summary>True when this map's panel is showing in the right column.</summary>
+    [Parameter]
+    public bool Open { get; set; }
+
+    /// <summary>Raised when the user clicks the map background (not a truck's pip).</summary>
+    [Parameter]
+    public EventCallback OnMapClick { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    /// <summary>The game gives trucks no names, so they are numbered in the order they were built.</summary>
+    public static string Name(IReadOnlyList<VehicleData> vehicles, VehicleData v)
+    {
+        var index = -1;
+        for (var i = 0; i < vehicles.Count; i++)
+        {
+            if (ReferenceEquals(vehicles[i], v))
+                index = i;
+        }
+
+        return $"Truck {index + 1}";
+    }
+
+    // The trucks out in the world, with their names.
+    private List<(VehicleData Vehicle, string Name)> Placed =>
+        Vehicles.Select((v, i) => (Vehicle: v, Name: $"Truck {i + 1}")).Where(p => p.Vehicle.Position is not null).ToList();
+
+    // Only trucks inside the range are drawn.
+    private IEnumerable<(VehicleData Vehicle, string Name)> Shown => Placed.Where(p => Distance(p.Vehicle) <= Range);
+
+    private string NearestText
+    {
+        get
+        {
+            if (Vehicles.Count == 0)
+                return "no vehicles";
+
+            var nearest = Placed.OrderBy(p => Distance(p.Vehicle)).Select(p => p.Vehicle).FirstOrDefault();
+            return nearest is null
+                ? "all stowed"
+                : $"{(int)Distance(nearest)} m {Compass.GetCompassDirection(PlayerFlat, Flat(nearest.Position!))}";
+        }
+    }
+
+    // Several of these share a page, and SVG ids are page-wide.
+    private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
+
+    private float _heading;
+    private float _turn;
+    private bool _started;
+
+    protected override void OnParametersSet()
+    {
+        var heading = float.IsFinite(PlayerHeading) ? PlayerHeading : 0f;
+
+        if (!_started)
+        {
+            _started = true;
+            _turn = heading;
+        }
+        else
+        {
+            // Turn by the shortest way round, so 359 to 2 degrees is a small nudge and not a full spin.
+            _turn += ((heading - _heading + 540f) % 360f) - 180f;
+        }
+
+        _heading = heading;
+    }
+
+    private static Vector2 Flat(Vec3 position) => new((float)position.X, (float)position.Z);
+
+    private float Distance(VehicleData v) => Vector2.Distance(PlayerFlat, Flat(v.Position!));
+
+    // The smallest round radius that holds the farthest truck with a little room to spare (trucks are few, so all fit).
+    private int AutoRange
+    {
+        get
+        {
+            var far = Placed.Count > 0 ? Placed.Max(p => Distance(p.Vehicle)) * 1.15f : 0f;
+            return RangeSteps.FirstOrDefault(step => far <= step, RangeSteps[^1]);
+        }
+    }
+
+    // A manual override (an index into RangeSteps) from the zoom buttons. Null follows AutoRange.
+    private int? _zoomIndex;
+
+    private int Range => _zoomIndex is { } idx ? RangeSteps[idx] : AutoRange;
+
+    private void ZoomIn()
+    {
+        var idx = _zoomIndex ?? IndexAtLeast(AutoRange);
+        _zoomIndex = Math.Max(0, idx - 1);
+    }
+
+    private void ZoomOut()
+    {
+        var idx = _zoomIndex ?? IndexAtLeast(AutoRange);
+        _zoomIndex = Math.Min(RangeSteps.Length - 1, idx + 1);
+    }
+
+    private void ResetZoom() => _zoomIndex = null;
+
+    private static int IndexAtLeast(int value)
+    {
+        for (var i = 0; i < RangeSteps.Length; i++)
+        {
+            if (RangeSteps[i] >= value)
+                return i;
+        }
+
+        return RangeSteps.Length - 1;
+    }
+
+    // You are at the centre and the game's north is up. Anything past the edge is pinned to it, on its bearing.
+    private (float X, float Y) Place(Vec3 position)
+    {
+        var offset = Compass.ToEastNorth(Flat(position) - PlayerFlat) * (MapHalf / Range);
+        var length = offset.Length();
+
+        if (length > MapHalf)
+            offset *= MapHalf / length;
+
+        return (70f + offset.X, 70f - offset.Y);
+    }
+
+    private string PipLabel(VehicleData v, string name) =>
+        $"{name}, {(int)Distance(v)} m {Compass.GetCompassDirection(PlayerFlat, Flat(v.Position!))}";
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}

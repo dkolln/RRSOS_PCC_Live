@@ -1,0 +1,238 @@
+.vehicle-map {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+}
+
+.zoom-controls {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 2;
+    display: flex;
+    gap: 2px;
+}
+
+.zoom-btn {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(14, 21, 32, 0.85);
+    border: 1px solid #24384d;
+    border-radius: 2px;
+    color: #9ac7ff;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.zoom-btn:hover:not(:disabled) {
+    background: #16283b;
+    border-color: #4a7fa5;
+    color: #e6f2ff;
+}
+
+.zoom-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.zoom-btn.zoom-reset {
+    color: #ff9a6b;
+}
+
+.vehicle-map {
+    cursor: pointer;
+}
+
+.vehicle-map.is-open svg rect.map-face,
+.vehicle-map.is-open svg rect.map-face {
+    stroke: #4a7fa5;
+}
+
+.vehicle-map.is-dim {
+    opacity: 0.5;
+}
+
+.vehicle-map svg {
+    width: 100%;
+    max-width: 170px;
+    height: auto;
+    overflow: visible;
+}
+
+.map-empty {
+    color: #5f7d99;
+    font-style: italic;
+}
+
+.map-face {
+    fill: #0e1520;
+    stroke: #24384d;
+    stroke-width: 1.5;
+}
+
+.map-ring-line {
+    fill: none;
+    stroke: #16263a;
+    stroke-width: 1;
+}
+
+.map-cross {
+    stroke: #1d3046;
+    stroke-width: 1;
+}
+
+.map-north,
+.map-east,
+.map-range {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: bold;
+}
+
+.map-north {
+    fill: #ff6b6b;
+}
+
+.map-east {
+    fill: #5f7d99;
+    text-anchor: end;
+}
+
+.map-range {
+    fill: #5f7d99;
+    font-size: 7px;
+    text-anchor: end;
+}
+
+/* A fake radar sweep, 2 RPM (one turn every 30s), purely decorative. mix-blend-mode:plus-lighter is what makes a
+   pip flare as the sweep's light passes over it: real-time pixel compositing (additive, so it saturates toward
+   white fast and reads clearly on a small dot) against whatever pip is currently underneath, so it's always
+   correct and can never drift out of sync (unlike a pre-scheduled animation keyed to a pip's position at some
+   past render). */
+.radar-sweep {
+    transform-origin: 70px 70px;
+    animation: radar-sweep-spin 30s linear infinite;
+    pointer-events: none;
+    mix-blend-mode: plus-lighter;
+}
+
+@keyframes radar-sweep-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* With a Transmission Antenna in the world, the sweep turns with its dish instead (see BaseMap.razor.css). */
+:root.radar-synced .radar-sweep {
+    animation: none;
+    transform: rotate(calc(var(--radar-angle, 0deg) - 40deg));
+}
+
+/* You */
+.map-turn {
+    transform-origin: 70px 70px;
+    transition: transform 1100ms cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.map-you {
+    fill: #e6f2ff;
+    stroke: #4fd18b;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 0 3px #4fd18b);
+}
+
+/* Trucks: amber, as on the vehicle map before there could be several */
+.map-pip {
+    --pip-color: #ffb347;
+    cursor: pointer;
+}
+
+.map-hit {
+    fill: transparent;
+}
+
+.map-dot {
+    fill: var(--pip-color);
+    stroke: #0e1520;
+    stroke-width: 0.8;
+    transition: fill 150ms ease;
+}
+
+.map-pip.far {
+    opacity: 0.55;
+}
+
+.map-pip:hover .map-dot {
+    fill: #e6f2ff;
+}
+
+/* The truck the detail panel is showing */
+.map-select {
+    fill: none;
+    stroke: #e6f2ff;
+    stroke-width: 1.2;
+    opacity: 0;
+}
+
+.map-pip.selected .map-select {
+    opacity: 1;
+}
+
+.map-pip.selected .map-dot {
+    fill: #e6f2ff;
+}
+
+/* Name of the truck under the mouse, or the one being shown. Two lines, always the same height. */
+.map-label {
+    margin-top: 2px;
+    font-size: 0.8rem;
+    color: #7ab8ff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.map-caption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 2.5em;
+    max-width: 100%;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.25;
+}
+
+.map-caption-name,
+.map-caption-meta {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.map-caption-name {
+    color: #e6f2ff;
+    font-weight: bold;
+}
+
+.map-caption-meta {
+    color: #7f9db9;
+    font-size: 0.72rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .map-turn {
+        transition: none;
+    }
+
+    .radar-sweep {
+        animation: none;
+        display: none;
+    }
+}

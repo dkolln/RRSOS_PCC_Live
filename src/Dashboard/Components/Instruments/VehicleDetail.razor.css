@@ -1,0 +1,57 @@
+.veh-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+}
+
+.veh-detail.is-dim {
+    opacity: 0.5;
+}
+
+.veh-detail-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.veh-detail-name {
+    color: #e6f2ff;
+    font-size: 1.15rem;
+    font-weight: bold;
+}
+
+.veh-detail-meta {
+    color: #7f9db9;
+    font-size: 0.85rem;
+}
+
+.veh-detail-spacer {
+    flex: 1;
+}
+
+.veh-detail-btn {
+    padding: 2px 10px;
+    background: rgba(122, 184, 255, 0.12);
+    border: 1px solid rgba(122, 184, 255, 0.3);
+    border-radius: 3px;
+    color: #9ac7ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    cursor: pointer;
+}
+
+.veh-detail-btn:hover {
+    background: rgba(122, 184, 255, 0.22);
+}
+
+/* The truck on a map around you, as the Vehicle card always showed it */
+.veh-detail-map {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.veh-detail-stowed {
+    color: #5f7d99;
+    font-style: italic;
+}

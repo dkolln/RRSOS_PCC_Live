@@ -1,0 +1,68 @@
+@* Every truck, oldest first: where it is (or that it is stowed), how full its trunk is, and its modules. Click one to
+   see it. The Extractors list, for trucks. *@
+<div class="vehicles @(Dim ? "is-dim" : "")">
+
+    @if (Vehicles.Count == 0)
+    {
+        <div class="vehicles-empty">@EmptyText</div>
+    }
+
+    <div class="veh-tiles">
+        @foreach (var v in Vehicles)
+        {
+            var trunk = v.Trunk;
+            var have = trunk?.Items.Sum(i => i.Count) ?? 0;
+            var size = trunk?.Size ?? 0;
+
+            <div class="veh-tile" role="button" title="Click to see this truck" @onclick="() => OnSelect.InvokeAsync(v.Id)">
+                <div class="veh-tile-head">
+                    <span class="veh-name">@VehicleMap.Name(Vehicles, v)</span>
+                    <span class="veh-where">@Where(v)</span>
+                </div>
+
+                <div class="veh-fill" title="Trunk: @have / @size">
+                    <div class="veh-fill-bar" style="width: @Inv($"{(size > 0 ? Math.Clamp(100f * have / size, 0f, 100f) : 0f):0.#}")%"></div>
+                    <span class="veh-fill-text">trunk @have / @size</span>
+                </div>
+
+                <div class="veh-gear">@Gear(v)</div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Every truck, oldest first.</summary>
+    [Parameter]
+    public IReadOnlyList<VehicleData> Vehicles { get; set; } = Array.Empty<VehicleData>();
+
+    /// <summary>Where the player stands (raw world X, Z). Without it, distances and directions are left out.</summary>
+    [Parameter]
+    public Vector2? PlayerFlat { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnSelect { get; set; }
+
+    /// <summary>Drawn faded, when the reading is old.</summary>
+    [Parameter]
+    public bool Dim { get; set; }
+
+    [Parameter]
+    public string EmptyText { get; set; } = "No vehicle yet.";
+
+    private string Where(VehicleData v)
+    {
+        if (v.Position is not { } p)
+            return "stowed";
+
+        var there = new Vector2((float)p.X, (float)p.Z);
+        return PlayerFlat is { } here ? $"{(int)Vector2.Distance(here, there)} m {Compass.GetCompassDirection(here, there)}" : "";
+    }
+
+    private static string Gear(VehicleData v) =>
+        v.Gear is { Items.Count: > 0 } gear
+            ? string.Join(" · ", gear.Items.Select(i => i.Label))
+            : "no modules";
+
+    private static string Inv(FormattableString s) => FormattableString.Invariant(s);
+}
