@@ -1,117 +1,82 @@
 # Handoff: where things stand and what comes next
 
-Updated at the end of the 2026-09-22/23 session so a new session can pick up cleanly. The 2026-09-21 write-up below
-this point described Module 7/8 (Base, Extractors, Drones) as "built but not yet run in the game" — that has since
-happened and been iterated on heavily; treat this top section as current and the rest as history/background.
+Updated 2026-09-23, end of a long session. **Everything is committed and merged** (`master`, PRs #1 to #6 on
+github.com/dkolln/RRSOS_PCC_Live); nothing is waiting in the working tree. The plugin in the game folder is **0.6.0**.
+This top section is current; the older write-ups further down are history.
 
-## Where everything is
+## Where things are
 
-Unchanged from before — see the table further down. One addition: decompiled game source (used this session to
-settle a real bug, see below) currently lives in two old scratchpad folders on this machine, not in the repo —
-these are the exact paths found and used on 2026-09-23, both still present at that point:
+| | |
+|---|---|
+| Repo | `C:\Users\david\source\repos\Planet Crafter\RRSOS-PCC-Live` (branch `master`) |
+| Game | Steam, `C:\Program Files (x86)\Steam\steamapps\common\The Planet Crafter\` (BepInEx 5.4.23.4); `tools\setup.ps1` finds it on any PC |
+| Plugin output | `%LOCALAPPDATA%\RRSOS-PCC-Live\live.json` (1 s) and `live-world.json` (5 s); also the dashboard's own files (base names, notes, resupply configs, save backups) |
+| Saves | `%USERPROFILE%\AppData\LocalLow\MijuGames\Planet Crafter` — `Custom-1.json` is the one being played, `Custom-2.json` older/bigger |
+| Decompiled game source | still present (checked 2026-09-23) at `C:\Users\dkoll\AppData\Local\Temp\claude\C--Users-david-source-repos-Planet-Crafter-RRSOS-PCC\bd791197-e25f-4eb1-8f89-dda0e4b8fb25\scratchpad\decomp\SpaceCraft` (686 files). Regenerate with the `ilspycmd` line at the bottom if it is gone |
+| Install on a new PC | `INSTALL.md` (BepInEx, `tools\setup.ps1`, build, settings, troubleshooting) |
+| Data formats | `docs/contract.md` — the authority on every field, and on the floor plans, the boneyard and the antennas |
 
-```
-C:\Users\dkoll\AppData\Local\Temp\claude\C--Users-david-source-repos-Planet-Crafter-RRSOS-PCC-Live\c2dd33cb-7cbc-46d7-adbe-caf297b71495\scratchpad\decomp\SpaceCraft
-C:\Users\dkoll\AppData\Local\Temp\claude\C--Users-david-source-repos-Planet-Crafter-RRSOS-PCC\bd791197-e25f-4eb1-8f89-dda0e4b8fb25\scratchpad\decomp\SpaceCraft
-```
+## What was built this session (all in the game, confirmed by the owner)
 
-The second one (the plain `RRSOS-PCC` one) is the more complete decompile of the two — it's the one that actually
-had `WorldObjectsIdHandler.cs`, `WorldObjectFromScene.cs` and `WorldObject.cs`; the `-Live` one was missing several
-classes the other had. Scratchpad folders get cleaned up eventually (they're tied to a specific past session, not
-guaranteed to persist); if neither path exists anymore, regenerate with the `ilspycmd` command at the bottom of
-this file — worth doing a search first (`find`/`Get-ChildItem` for `WorldObjectsIdHandler.cs` under
-`AppData\Local\Temp\claude\`) in case a newer scratchpad has it before re-running the ~30s decompile.
+- **Floor plans** (Base card, under the inventory; `Classes/FloorPlan.cs`, `Instruments/BaseFloorPlan.razor`). The plugin
+  reports every building piece (`structures`: pods of all shapes, foundations, platforms, domes, labs, T2 aquarium,
+  ladders) with collider boxes measured in each piece's own frame, plus each wall panel's box. The dashboard draws one
+  floor at a time (▲/▼, follows the player's floor; the label goes green while following). Floors are found from height
+  gaps over 2.5 m. Details and all the numbers: `docs/contract.md`, "Building pieces".
+  - Save panel order for a plain pod is +Z, −Z, +X, −X (confirmed live).
+  - **Hand-mapped shapes** (the measured boxes lie for these; the owner walked their corners in the game):
+    launch platform (6 m tiles, 3 rows of 8 + a row of 7, north stairs, a landing 10.6 m up, a two-tile tower whose
+    top 30 m up is a floor; floors 4 and 5 show the tower only), and vehicle platform (measured deck with both −X
+    corners cut diagonally, ramp off +Z across the two +X tiles, console marker). Platforms' decks are 5 m above
+    their position.
+  - **Not mapped yet: the trade platform** — the owner has not built one. When they do: same corner walk, then a
+    fixed shape like the other two in `FloorPlan.cs`.
+- **Boneyard from the save** (plugin 0.5.0 dropped live loose items; the counts were wrong). `SaveLooseService` reads
+  the newest save (not `Backup.json`) every 10 s when it changes: records with a `"pos"` are in the world. Same
+  raw-material + nearest base within 100 m rules; this planet only (`planetHash`). Title shows the save's time.
+- **Spoken alerts through Windows** (`SpeechService`, `System.Speech`): the default voice from Windows Settings >
+  Speech; cooldown shared across tabs. `alerts.js` is gone.
+- **Cheats: Replace all / fill-only** per config, Select all / none; old configs read as Replace all. Algae
+  (`Algae1Seed`) is named "Algae" now, as the game names it.
+- **Antenna-synced radar sweeps** (plugin 0.6.0, `AntennaReader`; dashboard `wwwroot/js/radar.js`). The Transmission
+  Antenna's dish is `Radar_Base_01`, spun by the game's `Turn_Move` at 50°/s clockwise; the dish faces −90° from that
+  part's forward axis (calibrated by the owner with the "Antenna faces N" button under the mini maps, then confirmed
+  by eye). All four mini-map sweeps follow the nearest antenna; without one they keep the decorative 2 RPM spin.
+- **Portability**: `tools\setup.ps1` (finds the game in any Steam library, writes `solution_private.targets`), build
+  falls back to Steam's registry path and gives a clear error, every dashboard setting listed in `appsettings.json`,
+  per-PC overrides in git-ignored `appsettings.Local.json`, `INSTALL.md`.
 
-## Where the dashboard actually is now
+## Decided, so don't redo
 
-Well past "Base and Extractors, not yet tested." Current shape:
-
-- **One page, three columns** (unchanged layout philosophy). Player card's top row is Heading + Elevation; directly
-  under that, all **four mini-maps sit in a single row** (Bases, Drones, Vehicle, Extractors) — moved there
-  deliberately so they read as one cluster instead of being scattered across the row with the instruments.
-- **Every mini-map** (`BaseMap`, `DroneMap`, `RelativeMap`, `ExtractorMap`) now has:
-  - a decorative rotating radar sweep (2 RPM, 40° wide wedge) using `mix-blend-mode: plus-lighter` so a pip
-    visibly flares as the sweep's light crosses it — this is real-time pixel compositing, not a pre-scheduled CSS
-    animation, specifically because a scheduled version (tried first, via `animation-delay` computed from each
-    pip's angle) **drifted out of sync** as the player moved and pip bearings kept changing under a fixed
-    schedule. The blend-mode version can't drift; there's nothing to keep in sync.
-  - manual `+`/`−`/`×` zoom controls, because the auto-fit range could squash several close-together pips (e.g.
-    extractors right next to the player marker) into an unclickable cluster. Range steps now go down to 10m
-    (previously bottomed out at 100m/50m) so tight clusters can actually be separated.
-  - Drones and Vehicles and Extractors all show the same 3-line caption pattern under the map: label / count /
-    nearest-with-distance-and-direction (Extractors and Vehicles were changed this session to match Drones, which
-    already had it).
-- **Cheats page** (`/cheats`, route only reachable via a button next to LAUNCH PC, and only while the game is not
-  in a world): a generalized, configurable Resupply — pick a save file, add any number of (container label →
-  product) configs, Resupply clears each labelled container down to just that product. This is a from-scratch,
-  safer redesign of RRSOS-PCC's old hardcoded DaveFood/DaveWater/DaveOxygen resupply (empties by rewriting each
-  existing item's own `gId` in place rather than deleting/recreating records — see `SaveResupplyEngine.cs`'s doc
-  comment for the full reasoning). The live plugin itself is still strictly read-only; Cheats only ever edits the
-  save file on disk, same constraint the old RRSOS-PCC always had (main menu or closed only).
-- **Player card**: Backpack and Gear now share one scrollable box with a fixed 8px gap between them, instead of
-  Backpack's wrapper flex-growing to fill the whole card and shoving Gear down to the bottom with a huge gap.
-
-## This session's real bug: Boneyard undercounting a known ore pile
-
-Worth reading in full if boneyard counts ever look wrong again — this was chased down properly, not guessed at,
-and the final fix is confirmed correct against real game data.
-
-**Symptom:** the owner hand-counted 23 Titanium in one pile near a base; the dashboard's Boneyard showed 9.
-
-**Root cause:** `VisitLoose` in `src/Live/WorldScan.cs` excluded anything where
-`WorldObjectsIdHandler.IsWorldObjectFromScene(id)` was true. Pulled the actual decompiled source for that method:
-it is literally `id < 200,000,000`, and `WorldObjectsIdHandler.GetNewWorldObjectIdForDb()` proves anything created
-during play always gets `id >= 201,000,000`. So that check only ever answers "has this object existed since the
-world was generated" — never "is this an embedded, unminable resource" versus "a loose chunk sitting on the
-ground." World generation apparently scatters some ore directly as already-loose ground chunks (or an item
-started life as loot inside a scene-placed container), so a lot of genuinely-loose, pickupable material carries a
-"from scene" id and was being silently dropped from `live-world.json` before ever reaching the dashboard.
-
-**Fix:** removed that check from `VisitLoose`. It now relies on `GetIsPlaced()` + `GetGroup() is GroupItem` to
-identify real loose items; the dashboard's own `BaseDirectory.IsBoneyardMaterial` (ore/alloy/quartz/rod only)
-still keeps wreck loot and decorative containers out of the Boneyard, and that filter was never dependent on id
-range in the first place.
-
-**Verification, not just theory:** cross-checked against the raw save file (`Custom-1.json`) by parsing every
-individual Titanium/Cobalt/etc. object record directly and summing by distance from the base pod — matched the
-dashboard's live numbers exactly, material by material, after the fix. Also confirmed every loose entry the
-plugin reports carries real non-null position data (no phantom entries).
-
-**Note for future self:** this got reverted once mid-session (a live in-game test — removing an "unharvested"
-Cobalt piece — looked at first like it proved the fix was wrongly counting unmined ore deposits). It took actually
-reading the decompiled `WorldObjectsIdHandler` source to realize "from scene" only means "existed since world
-load," not "still embedded" — the two are unrelated. If this ever looks wrong again, don't re-add the id check
-without re-deriving this from the actual game source, not from the old comment's assumption.
-
-**Also explored this session (read-only, nothing built):**
-- Whether the game tracks item/container ownership at all — it does not. No owner/placer concept anywhere on
-  `WorldObject`; base "ownership" of anything is 100% a dashboard-side computation (nearest pod within 100m),
-  recomputed fresh every time, never stored.
-- Whether "items sitting on the Launch Platform" is queryable — checked by hand against the save (the platform is
-  an 8x4m `LaunchPlatform` piece, `Type` 6530, not currently reported in `live-world.json` at all since it has no
-  linked inventory and doesn't match any of `VisitConstructed`'s categories). Confirmed 0 items currently sit
-  within its real footprint. If this becomes a real feature request, it needs new plugin-side geometry work
-  (Renderer/Collider world bounds, read live) — nothing built, just scoped.
-
-## Not committed
-
-Nothing from this session (or several sessions before it — the owner's rule is commits only when asked) has been
-committed yet. The working tree currently has, on top of the 2026-09-21 base: the `WorldScan.cs` loose-item fix
-above, all four mini-map components (radar sweep + zoom on each), the Cheats page and its supporting services
-(`SaveResupplyEngine`, `SaveResupplyService`, `ResupplyConfigStore`, `SaveFolderResolver`, `ToastService`), and
-the Backpack/Gear spacing fix. Ask before committing or pushing, per the working rules below.
+- Base card lists are **not** filtered by floor: all items in a base, whatever floor, is what the owner wants.
+- The boneyard is **save-based on purpose**. Don't bring back live loose-item reading.
+- The original test plan's open items (Energy Levels and Terraformation comparisons, the compass in 8 directions,
+  stowed truck, the long main-menu wait) were **confirmed by the owner** and ticked in `test-plan.md`. The rest of
+  that checklist was never ticked item by item, but everything it covers has been in daily use.
 
 ## Next
 
-1. Keep an eye on Boneyard counts for a regression now that the id filter is gone — if actual landscape decoration
-   (wreck loot, a decorative crate) ever shows up as "loose material," the fix over-corrected and needs a
-   *narrower* distinguishing signal than id range (which is now confirmed unreliable for this).
-2. If "what's on this platform/foundation" becomes a real ask, it needs new plugin-side bounds-reading — scoped
-   above, not started.
-3. Commit the accumulated changes once the owner is ready.
-4. Continue down the original test-plan checklist below for anything not explicitly re-verified this session.
+Nothing is in progress. Open ideas (none asked for yet): the trade platform once built; more spoken alerts (an
+extractor or grower full, power deficit); loose items or flying drones drawn on the floor plan.
 
-## What works (original, still true)
+## How the owner works (in addition to the rules further down)
+
+- "commit, push and merge" means: a branch, one commit, a PR on github.com/dkolln/RRSOS_PCC_Live, merge with a merge
+  commit, delete the branch, back to an up-to-date `master`. Only when asked.
+- The owner often runs the dashboard themselves on **port 5320** (debug session). To check something without getting
+  in the way, run a copy on **port 5321** (`--no-launch-profile -- --urls=http://localhost:5321 --environment=Development`;
+  add `--LiveFile=...`, `--LiveFolder=...` or `--SaveSettings:SavePath=...` for test data), and **stop it when done**:
+  a leftover server on 5320 once kicked the owner out with a "cancelled" error. While their dashboard runs, build
+  into a scratch folder (`dotnet build src/Dashboard -o <scratch>`) because their process locks `bin\`.
+- The plugin can only be deployed with the game **closed** (check `tasklist` for `Planet Crafter`); compile-check with
+  `-p:PluginsFolder=<scratch>\` otherwise. New plugin code needs a full game restart.
+- Shapes and directions in the game are best settled with the owner **standing on the spot**: read their position from
+  `live.json` (`player.position`, `yawDegrees`) and compare. Chat messages arrive seconds late, so anything timed (like
+  the spinning dish) needs a button on the page instead.
+- Test anything that edits saves on a **copy** (scratch save folder + scratch `LiveFolder`), never the real files.
+
+
+## History: what worked as of 2026-09-21 (details superseded above win)
 
 **Verified in the game (2026-09-21, plugin 0.2.0):** player position, yaw and vitals (with maximums), backpack, gear, six
 planet stats with live per-second rates, power (produced, used, generators by kind), rocket counts and multipliers, and

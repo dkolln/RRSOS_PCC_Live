@@ -31,7 +31,7 @@ The answer is meant to be "either". Test all four:
 - [ ] **App first, game closed:** the page shows `WAITING FOR THE GAME` and the Launch PC button is enabled.
 - [ ] Click **LAUNCH PC**: Steam starts the game. The button changes to `PLANET CRAFTER RUNNING` (disabled) within
   about 2 seconds of the game process appearing.
-- [ ] While the game sits on the main menu: status `GAME AT THE MAIN MENU`. **Leave it there for a full minute:** it must stay that way (the plugin writes the menu state only once, so the page has to notice the game is still running; it must not turn into `GAME NOT RUNNING`). Load a world: it turns `LIVE` within a couple of seconds.
+- [x] While the game sits on the main menu: status `GAME AT THE MAIN MENU`. **Leave it there for a full minute:** it must stay that way (the plugin writes the menu state only once, so the page has to notice the game is still running; it must not turn into `GAME NOT RUNNING`). Load a world: it turns `LIVE` within a couple of seconds.
 - [ ] Load a save and watch the loading screen: the page may briefly say `NO RECENT DATA FROM THE GAME` (the plugin is quiet while loading); it should return to `LIVE` by itself.
 - [ ] **Game first, then the app:** start the game and load a world, then start the dashboard. It should show `LIVE` almost immediately.
 - [ ] **Launch PC when already running:** the button is disabled. (It must never close or restart the game.)
@@ -58,7 +58,7 @@ Open `BepInEx\LogOutput.log` after a session.
 Already verified in an earlier build: position, yaw and vitals (the position matched a save to four decimals).
 
 - [ ] **Elevation:** the altimeter number matches what you expect and changes smoothly as you climb. (The Player card no longer shows a position map or coordinates; the position is in the file, and the Bases map is where you are.)
-- [ ] **Compass:** face each of N, NE, E, SE, S, SW, W, NW using the **in-game compass**. The heading dial should agree
+- [x] **Compass:** face each of N, NE, E, SE, S, SW, W, NW using the **in-game compass**. The heading dial should agree
   each time. (North is world +X, east is world -Z; measured, but only with two runs.)
 - [ ] **Vitals:** the four dials read sensibly. **Oxygen max** should be your tank's size (was 370 with the current
   gear): swap to a smaller or larger tank and the dial's right-hand label and fill should follow. Toxicity is 0 outside toxic areas.
@@ -73,15 +73,15 @@ Already verified in an earlier build: position, yaw and vitals (the position mat
 
 ## 4. Planet card
 
-- [ ] **Six TI dials** (Oxygen, Heat, Pressure, Plants, Insects, Animals): values match the game's Terraformation screen
+- [x] **Six TI dials** (Oxygen, Heat, Pressure, Plants, Insects, Animals): values match the game's Terraformation screen
   or your last save (the numbers are the same units, shown as e.g. `1581.82B`).
-- [ ] **Rates (`▲ .../s`):** the per-second gain. Compare with the game's own Terraformation screen (it shows the rate of
+- [x] **Rates (`▲ .../s`):** the per-second gain. Compare with the game's own Terraformation screen (it shows the rate of
   increase per stat). They should match to the displayed precision. Build or remove a machine and the rate should change
   within a couple of seconds.
 - [ ] **Rockets (`🚀 n · x m`):** the count per stat matches your launched rockets (the Orbital Information screen lists
   them). With T1 rockets only, the multiplier should be 10 per rocket (3 Heat rockets = x30), Plants 12.5, Insects 15,
   Animals 17.5. **Launch one more rocket:** count and multiplier update. This is the number the game itself uses.
-- [ ] **Power:** the dial's load, `▲ produced` and `▼ used` match the game's **Energy Levels screen**. `Left`/`Short`
+- [x] **Power:** the dial's load, `▲ produced` and `▼ used` match the game's **Energy Levels screen**. `Left`/`Short`
   is produced minus used. Add or remove a machine (or a generator): all of them update.
 - [ ] **Generator icons:** one icon per generator, grouped by kind, wind and solar on the left of the dial and nuclear
   and fusion on the right. The counts match what you have built. Hover a group for its live output (`Solar Panel T2 x9: ... kW`).
@@ -98,7 +98,7 @@ Already verified in an earlier build: position, yaw and vitals (the position mat
 - [ ] **Driving it:** position and heading follow the truck, and the map centre (you) moves with it.
 - [ ] **Trunk:** matches the truck's real storage (kinds, counts, names). Put something in, take something out: it follows.
 - [ ] **Gear:** the vehicle modules (beacon, lights, equipment size, oxygen, inventory size, speed) match.
-- [ ] **Stowed in your pocket:** the map is dimmed, no square, caption `no position (pocket or portal)`, the coordinates line
+- [x] **Stowed in your pocket:** the map is dimmed, no square, caption `no position (pocket or portal)`, the coordinates line
   says `stowed`. **Do the trunk and gear lists still show while stowed?** That is a question, not an expectation: the
   inventories should still exist, but if they show `no data`, note it.
 - [ ] **Truck in a portal / inside another instance:** same as stowed (no position). Note what the file says.
