@@ -126,6 +126,12 @@
     to { transform: rotate(360deg); }
 }
 
+/* With a Transmission Antenna in the world, the sweep turns with its dish instead (see BaseMap.razor.css). */
+:root.radar-synced .radar-sweep {
+    animation: none;
+    transform: rotate(calc(var(--radar-angle, 0deg) - 40deg));
+}
+
 /* You */
 .map-turn {
     transform-origin: 70px 70px;

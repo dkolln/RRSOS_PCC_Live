@@ -5,6 +5,7 @@
 @inject WorldFileService World
 @inject SaveLooseService Save
 @inject SpeechService Speech
+@inject IJSRuntime JS
 @inject NavigationManager Nav
 
 @{
@@ -123,6 +124,22 @@
                                               Dim="@dim" EmptyText="no extractors" />
                             </Extra4>
                         </NavDisplay>
+
+                        @if (_radarSampledAt is not null)
+                        {
+                            @* The sweeps follow the nearest antenna's dish; this lines them up with the dish you see. *@
+                            <div class="radar-calibrate">
+                                <button class="radar-north" type="button" @onclick="MarkAntennaNorth"
+                                        title="Click the moment the antenna's dish faces north. Each click refines it (the last 5 are averaged).">
+                                    Antenna faces N
+                                </button>
+                                <span class="radar-cal-text">@RadarCalibrationText</span>
+                                @if (_radarClicks > 0)
+                                {
+                                    <button class="radar-reset" type="button" @onclick="ResetAntennaCalibration" title="Forget the clicks and use the built-in -90°">reset</button>
+                                }
+                            </div>
+                        }
                     }
 
                     <div class="vitals">
@@ -341,7 +358,71 @@
         }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
-    private void OnChanged() => _ = InvokeAsync(() => { Refresh(); CheckAlerts(Live.Data?.Player); StateHasChanged(); });
+    private void OnChanged() => _ = InvokeAsync(async () => { Refresh(); CheckAlerts(Live.Data?.Player); StateHasChanged(); await SyncRadar(); });
+
+    // The reading last handed to the page's radar clock (radar.js), so each is sent once. Null: the maps' own spin.
+    private long? _radarSampledAt;
+
+    // The sweep's calibration against the dish, kept by radar.js in the browser: how many "faces north" clicks, and the correction.
+    private int _radarClicks;
+    private int _radarOffset;
+
+    private sealed record RadarStatus(int Clicks, int Offset);
+
+    private string RadarCalibrationText => _radarClicks == 0
+        ? $"{_radarOffset:+0;-0;0}° (built in)"
+        : $"{_radarOffset:+0;-0;0}° from {_radarClicks} click{(_radarClicks == 1 ? "" : "s")}";
+
+    private async Task MarkAntennaNorth() => ShowRadarStatus(await JS.InvokeAsync<RadarStatus>("pccRadar.markNorth"));
+
+    private async Task ResetAntennaCalibration() => ShowRadarStatus(await JS.InvokeAsync<RadarStatus>("pccRadar.resetCalibration"));
+
+    private void ShowRadarStatus(RadarStatus status)
+    {
+        _radarClicks = status.Clicks;
+        _radarOffset = status.Offset;
+    }
+
+    /// <summary>
+    /// Points every mini-map's sweep where the nearest Transmission Antenna's dish points, while the game is live.
+    /// Without an antenna (or live data) the sweeps go back to their own slow decorative spin.
+    /// </summary>
+    private async Task SyncRadar()
+    {
+        var antenna = Live.Status == LiveStatus.Live
+            ? Live.Data?.Antennas?
+                .Where(a => a.Position is not null)
+                .OrderBy(a => Vector2.Distance(_playerFlat, new Vector2((float)a.Position!.X, (float)a.Position.Z)))
+                .FirstOrDefault()
+            : null;
+
+        try
+        {
+            if (antenna is null)
+            {
+                if (_radarSampledAt is not null)
+                    await JS.InvokeVoidAsync("pccRadar.clear");
+                _radarSampledAt = null;
+            }
+            else if (antenna.SampledAtMs != _radarSampledAt)
+            {
+                var first = _radarSampledAt is null;
+                await JS.InvokeVoidAsync("pccRadar.set", antenna.Heading, antenna.DegreesPerSecond, antenna.SampledAtMs);
+                _radarSampledAt = antenna.SampledAtMs;
+
+                // The calibration saved from an earlier visit, once the button appears.
+                if (first)
+                {
+                    ShowRadarStatus(await JS.InvokeAsync<RadarStatus>("pccRadar.status"));
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The page is closing.
+        }
+    }
 
     private void OnVolumeChanged(ChangeEventArgs e)
     {
