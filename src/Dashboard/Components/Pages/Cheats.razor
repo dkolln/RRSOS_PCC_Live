@@ -42,8 +42,19 @@
             <h2>Resupply configs</h2>
             <p class="hint">
                 Type the exact text of a container (rename it in-game first), then pick the product it should hold.
-                RESUPPLY clears each labelled container down to just that product, up to its slot count.
+                RESUPPLY fills each labelled container with that product, up to its slot count. With
+                <strong>Replace all</strong> ticked, everything already in it becomes that product too; unticked,
+                what is there is left alone and only the empty slots are filled.
             </p>
+
+            @if (_rows.Count > 0)
+            {
+                <div class="replace-all-bar">
+                    <span>Replace all:</span>
+                    <button class="bar-btn" @onclick="() => SetReplaceAll(true)" disabled="@_rows.All(r => r.ReplaceAll)">Select all</button>
+                    <button class="bar-btn" @onclick="() => SetReplaceAll(false)" disabled="@_rows.All(r => !r.ReplaceAll)">Select none</button>
+                </div>
+            }
 
             <div class="config-list">
                 @foreach (var row in _rows)
@@ -79,6 +90,11 @@
                             }
                         </div>
 
+                        <label class="replace-all" title="Ticked: everything in the container becomes this product. Unticked: only empty slots are filled.">
+                            <input type="checkbox" checked="@row.ReplaceAll" @onchange="e => SetReplaceAll(row, e.Value is true)" />
+                            Replace all
+                        </label>
+
                         <button class="row-del" title="Delete this config" @onclick="() => DeleteRow(row)">×</button>
 
                         @if (duplicate)
@@ -110,7 +126,10 @@
         public string ProductGId { get; set; } = "";
         public string ProductName { get; set; } = "";
         public string ProductQuery { get; set; } = "";
+        public bool ReplaceAll { get; set; } = true;
         public bool ShowSuggestions { get; set; }
+
+        public ResupplyConfig ToConfig() => new(Id, ContainerLabel.Trim(), ProductGId, ProductName, ReplaceAll);
     }
 
     private List<ConfigRow> _rows = new();
@@ -134,7 +153,8 @@
             ContainerLabel = c.ContainerLabel,
             ProductGId = c.ProductGId,
             ProductName = c.ProductName,
-            ProductQuery = c.ProductName
+            ProductQuery = c.ProductName,
+            ReplaceAll = c.ReplaceAll
         }).ToList();
 
         // Reached by a direct URL while the game happens to already be live.
@@ -181,6 +201,20 @@
         await Persist();
     }
 
+    private async Task SetReplaceAll(ConfigRow row, bool value)
+    {
+        row.ReplaceAll = value;
+        await Persist();
+    }
+
+    private async Task SetReplaceAll(bool value)
+    {
+        foreach (var row in _rows)
+            row.ReplaceAll = value;
+
+        await Persist();
+    }
+
     private IReadOnlyList<(string GId, string Name)> Suggestions(ConfigRow row)
     {
         var q = row.ProductQuery.Trim();
@@ -218,9 +252,7 @@
         var file = new ResupplyConfigFile
         {
             SelectedSaveFile = _selectedSave,
-            Configs = _rows
-                .Select(r => new ResupplyConfig(r.Id, r.ContainerLabel.Trim(), r.ProductGId, r.ProductName))
-                .ToList()
+            Configs = _rows.Select(r => r.ToConfig()).ToList()
         };
 
         try { await ConfigStore.SaveAsync(file); }
@@ -248,7 +280,7 @@
 
             var configs = _rows
                 .Where(r => r.ContainerLabel.Trim().Length > 0 && r.ProductGId.Length > 0)
-                .Select(r => new ResupplyConfig(r.Id, r.ContainerLabel.Trim(), r.ProductGId, r.ProductName))
+                .Select(r => r.ToConfig())
                 .ToList();
 
             ShowToasts(await Resupply.ResupplyAsync(path, configs));
@@ -277,10 +309,14 @@
 
             if (line.ContainersFound == 0)
                 Toasts.Show($"No container labelled \"{label}\"", ToastKind.Warning, delay: delay);
-            else if (line.Changed)
+            else if (line.Changed && line.Config.ReplaceAll)
                 Toasts.Show($"{label}: +{line.ItemsAdded} added, {line.ItemsRelabeled} relabeled to {product}", ToastKind.Success, delay: delay);
-            else
+            else if (line.Changed)
+                Toasts.Show($"{label}: +{line.ItemsAdded} {product} in empty slots", ToastKind.Success, delay: delay);
+            else if (line.Config.ReplaceAll)
                 Toasts.Show($"{label} already full of {product}", ToastKind.Info, delay: delay);
+            else
+                Toasts.Show($"{label} has no empty slots", ToastKind.Info, delay: delay);
         }
     }
 }
