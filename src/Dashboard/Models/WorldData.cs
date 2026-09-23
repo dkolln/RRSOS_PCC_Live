@@ -10,11 +10,13 @@ namespace RRSOS.PCC.Dashboard
         public DateTime? UpdatedAt { get; set; }
         public bool InWorld { get; set; }
         public string? PlanetId { get; set; }
+
+        /// <summary>The game's hash for that planet (plugin 0.5.0 and later): the "planet" of each object in the save.</summary>
+        public int PlanetHash { get; set; }
         public ScanData? Scan { get; set; }
         public List<PodData> Pods { get; set; } = new();
         public List<SignData> Signs { get; set; } = new();
         public List<ContainerData> Containers { get; set; } = new();
-        public List<LooseData> Loose { get; set; } = new();
         public List<ExtractorData> Extractors { get; set; } = new();
         public List<DroneStationData> DroneStations { get; set; } = new();
 
@@ -30,7 +32,6 @@ namespace RRSOS.PCC.Dashboard
             Pods ??= new();
             Signs ??= new();
             Containers ??= new();
-            Loose ??= new();
             Extractors ??= new();
             DroneStations ??= new();
             Structures ??= new();
@@ -46,7 +47,6 @@ namespace RRSOS.PCC.Dashboard
             Pods.RemoveAll(p => p is null);
             Signs.RemoveAll(s => s is null);
             Containers.RemoveAll(c => c is null);
-            Loose.RemoveAll(l => l is null);
             Extractors.RemoveAll(e => e is null);
             DroneStations.RemoveAll(d => d is null);
 
@@ -69,8 +69,6 @@ namespace RRSOS.PCC.Dashboard
                 container.Secondary = Clean(container.Secondary);
             }
 
-            foreach (var loose in Loose)
-                loose.Id ??= "";
 
             foreach (var extractor in Extractors)
             {
@@ -192,17 +190,6 @@ namespace RRSOS.PCC.Dashboard
         public Vec3? Position { get; set; }
         public List<StoredData> Items { get; set; } = new();
         public List<StoredData> Secondary { get; set; } = new();
-    }
-
-    /// <summary>Items lying on the ground, merged when they are the same kind within a few metres.</summary>
-    public sealed class LooseData
-    {
-        public string Id { get; set; } = "";
-        public string? Name { get; set; }
-        public Vec3? Position { get; set; }
-        public int Count { get; set; }
-
-        public string Label => string.IsNullOrWhiteSpace(Name) ? Id : Name!;
     }
 
     /// <summary>A drone station: where it is, how many drones are docked in it, and what its storage holds.</summary>

@@ -8,7 +8,7 @@
   What it can and cannot do, compared with the plugin:
     - pods, signs, containers near a base and extractors: the same facts the plugin reports (item names are the game's
       group ids, because the save holds no display names)
-    - loose items on the ground: not produced (a save cannot tell a placed machine from a dropped item)
+    - loose items on the ground: not produced here; the dashboard reads them from the newest save itself
     - live.json holds only the player's position and heading, so the cards for the planet and the vehicle stay empty
 
   .\tools\save-to-world.ps1 -Save "$env:USERPROFILE\AppData\LocalLow\MijuGames\Planet Crafter\Custom-2.json" -OutFolder .\sample-save
@@ -116,7 +116,7 @@ foreach ($o in $objects.Values) {
 
 $now = [DateTime]::UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", $ci)
 $world = [ordered]@{ schemaVersion = 1; pluginVersion = 'save'; updatedAt = $now; inWorld = $true; planetId = $player.planetId
-                     pods = $pods; signs = $signs; containers = $containers; loose = @(); extractors = $extractors; structures = $structures }
+                     pods = $pods; signs = $signs; containers = $containers; extractors = $extractors; structures = $structures }
 
 $rot = $player.playerRotation -split ','
 # Unity yaw from the quaternion (x, y, z, w): 2 * atan2(y, w) is exact for a body that only turns about the vertical.

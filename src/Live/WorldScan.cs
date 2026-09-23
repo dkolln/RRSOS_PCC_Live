@@ -9,8 +9,9 @@ namespace RRSOS.PCC.Live
 {
     /// <summary>
     /// One pass over the game's placed objects, collecting the slow-moving facts the dashboard needs to work out
-    /// its bases and extractors: pods (with their panels), signs, what the containers hold, loose items on the
-    /// ground, and the extractors. It reports raw facts. Deciding what a "base" is, naming it and grouping
+    /// its bases and extractors: pods (with their panels), signs, what the containers hold, the building pieces and
+    /// the extractors. It reports raw facts. (Loose items on the ground are not read here: the dashboard takes them from
+    /// the save file, see docs/contract.md.) Deciding what a "base" is, naming it and grouping
     /// things by base all happen in the dashboard (see docs/contract.md, the world file).
     ///
     /// The game can hold tens of thousands of objects, so the pass is spread over frames: it works for about
@@ -22,15 +23,11 @@ namespace RRSOS.PCC.Live
         private const int CheckEvery = 64;
 
         /// <summary>
-        /// Containers and loose items farther than this from every pod are left out: they cannot belong to a
+        /// Containers and building pieces farther than this from every pod are left out: they cannot belong to a
         /// base (the dashboard's rule is the nearest base within 100 m), and this keeps the file small. It also
         /// drops the hidden storage where launched rockets sit.
         /// </summary>
         private const float ReachMeters = 120f;
-
-        // Cells for merging loose items (same kind, same few metres) into one entry with a count.
-        private const float LooseCellMeters = 4f;
-        private const int MaxLooseEntries = 4000;
 
         private sealed class Tally
         {
@@ -50,12 +47,10 @@ namespace RRSOS.PCC.Live
         private readonly List<string> _structures = new List<string>();
         private readonly List<WorldObject> _structureObjects = new List<WorldObject>();
         private readonly List<Vector2> _podFlat = new List<Vector2>();
-        private readonly Dictionary<string, KeyValuePair<Vector3, Tally>> _loose = new Dictionary<string, KeyValuePair<Vector3, Tally>>();
 
         private readonly Stopwatch _frame = new Stopwatch();
         private double _workMs, _worstMs;
         private int _frames, _visited;
-        private bool _looseCapped;
 
         public WorldScan(string planetId, int planetHash)
         {
@@ -112,20 +107,6 @@ namespace RRSOS.PCC.Live
                 }
             }
 
-            // Pass 3: everything, for loose items lying on the ground near a pod.
-            var all = Snapshot(handler == null ? null : handler.GetAllWorldObjects());
-            for (var i = 0; i < all.Length; i++)
-            {
-                VisitLoose(all[i]);
-
-                if ((i % CheckEvery) == CheckEvery - 1 && _frame.Elapsed.TotalMilliseconds >= FrameBudgetMs)
-                {
-                    EndChunk();
-                    yield return null;
-                    _frame.Restart();
-                }
-            }
-
             EndChunk();
         }
 
@@ -147,24 +128,6 @@ namespace RRSOS.PCC.Live
             {
                 var copy = new WorldObject[source.Count];
                 source.CopyTo(copy, 0);
-                return copy;
-            }
-            catch (Exception e)
-            {
-                Plugin.LogOnce("world:snapshot", $"Could not list the game's objects: {e.GetType().Name}: {e.Message}");
-                return new WorldObject[0];
-            }
-        }
-
-        private static WorldObject[] Snapshot(Dictionary<int, WorldObject> source)
-        {
-            if (source == null)
-                return new WorldObject[0];
-
-            try
-            {
-                var copy = new WorldObject[source.Count];
-                source.Values.CopyTo(copy, 0);
                 return copy;
             }
             catch (Exception e)
@@ -232,52 +195,6 @@ namespace RRSOS.PCC.Live
             catch (Exception e)
             {
                 Plugin.LogOnce("world:container", $"Could not read a container: {e.GetType().Name}: {e.Message}");
-            }
-        }
-
-        private void VisitLoose(WorldObject o)
-        {
-            try
-            {
-                // Only things the player (or a machine) put in the world. WorldObjectsIdHandler.IsWorldObjectFromScene
-                // (confirmed from the game's own source: it's literally "id < 200,000,000", and every id handed out
-                // during play is >= 201,000,000) only tells you whether an object has existed since the world was
-                // generated — not whether it's an embedded, unminable vein versus a loose chunk sitting on the ground.
-                // World generation scatters some ore directly as loose, walk-up-and-grab chunks, which legitimately
-                // belong in the boneyard despite having a "from scene" id (confirmed in-game: 14 of 23 already-loose
-                // Titanium chunks next to a live base were silently dropped by this check alone). GetIsPlaced() plus
-                // GetGroup() is GroupItem already do the real work of telling "lying on the ground" apart from
-                // anything else, and the dashboard's own ore/alloy/quartz/rod filter (IsBoneyardMaterial) keeps
-                // actual wreck loot and decorative containers out regardless of id, so this check is dropped rather
-                // than narrowed.
-                if (_looseCapped || !(o?.GetGroup() is GroupItem) || !o.GetIsPlaced() || !OnThisPlanet(o))
-                    return;
-
-                var position = o.GetPosition();
-                if (!NearAPod(position))
-                    return;
-
-                var group = o.GetGroup();
-                var key = group.GetId() + "|" + Mathf.Floor(position.x / LooseCellMeters) + "|" + Mathf.Floor(position.z / LooseCellMeters);
-
-                if (_loose.TryGetValue(key, out var found))
-                {
-                    found.Value.Count++;
-                    return;
-                }
-
-                if (_loose.Count >= MaxLooseEntries)
-                {
-                    _looseCapped = true;
-                    Plugin.LogOnce("world:loose", $"More than {MaxLooseEntries} loose items near the bases; the rest are left out of the world file.");
-                    return;
-                }
-
-                _loose[key] = new KeyValuePair<Vector3, Tally>(position, new Tally { Group = group, Count = 1 });
-            }
-            catch (Exception e)
-            {
-                Plugin.LogOnce("world:loose", $"Could not read a loose item: {e.GetType().Name}: {e.Message}");
             }
         }
 
@@ -780,26 +697,13 @@ namespace RRSOS.PCC.Live
 
         public string ToJson(string updatedAt)
         {
-            var loose = new List<string>(_loose.Count);
-            foreach (var entry in _loose.Values)
-            {
-                var position = entry.Key;
-                var tally = entry.Value;
-
-                loose.Add(new Json().Begin()
-                    .Str("id", tally.Group.GetId())
-                    .Str("name", InventoryReader.NameOf(tally.Group.GetId(), tally.Group))
-                    .Point("position", position.x, position.y, position.z)
-                    .Int("count", tally.Count)
-                    .End().ToString());
-            }
-
             return new Json().Begin()
                 .Int("schemaVersion", 1)
                 .Str("pluginVersion", Plugin.Version)
                 .Str("updatedAt", updatedAt)
                 .Bool("inWorld", true)
                 .Str("planetId", _planetId)
+                .Int("planetHash", _planetHash)
                 .Begin("scan")
                     .Int("objectsVisited", _visited)
                     .Int("frames", _frames)
@@ -809,7 +713,6 @@ namespace RRSOS.PCC.Live
                 .Raw("pods", Array(_pods))
                 .Raw("signs", Array(_signs))
                 .Raw("containers", Array(_containers))
-                .Raw("loose", Array(loose))
                 .Raw("extractors", Array(_extractors))
                 .Raw("droneStations", Array(_stations))
                 .Raw("structures", Array(_structures))

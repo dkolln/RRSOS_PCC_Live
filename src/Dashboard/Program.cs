@@ -15,9 +15,15 @@ builder.Services.AddSingleton<LiveFileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveFileService>());
 builder.Services.AddSingleton<PCLauncherService>();
 
+// Spoken alerts, in the default voice set in Windows.
+builder.Services.AddSingleton<SpeechService>();
+
 // The slower second file (bases, containers, extractors), plus what it needs: an item catalog and the base names.
 builder.Services.AddSingleton<ItemCatalog>();
 builder.Services.AddSingleton<BaseNames>();
+// The boneyards come from the newest save, read again whenever the game writes it (checked every 10 seconds).
+builder.Services.AddSingleton<SaveLooseService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<SaveLooseService>());
 builder.Services.AddSingleton<WorldFileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<WorldFileService>());
 builder.Services.AddSingleton<NotebookService>();

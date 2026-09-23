@@ -54,7 +54,8 @@ namespace RRSOS.PCC.Dashboard
 
         private BaseDirectory(List<BaseInfo> bases) => Bases = bases;
 
-        public static BaseDirectory Build(WorldData world, BaseNames names, ItemCatalog catalog)
+        /// <param name="saveObjects">What the last save says lies in the world (see <see cref="SaveLooseService"/>): the boneyard's source.</param>
+        public static BaseDirectory Build(WorldData world, IEnumerable<SaveObject> saveObjects, BaseNames names, ItemCatalog catalog)
         {
             // Sorted by id so that the first time names are handed out, the order does not depend on the game's.
             var pods = world.Pods
@@ -91,11 +92,15 @@ namespace RRSOS.PCC.Dashboard
                 }
             }
 
-            foreach (var loose in world.Loose)
+            foreach (var loose in saveObjects)
             {
-                // The boneyard is raw material lying around the base (ore, ice, super alloy, quartz, rods). Plants, drones, vehicles and the like are left out.
-                if (Nearest(found, loose.Position) is { } owner && IsBoneyardMaterial(catalog, loose.Id))
-                    Add(owner.Loose, loose.Id, loose.Label, loose.Count);
+                // Only this planet's (a save holds every planet, and their coordinates overlap).
+                if (world.PlanetHash != 0 && loose.PlanetHash != 0 && loose.PlanetHash != world.PlanetHash)
+                    continue;
+
+                // The boneyard is raw material lying around the base (ore, ice, super alloy, quartz, rods). Buildings, plants, drones, vehicles and the like are left out.
+                if (IsBoneyardMaterial(catalog, loose.GId) && Nearest(found, loose.Position) is { } owner)
+                    Add(owner.Loose, loose.GId, catalog.NameOf(loose.GId), 1);
             }
 
             // Building pieces go to their nearest base too, for its floor plan.

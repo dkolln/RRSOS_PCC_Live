@@ -141,6 +141,8 @@ Any of them can also be given on the command line, which wins over the file:
 | The dashboard stays on `WAITING FOR THE GAME` | Load a world (the plugin only writes while you are in one), and check the log line above. |
 | The dashboard will not start, or the page shows an error and drops you | Another dashboard is already running on the same port. Close it, or give this one another `Urls`. |
 | Changes to the plugin do not show up | Restart the game fully: the plugin is only loaded when the game starts. |
+| You want a different voice for the spoken alerts | They use Windows' default text-to-speech voice: **Settings > Time & language > Speech**, then restart the dashboard. They play on the PC running the dashboard. (Narrator's own voice setting is separate and not used.) |
+| The Boneyard is empty or out of date | It comes from the last save, not live: save the game (or wait for an autosave) and it updates within 10 seconds. Its title shows the save's time. |
 
 ## Uninstalling
 
