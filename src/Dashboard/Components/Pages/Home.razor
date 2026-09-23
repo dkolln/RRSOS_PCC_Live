@@ -12,7 +12,7 @@
     var data = Live.Data;
     var status = Live.Status;
     var player = data?.Player;
-    var vehicle = data?.Vehicle;
+    var vehicles = data?.AllVehicles ?? Array.Empty<VehicleData>();
     var running = Launcher.IsRunning();
     var dim = status != LiveStatus.Live;
     var world = World.Data;
@@ -88,32 +88,12 @@
                                           Dim="@dim" />
                             </Extra2>
                             <Extra3>
-                                @{
-                                    var vKnown = vehicle?.Position is not null;
-                                    var vFlat = vehicle?.Position is { } vp
-                                        ? new Vector2((float)vp.X, (float)vp.Z)
-                                        : _playerFlat;
-                                    // Only one vehicle exists in the live data today; this is written so it
-                                    // still reads correctly if that ever becomes a list (count of positioned
-                                    // vehicles, nearest one's distance/direction).
-                                    var vCount = vKnown ? 1 : 0;
-                                    var vDist = vKnown ? (int)Vector2.Distance(_playerFlat, vFlat) : 0;
-                                    var vDir = vKnown ? Compass.GetCompassDirection(_playerFlat, vFlat) : "";
-                                }
-                                <div class="vehicle-mini @(_activeMap == "vehicle" ? "is-open" : "")"
-                                     role="button" tabindex="0"
-                                     title="@(vKnown ? "Click to see the vehicle" : "Click for vehicles")"
-                                     @onclick='() => SelectMap("vehicle")'>
-                                    <RelativeMap PlayerFlat="@_playerFlat"
-                                                 PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
-                                                 TargetFlat="@vFlat"
-                                                 Known="@vKnown" ShowCaption="false" />
-                                    <div class="map-label">Vehicles</div>
-                                    <div class="map-caption">
-                                        <span class="map-caption-name">@vCount vehicle@(vCount == 1 ? "" : "s")</span>
-                                        <span class="map-caption-meta">@(vKnown ? $"{vDist} m {vDir}" : "no vehicles")</span>
-                                    </div>
-                                </div>
+                                <VehicleMap Vehicles="@vehicles" PlayerFlat="@_playerFlat"
+                                            PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
+                                            SelectedId="@_selectedVehicleId"
+                                            Open="@(_activeMap == "vehicle")"
+                                            OnMapClick='() => SelectMap("vehicle")' OnSelect="SelectVehicle"
+                                            Dim="@dim" />
                             </Extra3>
                             <Extra4>
                                 <ExtractorMap Extractors="@extractors" PlayerFlat="@_playerFlat"
@@ -219,36 +199,22 @@
             else if (_activeMap == "vehicle")
             {
                 <section class="card card-detail">
-                    <h2>Vehicle</h2>
-
-                    @if (vehicle is null)
-                    {
-                        <div class="empty">@(data?.InWorld == true ? "No vehicle yet." : EmptyText(status))</div>
-                    }
-                    else
-                    {
-                        @if (vehicle.Position is { } vpos && player?.Position is not null)
+                    <h2>Vehicles <span class="who">@(vehicles.Count > 0 ? vehicles.Count.ToString() : "")</span></h2>
+                    <div class="scroll">
+                        @if (_selectedVehicleId is { } vId && vehicles.FirstOrDefault(v => v.Id == vId) is { } picked)
                         {
-                            var vFlat = new Vector2((float)vpos.X, (float)vpos.Z);
-                            var dist  = (int)Vector2.Distance(_playerFlat, vFlat);
-                            var dir   = Compass.GetCompassDirection(_playerFlat, vFlat);
-                            <div class="vehicle-detail-map">
-                                <RelativeMap PlayerFlat="@_playerFlat"
-                                             PlayerHeading="@Compass.HeadingFromYaw(player.YawDegrees)"
-                                             TargetFlat="@vFlat" Known="true" />
-                                <div class="vehicle-detail-where">@dist m @dir</div>
-                            </div>
+                            <VehicleDetail Data="@picked" Name="@VehicleMap.Name(vehicles, picked)"
+                                           PlayerFlat="@(player?.Position is not null ? _playerFlat : null)"
+                                           PlayerHeading="@(player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees))"
+                                           Dim="@dim" OnBack="UnselectVehicle" />
                         }
                         else
                         {
-                            <div class="empty vehicle-stowed">Stowed in pocket.</div>
+                            <VehicleList Vehicles="@vehicles" PlayerFlat="@(player?.Position is not null ? _playerFlat : null)"
+                                         OnSelect="SelectVehicle" Dim="@dim"
+                                         EmptyText="@(data?.InWorld == true ? "No vehicle yet." : EmptyText(status))" />
                         }
-
-                        <div class="fill">
-                            <ItemList Title="Trunk" Data="@vehicle.Trunk" Columns="3" Dim="@dim" Collapsible="true" />
-                        </div>
-                        <ItemList Title="Gear" Data="@vehicle.Gear" Columns="3" Dim="@dim" Collapsible="true" />
-                    }
+                    </div>
                 </section>
             }
             else if (_activeMap == "extractor")
@@ -283,6 +249,7 @@
     private long? _selectedBaseId;
     private long? _pinnedBaseId;
     private long? _selectedExtractorId;
+    private int? _selectedVehicleId;
 
     // Which map's detail panel is open in column 3: "base", "drone", "vehicle" or "extractor".
     private string _activeMap = "base";
@@ -305,7 +272,18 @@
         _activeMap = _activeMap == map ? "base" : map;
         if (_activeMap != "base") { _pinnedBaseId = null; UpdateSelection(); }
         if (_activeMap != "extractor") { _selectedExtractorId = null; }
+        if (_activeMap != "vehicle") { _selectedVehicleId = null; }
     }
+
+    // A truck's pip (or a truck in the list): show that truck; the same one again goes back to the list.
+    private void SelectVehicle(int id)
+    {
+        _activeMap = "vehicle";
+        _selectedVehicleId = _selectedVehicleId == id ? null : id;
+        _selectedExtractorId = null;
+    }
+
+    private void UnselectVehicle() => _selectedVehicleId = null;
 
     private void OnBaseMapClick()
     {
@@ -331,6 +309,7 @@
     {
         _activeMap = "extractor";
         _selectedExtractorId = _selectedExtractorId == id ? null : id;
+        _selectedVehicleId = null;
     }
 
     private void UnselectExtractor() => _selectedExtractorId = null;

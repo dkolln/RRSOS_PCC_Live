@@ -13,7 +13,16 @@ namespace RRSOS.PCC.Dashboard
         public string? PlanetId { get; set; }
         public PlayerData? Player { get; set; }
         public PlanetData? Planet { get; set; }
+        /// <summary>The first truck only; kept for plugins before 0.7.0. Use <see cref="AllVehicles"/>.</summary>
         public VehicleData? Vehicle { get; set; }
+
+        /// <summary>Every truck, oldest first (plugin 0.7.0 and later).</summary>
+        public List<VehicleData>? Vehicles { get; set; }
+
+        /// <summary>Every truck, from whichever of the two the plugin wrote.</summary>
+        public IReadOnlyList<VehicleData> AllVehicles =>
+            Vehicles is { Count: > 0 } all ? all : Vehicle is { } one ? new[] { one } : Array.Empty<VehicleData>();
+
         public DronesData? Drones { get; set; }
 
         /// <summary>Each Transmission Antenna's spinning dish (plugin 0.6.0 and later). Null or empty when there are none.</summary>
@@ -97,6 +106,9 @@ namespace RRSOS.PCC.Dashboard
 
     public sealed class VehicleData
     {
+        /// <summary>The game's id for the truck (plugin 0.7.0 and later; 0 before).</summary>
+        public int Id { get; set; }
+
         /// <summary>Null while the vehicle is stowed (pocket or portal): it has no place in the world.</summary>
         public Vec3? Position { get; set; }
         public double? YawDegrees { get; set; }

@@ -1,28 +1,41 @@
+using System.Collections.Generic;
 using SpaceCraft;
 using UnityEngine;
 
 namespace RRSOS.PCC.Live
 {
     /// <summary>
-    /// The player's truck. Its record exists as soon as it is unlocked, whether it is out in the world or
-    /// stowed (in the pocket or a portal). Only when it is out does it have a live position.
+    /// The player's trucks (there can be several). A truck's record exists as soon as it is built, whether it is out
+    /// in the world or stowed (in the pocket or a portal). Only when it is out does it have a live position.
     /// </summary>
     internal static class VehicleReader
     {
         private const string VehicleGroupId = "VehicleTruck";
         private const float RescanSeconds = 5f;
 
-        private static int _vehicleId;
+        private static readonly List<int> VehicleIds = new List<int>();
         private static float _nextScan;
 
-        /// <summary>The "vehicle" object, or null when the player has no vehicle yet.</summary>
+        /// <summary>The "vehicles" list: every truck, oldest first. Empty when the player has none yet.</summary>
+        public static string ListFragment()
+        {
+            var parts = new List<string>();
+            foreach (var worldObject in FindAll())
+                parts.Add(One(worldObject));
+
+            return "[" + string.Join(",", parts) + "]";
+        }
+
+        /// <summary>The older single "vehicle" object: the first truck, or null when there is none. Kept for older readers.</summary>
         public static string Fragment()
         {
-            var worldObject = Find();
-            if (worldObject == null)
-                return null;
+            var all = FindAll();
+            return all.Count == 0 ? null : One(all[0]);
+        }
 
-            var json = new Json().Begin();
+        private static string One(WorldObject worldObject)
+        {
+            var json = new Json().Begin().Int("id", worldObject.GetId());
 
             // The scene object exists only while the vehicle is out in the world.
             var scene = worldObject.GetGameObject();
@@ -69,38 +82,39 @@ namespace RRSOS.PCC.Live
             }
         }
 
-        // Finds the truck's world object once and remembers it; while there is none, look again every few seconds.
-        private static WorldObject Find()
+        // The trucks' world objects, by the ids found in the last scan; the scan (a walk over every object) runs only
+        // every few seconds, so a truck built or removed shows up within that time.
+        private static List<WorldObject> FindAll()
         {
+            var found = new List<WorldObject>();
             var handler = WorldObjectsHandler.Instance;
             if (handler == null)
-                return null;
+                return found;
 
-            if (_vehicleId != 0)
+            if (Time.unscaledTime >= _nextScan)
             {
-                var known = handler.GetWorldObjectViaId(_vehicleId);
-                if (known != null)
-                    return known;
+                _nextScan = Time.unscaledTime + RescanSeconds;
+                VehicleIds.Clear();
 
-                _vehicleId = 0;
-            }
-
-            if (Time.unscaledTime < _nextScan)
-                return null;
-
-            _nextScan = Time.unscaledTime + RescanSeconds;
-
-            foreach (var worldObject in handler.GetAllWorldObjects().Values)
-            {
-                var group = worldObject?.GetGroup();
-                if (group != null && group.GetId() == VehicleGroupId)
+                foreach (var worldObject in handler.GetAllWorldObjects().Values)
                 {
-                    _vehicleId = worldObject.GetId();
-                    return worldObject;
+                    var group = worldObject?.GetGroup();
+                    if (group != null && group.GetId() == VehicleGroupId)
+                        VehicleIds.Add(worldObject.GetId());
                 }
+
+                // Oldest first (ids are handed out in order), so "Truck 1" stays Truck 1.
+                VehicleIds.Sort();
             }
 
-            return null;
+            foreach (var id in VehicleIds)
+            {
+                var known = handler.GetWorldObjectViaId(id);
+                if (known != null)
+                    found.Add(known);
+            }
+
+            return found;
         }
     }
 }

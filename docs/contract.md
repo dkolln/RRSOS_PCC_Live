@@ -107,6 +107,9 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
 
 ## Changes
 
+- **Plugin 0.7.0**: `live.json` gains `vehicles`: every truck (group `VehicleTruck`), oldest first, each shaped like
+  `vehicle` plus its `id`. `vehicle` stays, as the first truck, for older readers. The dashboard names trucks "Truck 1",
+  "Truck 2", ... in that order (the game gives them no names).
 - **Plugin 0.6.0**: `live.json` gains `antennas` (see "Antennas").
 - **Plugin 0.5.0**: the world file loses `loose` and gains `planetHash`; the boneyard comes from the save (see "The boneyard").
 - **World file, schema 1** (plugin 0.3.0): new file `live-world.json` (see above). `live.json` gains a `drones` section (see "Drones").
