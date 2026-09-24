@@ -117,7 +117,7 @@
    pre-scheduled animation keyed to an item's position at some past render). */
 .radar-sweep {
     transform-origin: 70px 70px;
-    animation: radar-sweep-spin 30s linear infinite;
+    animation: radar-sweep-spin 7.2s linear infinite;
     pointer-events: none;
     mix-blend-mode: plus-lighter;
 }

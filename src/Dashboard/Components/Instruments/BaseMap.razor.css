@@ -112,14 +112,15 @@
     text-anchor: end;
 }
 
-/* A fake radar sweep, 2 RPM (one turn every 30s), purely decorative. mix-blend-mode:plus-lighter is what makes a
+/* A fake radar sweep at the Transmission Antenna's own speed (50 degrees a second, one turn every 7.2s), used when there is
+   no antenna to follow; purely decorative. mix-blend-mode:plus-lighter is what makes a
    pip flare as the sweep's light passes over it: real-time pixel compositing (additive, so it saturates toward
    white fast and reads clearly even on a 3px dot) against whatever pip is currently underneath, so it's always
    correct and can never drift out of sync (unlike a pre-scheduled animation keyed to a pip's position at some
    past render). */
 .radar-sweep {
     transform-origin: 70px 70px;
-    animation: radar-sweep-spin 30s linear infinite;
+    animation: radar-sweep-spin 7.2s linear infinite;
     pointer-events: none;
     mix-blend-mode: plus-lighter;
 }
