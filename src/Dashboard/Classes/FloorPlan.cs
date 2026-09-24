@@ -414,10 +414,41 @@ namespace RRSOS.PCC.Dashboard
                     // side, and a side that reaches past the circle gets a short annex drawn onto it.
                     var r = MathF.Max(1f, MathF.Max(MathF.Min(-_minX, _maxX), MathF.Min(-_minZ, _maxZ)));
 
-                    AddAnnex(-_minX, r, (a, b) => (-a, b));
-                    AddAnnex(_maxX, r, (a, b) => (a, b));
-                    AddAnnex(-_minZ, r, (a, b) => (b, -a));
-                    AddAnnex(_maxZ, r, (a, b) => (b, a));
+                    // A corridor-type wall panel (a doorway to a neighbouring piece) can sit flush with the circle even
+                    // when the box itself has no overhang there — confirmed in the game between a Biodome and a Biodome2:
+                    // both carry a corridor panel facing each other, with a real connector between them, but neither box
+                    // reaches past the other's circle. Such a panel still gets a short stub, so the doorway always shows.
+                    const float CorridorStub = 3f;
+                    float reachMinusX = -_minX, reachPlusX = _maxX, reachMinusZ = -_minZ, reachPlusZ = _maxZ;
+
+                    if (Data.PanelBoxes is { Count: > 0 } panelBoxes)
+                    {
+                        foreach (var b in panelBoxes)
+                        {
+                            if (b.Type != PanelCodes.TypeWall || b.Sub != PanelCodes.WallCorridor || b.Min is null || b.Max is null)
+                                continue;
+
+                            float x0 = (float)b.Min.X, x1 = (float)b.Max.X, z0 = (float)b.Min.Z, z1 = (float)b.Max.Z;
+                            var stubReach = r + CorridorStub;
+
+                            // The panel's short side (its thickness) says which of the four sides it sits on.
+                            if (x1 - x0 < z1 - z0)
+                            {
+                                if (x0 + x1 > 0) reachPlusX = MathF.Max(reachPlusX, stubReach);
+                                else reachMinusX = MathF.Max(reachMinusX, stubReach);
+                            }
+                            else
+                            {
+                                if (z0 + z1 > 0) reachPlusZ = MathF.Max(reachPlusZ, stubReach);
+                                else reachMinusZ = MathF.Max(reachMinusZ, stubReach);
+                            }
+                        }
+                    }
+
+                    AddAnnex(reachMinusX, r, (a, b) => (-a, b));
+                    AddAnnex(reachPlusX, r, (a, b) => (a, b));
+                    AddAnnex(reachMinusZ, r, (a, b) => (b, -a));
+                    AddAnnex(reachPlusZ, r, (a, b) => (b, a));
 
                     return Enumerable.Range(0, 32)
                         .Select(i => i * MathF.PI * 2 / 32)
@@ -444,10 +475,11 @@ namespace RRSOS.PCC.Dashboard
                 return new[] { ToEastNorth(_minX, _minZ), ToEastNorth(_maxX, _minZ), ToEastNorth(_maxX, _maxZ), ToEastNorth(_minX, _maxZ) };
             }
 
-            // An annex from just inside the circle out to how far this side reaches, 4 m wide. "place" turns (along, across) into (x, z).
+            // An annex from just inside the circle out to how far this side reaches, 2 m wide (halved from 4 m: full width
+            // read as an odd slab rather than a doorway/tunnel). "place" turns (along, across) into (x, z).
             private void AddAnnex(float reach, float r, Func<float, float, (float X, float Z)> place)
             {
-                const float HalfWidth = 2f;
+                const float HalfWidth = 1f;
                 if (reach <= r + 1f)
                     return;
 
