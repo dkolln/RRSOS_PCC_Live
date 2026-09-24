@@ -100,7 +100,9 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
   axis, clockwise from above, at 50 degrees a second (one turn in 7.2 s; found with a probe in the game).
 - `heading` is the compass bearing (0 north, 90 east) of that part's **forward** axis at `sampledAtMs` (Unix time,
   milliseconds). The dish itself **faces 90 degrees anticlockwise of it**: calibrated in the game by clicking when the
-  dish faced north, which gave -78, i.e. -90 plus the usual early click. `degreesPerSecond` is 0 while the game is paused.
+  dish faced north, which gave -78, i.e. -90 plus the usual early click. `degreesPerSecond` is 0 while the game is
+  paused, and while the antenna is out of the game's render range (the game stops turning the dish, and `heading`
+  stays where it stopped). The dashboard's sweeps keep turning at the last speed seen through such a pause.
 - Its heading at any later moment is `heading + degreesPerSecond × seconds since sampledAtMs`. The dashboard's mini-map
   sweeps follow the nearest antenna this way (`wwwroot/js/radar.js`, with the -90 built in); a button under the maps
   ("Antenna faces N") lets a player re-calibrate, kept per browser.

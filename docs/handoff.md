@@ -41,7 +41,10 @@ This top section is current; the older write-ups further down are history.
 - **Antenna-synced radar sweeps** (plugin 0.6.0, `AntennaReader`; dashboard `wwwroot/js/radar.js`). The Transmission
   Antenna's dish is `Radar_Base_01`, spun by the game's `Turn_Move` at 50°/s clockwise; the dish faces −90° from that
   part's forward axis (calibrated by the owner with the "Antenna faces N" button under the mini maps, then confirmed
-  by eye). All four mini-map sweeps follow the nearest antenna; without one they keep the decorative 2 RPM spin.
+  by eye). All the mini-map sweeps follow the nearest antenna; without one they spin on their own at the dish's
+  speed (one turn every 7.2 s). Out of the game's render range the dish stops (the plugin reports rate 0); the sweep
+  then carries on at the last speed seen, re-syncs at once when the dish turns again, and otherwise only every 5th
+  reading (`SyncRadar` in `Home.razor`).
 - **Multiple vehicles** (plugin 0.7.0: `vehicles` in `live.json`, every `VehicleTruck`, oldest first; `vehicle` kept as
   the first). `VehicleMap` / `VehicleList` / `VehicleDetail` work like the extractors: click the map for the list, a
   pip or a truck for its detail, the map again to close. Trucks have no names in the game: "Truck 1, 2, ..." in the

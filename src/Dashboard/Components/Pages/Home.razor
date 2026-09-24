@@ -342,6 +342,15 @@
     // The reading last handed to the page's radar clock (radar.js), so each is sent once. Null: the maps' own spin.
     private long? _radarSampledAt;
 
+    // Out of the game's render range the dish stops (the plugin reports a rate of 0), and so would the sweep; instead
+    // the sweep carries on at the last speed seen, and is only re-synced every few readings while the dish turns, and
+    // at once when it starts turning again (the game resumes it from where it stopped, not where it would have been).
+    private const int RadarResyncEvery = 5;
+    private const double RadarDefaultRate = 50;
+    private int _radarSinceSync;
+    private bool _radarFrozen;
+    private double _radarRate = RadarDefaultRate;
+
     // The sweep's calibration against the dish, kept by radar.js in the browser: how many "faces north" clicks, and the correction.
     private int _radarClicks;
     private int _radarOffset;
@@ -382,11 +391,27 @@
                 if (_radarSampledAt is not null)
                     await JS.InvokeVoidAsync("pccRadar.clear");
                 _radarSampledAt = null;
+                _radarSinceSync = 0;
+                _radarFrozen = false;
             }
             else if (antenna.SampledAtMs != _radarSampledAt)
             {
                 var first = _radarSampledAt is null;
-                await JS.InvokeVoidAsync("pccRadar.set", antenna.Heading, antenna.DegreesPerSecond, antenna.SampledAtMs);
+                var turning = antenna.DegreesPerSecond != 0;
+
+                if (turning)
+                    _radarRate = antenna.DegreesPerSecond;
+
+                // Frozen (out of range, or the game paused): keep turning the sweep; the reading says nothing new.
+                // Turning: re-sync on the first reading, right after a freeze, and then every few readings.
+                var resync = first || (turning && (_radarFrozen || ++_radarSinceSync >= RadarResyncEvery));
+                _radarFrozen = !turning;
+
+                if (!resync)
+                    return;
+
+                _radarSinceSync = 0;
+                await JS.InvokeVoidAsync("pccRadar.set", antenna.Heading, _radarRate, antenna.SampledAtMs);
                 _radarSampledAt = antenna.SampledAtMs;
 
                 // The calibration saved from an earlier visit, once the button appears.
