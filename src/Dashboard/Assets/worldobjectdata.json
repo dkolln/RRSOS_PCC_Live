@@ -1692,28 +1692,22 @@
     "Tier": "11",
     "Type": 3720
   },
-  "FishGalbea": {
-    "BaseId": "FishEggs",
-    "Name": "Fish Eggs Galbea",
-    "Tier": "",
-    "Type": 3720
-  },
-  "FishVelkia": {
-    "BaseId": "FishEggs",
-    "Name": "Fish Eggs Velkia",
-    "Tier": "",
-    "Type": 3720
-  },
-  "FishStabu": {
-    "BaseId": "FishEggs",
-    "Name": "Fish Eggs Stabu",
-    "Tier": "",
-    "Type": 3720
-  },
   "Fish12Eggs": {
     "BaseId": "FishEggs",
-    "Name": "Fish Eggs",
+    "Name": "Fish Eggs Velkia",
     "Tier": "12",
+    "Type": 3720
+  },
+  "Fish13Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Galbea",
+    "Tier": "13",
+    "Type": 3720
+  },
+  "Fish14Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Stabu",
+    "Tier": "14",
     "Type": 3720
   },
 

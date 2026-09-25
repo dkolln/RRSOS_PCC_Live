@@ -61,8 +61,9 @@ This top section is current; the older write-ups further down are history.
   if it is in `worldobjectdata.json`. The owner's Custom-1 has 13 chests labelled Tree1 to Tree13 (15 slots each); their Resupply configs for them are in
   the owner's `resupply-configs.json` (per-PC data, not in the repo). Both repos carry the same name table.
   Fish eggs: `Fish1Eggs` to `Fish11Eggs` are "Fish Eggs" + Provios, Vilnus, Gerrero, Khrom, Ulani, Aelera, Tegede, Ecaru, Buyu, Tiloo,
-  Golden; the newer ids `FishGalbea`, `FishVelkia`, `FishStabu` are Galbea, Velkia, Stabu (the owner's list, which also gives
-  biomass multipliers, not stored). The older `Fish12Eggs`/`Fish13Eggs` (Velkia/Galbea in RRSOS-PCC's `worldobjects.json`) are left as they were.
+  Golden; **`Fish12Eggs` is Velkia** (confirmed in the owner's Custom-1 backpack, 2026-09-25), and `Fish13Eggs` Galbea and
+  `Fish14Eggs` Stabu are the owner's best guess (the list they gave named `FishGalbea`, `FishVelkia`, `FishStabu`, which the
+  game does not use; there are no such records in a save). The list also gives biomass multipliers, not stored.
   Spacesuits: `Skin-01`..`Skin-07`, `09`, `13`..`20` are "Spacesuit" + Comto, Blasto, Primo, Goldeo, Scifo, Cipto, Beteo,
   Fablo, Mekio, Abyso, Ettio, Plesao, Rorao, Starforma, Glitx, Colonnya (DLC tags kept in the name; the owner's list).
   `Skin-08/10/11/12` were not on it and keep RRSOS-PCC's names (Tureo, Tubio, Vateo, Widio).
