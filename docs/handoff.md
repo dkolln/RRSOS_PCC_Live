@@ -49,6 +49,9 @@ This top section is current; the older write-ups further down are history.
   already handled, and labels that are buildings (Machine, BasePart, Container, WorldMarker, Wreck); an id only counts
   if it is in `worldobjectdata.json`. The owner's Custom-1 has 13 chests labelled Tree1 to Tree13 (15 slots each); their Resupply configs for them are in
   the owner's `resupply-configs.json` (per-PC data, not in the repo). Both repos carry the same name table.
+  Spacesuits: `Skin-01`..`Skin-07`, `09`, `13`..`20` are "Spacesuit" + Comto, Blasto, Primo, Goldeo, Scifo, Cipto, Beteo,
+  Fablo, Mekio, Abyso, Ettio, Plesao, Rorao, Starforma, Glitx, Colonnya (DLC tags kept in the name; the owner's list).
+  `Skin-08/10/11/12` were not on it and keep RRSOS-PCC's names (Tureo, Tubio, Vateo, Widio).
 - **Object search** in the Notes card (`Instruments/ObjectSearch.razor`): a text box; typing shows matching objects'
   Name and gId (from the item catalog, `worldobjectdata.json`), by name or id, any case, spaces ignored, exact match
   first, 50 rows. Selecting a match adds a note "Name = gId": click a row, or Enter for the highlighted one (the first

@@ -537,80 +537,122 @@
 
   "Skin-01": {
     "BaseId": "Skin-01",
-    "Name": "Skin",
+    "Name": "Spacesuit Comto",
     "Tier": "1",
+    "Type": 1130
+  },
+  "Skin-02": {
+    "BaseId": "Skin-02",
+    "Name": "Spacesuit Blasto (Hidden Lore)",
+    "Tier": "2",
+    "Type": 1130
+  },
+  "Skin-03": {
+    "BaseId": "Skin-03",
+    "Name": "Spacesuit Primo (Trade Rocket)",
+    "Tier": "3",
+    "Type": 1130
+  },
+  "Skin-04": {
+    "BaseId": "Skin-04",
+    "Name": "Spacesuit Goldeo (Humble DLC)",
+    "Tier": "4",
     "Type": 1130
   },
   "Skin-05": {
     "BaseId": "Skin-05",
-    "Name": "Skin",
+    "Name": "Spacesuit Scifo",
     "Tier": "5",
     "Type": 1130
   },
   "Skin-06": {
     "BaseId": "Skin-06",
-    "Name": "Skin",
+    "Name": "Spacesuit Cipto",
     "Tier": "6",
     "Type": 1130
   },
   "Skin-07": {
     "BaseId": "Skin-07",
-    "Name": "Skin",
+    "Name": "Spacesuit Beteo",
     "Tier": "7",
-    "Type": 1130
-  },
-  "Skin-08": {
-    "BaseId": "Skin-08",
-    "Name": "Skin",
-    "Tier": "8",
     "Type": 1130
   },
   "Skin-09": {
     "BaseId": "Skin-09",
-    "Name": "Skin",
+    "Name": "Spacesuit Fablo",
     "Tier": "9",
+    "Type": 1130
+  },
+  "Skin-13": {
+    "BaseId": "Skin-13",
+    "Name": "Spacesuit Mekio (Prime DLC)",
+    "Tier": "13",
+    "Type": 1130
+  },
+  "Skin-14": {
+    "BaseId": "Skin-14",
+    "Name": "Spacesuit Abyso (Prime DLC)",
+    "Tier": "14",
+    "Type": 1130
+  },
+  "Skin-15": {
+    "BaseId": "Skin-15",
+    "Name": "Spacesuit Ettio (Prime DLC)",
+    "Tier": "15",
+    "Type": 1130
+  },
+  "Skin-16": {
+    "BaseId": "Skin-16",
+    "Name": "Spacesuit Plesao (Prime DLC)",
+    "Tier": "16",
+    "Type": 1130
+  },
+  "Skin-17": {
+    "BaseId": "Skin-17",
+    "Name": "Spacesuit Rorao (Portal Wrecks)",
+    "Tier": "17",
+    "Type": 1130
+  },
+  "Skin-18": {
+    "BaseId": "Skin-18",
+    "Name": "Spacesuit Starforma (Humble DLC)",
+    "Tier": "18",
+    "Type": 1130
+  },
+  "Skin-19": {
+    "BaseId": "Skin-19",
+    "Name": "Spacesuit Glitx (Humble DLC)",
+    "Tier": "19",
+    "Type": 1130
+  },
+  "Skin-20": {
+    "BaseId": "Skin-20",
+    "Name": "Spacesuit Colonnya (Selenea DLC)",
+    "Tier": "20",
+    "Type": 1130
+  },
+  "Skin-08": {
+    "BaseId": "Skin-08",
+    "Name": "Spacesuit Tureo",
+    "Tier": "8",
     "Type": 1130
   },
   "Skin-10": {
     "BaseId": "Skin-10",
-    "Name": "Skin",
+    "Name": "Spacesuit Tubio",
     "Tier": "10",
     "Type": 1130
   },
   "Skin-11": {
-    "BaseId": "Skin",
-    "Name": "Blueprint Skin",
+    "BaseId": "Skin-11",
+    "Name": "Spacesuit Vateo",
     "Tier": "11",
     "Type": 1130
   },
-  "Skin-03": {
-    "BaseId": "Skin",
-    "Name": "Blueprint Skin",
-    "Tier": "03",
-    "Type": 1130
-  },
   "Skin-12": {
-    "BaseId": "Skin",
-    "Name": "Blueprint Skin",
+    "BaseId": "Skin-12",
+    "Name": "Spacesuit Widio",
     "Tier": "12",
-    "Type": 1130
-  },
-  "Skin-16": {
-    "BaseId": "Skin",
-    "Name": "Blueprint Skin",
-    "Tier": "16",
-    "Type": 1130
-  },
-  "Skin-02": {
-    "BaseId": "Skin",
-    "Name": "Blueprint Skin",
-    "Tier": "2",
-    "Type": 1130
-  },
-  "Skin-14": {
-    "BaseId": "Skin",
-    "Name": "Blueprint Skin",
-    "Tier": "14",
     "Type": 1130
   },
 
