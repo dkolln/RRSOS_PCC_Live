@@ -37,7 +37,13 @@ This top section is current; the older write-ups further down are history.
 - **Spoken alerts through Windows** (`SpeechService`, `System.Speech`): the default voice from Windows Settings >
   Speech; cooldown shared across tabs. `alerts.js` is gone.
 - **Cheats: Replace all / fill-only** per config, Select all / none; old configs read as Replace all. Algae
-  (`Algae1Seed`) is named "Algae" now, as the game names it.
+  (`Algae1Seed`) is named "Algae" now, as the game names it. Resupply toasts: **only for a container that actually
+  had something added** (the owner asked; a failed run still shows its error, since a save that was not changed must
+  never look changed). Item table: seeds `Seed1` to `Seed4` are Shanga, Pestera, Nulna, Tuska; the tree seeds
+  `Tree0Seed` to `Tree13Seed` are "Tree Seed" + Iterra, Linifolia, Aleatus, Cernea, Elegea, Humelora, Aemora, Pleom,
+  Soleus, Shreox, Rosea, Lillia, Prunea, Ruberu (the owner's list, matching RRSOS-PCC's `worldobjects.json`). The
+  owner's Custom-1 has 13 chests labelled Tree1 to Tree13 (15 slots each); their Resupply configs for them are in
+  the owner's `resupply-configs.json` (per-PC data, not in the repo). Both repos carry the same name table.
 - **Antenna-synced radar sweeps** (plugin 0.6.0, `AntennaReader`; dashboard `wwwroot/js/radar.js`). The Transmission
   Antenna's dish is `Radar_Base_01`, spun by the game's `Turn_Move` at 50°/s clockwise; the dish faces −90° from that
   part's forward axis (calibrated by the owner with the "Antenna faces N" button under the mini maps, then confirmed

@@ -622,58 +622,88 @@
     "Type": 3660
   },
 
+  "Tree0Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed Iterra",
+    "Tier": "0",
+    "Type": 3420
+  },
   "Tree1Seed": {
     "BaseId": "TreeSeed",
-    "Name": "Linifolia Seed",
-    "Tier": "",
-    "Type": 3420
-  },
-  "Tree13Seed": {
-    "BaseId": "TreeSeed",
-    "Name": "Tree Seed",
-    "Tier": "13",
-    "Type": 3420
-  },
-  "Tree10Seed": {
-    "BaseId": "TreeSeed",
-    "Name": "Tree Seed",
-    "Tier": "10",
-    "Type": 3420
-  },
-  "Tree4Seed": {
-    "BaseId": "TreeSeed",
-    "Name": "Tree Seed",
-    "Tier": "4",
+    "Name": "Tree Seed Linifolia",
+    "Tier": "1",
     "Type": 3420
   },
   "Tree2Seed": {
     "BaseId": "TreeSeed",
-    "Name": "Tree Seed",
+    "Name": "Tree Seed Aleatus",
     "Tier": "2",
     "Type": 3420
   },
   "Tree3Seed": {
     "BaseId": "TreeSeed",
-    "Name": "Tree Seed",
+    "Name": "Tree Seed Cernea",
     "Tier": "3",
+    "Type": 3420
+  },
+  "Tree4Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed Elegea",
+    "Tier": "4",
+    "Type": 3420
+  },
+  "Tree5Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed Humelora",
+    "Tier": "5",
+    "Type": 3420
+  },
+  "Tree6Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed Aemora",
+    "Tier": "6",
+    "Type": 3420
+  },
+  "Tree7Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed Pleom",
+    "Tier": "7",
+    "Type": 3420
+  },
+  "Tree8Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed Soleus",
+    "Tier": "8",
+    "Type": 3420
+  },
+  "Tree9Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed Shreox",
+    "Tier": "9",
+    "Type": 3420
+  },
+  "Tree10Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree Seed Rosea",
+    "Tier": "10",
     "Type": 3420
   },
   "Tree11Seed": {
     "BaseId": "TreeSeed",
-    "Name": "Tree Seed",
+    "Name": "Tree Seed Lillia",
     "Tier": "11",
     "Type": 3420
   },
   "Tree12Seed": {
     "BaseId": "TreeSeed",
-    "Name": "Tree Seed",
+    "Name": "Tree Seed Prunea",
     "Tier": "12",
     "Type": 3420
   },
-  "Tree8Seed": {
+  "Tree13Seed": {
     "BaseId": "TreeSeed",
-    "Name": "Tree Seed",
-    "Tier": "8",
+    "Name": "Tree Seed Ruberu",
+    "Tier": "13",
     "Type": 3420
   },
 

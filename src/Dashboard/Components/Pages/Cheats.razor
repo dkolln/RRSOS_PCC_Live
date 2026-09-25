@@ -299,24 +299,22 @@
             return;
         }
 
+        // Only a container that actually had something added gets a toast: not "no container labelled", not "already
+        // full", not a container that was only relabeled. (A failed run still says so above: a save that was not
+        // changed must never look as if it was.)
         var order = 0;
 
-        foreach (var line in report.Lines)
+        foreach (var line in report.Lines.Where(l => l.ItemsAdded > 0))
         {
             var delay = Stagger * order++;
             var label = line.Config.ContainerLabel;
             var product = line.Config.ProductName;
 
-            if (line.ContainersFound == 0)
-                Toasts.Show($"No container labelled \"{label}\"", ToastKind.Warning, delay: delay);
-            else if (line.Changed && line.Config.ReplaceAll)
-                Toasts.Show($"{label}: +{line.ItemsAdded} added, {line.ItemsRelabeled} relabeled to {product}", ToastKind.Success, delay: delay);
-            else if (line.Changed)
-                Toasts.Show($"{label}: +{line.ItemsAdded} {product} in empty slots", ToastKind.Success, delay: delay);
-            else if (line.Config.ReplaceAll)
-                Toasts.Show($"{label} already full of {product}", ToastKind.Info, delay: delay);
-            else
-                Toasts.Show($"{label} has no empty slots", ToastKind.Info, delay: delay);
+            Toasts.Show(
+                line.Config.ReplaceAll && line.ItemsRelabeled > 0
+                    ? $"{label}: +{line.ItemsAdded} added, {line.ItemsRelabeled} relabeled to {product}"
+                    : $"{label}: +{line.ItemsAdded} {product} added",
+                ToastKind.Success, delay: delay);
         }
     }
 }
