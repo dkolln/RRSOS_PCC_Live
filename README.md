@@ -117,4 +117,5 @@ files (it only reads the save).
 
 ## License
 
-Not chosen yet. The modding community recommends a permissive one such as Apache 2.0.
+MIT: see [LICENSE](LICENSE). It covers this project's own code only. It does not include or redistribute anything from
+The Planet Crafter or BepInEx, which you install yourself; the plugin only references the game's assemblies when it is built.

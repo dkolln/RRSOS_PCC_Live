@@ -96,6 +96,23 @@ It opens your browser at http://localhost:5320. (In Visual Studio, open `RRSOS.P
 **Dashboard** profile instead.) It says `WAITING FOR THE GAME` until the game is in a world, then `LIVE`. The game and
 the dashboard can be started in either order. The page is laid out for a 2560 x 1440 screen; F11 for full screen.
 
+## Installing from a release (no building)
+
+A release zip has the plugin already built and the dashboard already published, so there is nothing to compile.
+
+1. **Back up your saves** (step 1 above) and **install BepInEx 5.4.23.4 into the game** (step 3 above). You still need both.
+2. Install the **.NET 10 ASP.NET Core Runtime** (Windows x64) if you do not have it: https://dotnet.microsoft.com/download/dotnet/10.0
+   (`dotnet --list-runtimes` should list `Microsoft.AspNetCore.App 10.0.x`).
+3. Unzip the release anywhere.
+4. Copy `plugin\RRSOS.PCC.Live.dll` into `BepInEx\plugins` in the game folder. **Close the game first**; after a plugin
+   update the game needs a **full restart**, not just going back to the main menu.
+5. Start the game, then run the dashboard: double-click `dashboard\RRSOS.PCC.Dashboard.exe` (or
+   `dotnet dashboard\RRSOS.PCC.Dashboard.dll`) and open http://localhost:5320. Settings for one PC go in
+   `dashboard\appsettings.Local.json` (see "Settings for this PC" below).
+
+To update: close the game, copy the new plugin DLL over the old one, replace the `dashboard` folder (keep your
+`appsettings.Local.json`), and restart both. Your notes, base names and Cheats configs live in
+`%LOCALAPPDATA%\RRSOS-PCC-Live` and are not touched.
 ## Updating
 
 ```powershell
