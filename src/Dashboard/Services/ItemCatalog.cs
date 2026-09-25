@@ -41,6 +41,7 @@ namespace RRSOS.PCC.Dashboard
         private readonly Dictionary<string, ItemType> _types = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, (string GId, string Name)> _names = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<(string GId, string Name)> _products = new();
+        private readonly Dictionary<string, List<string>> _byName = new(StringComparer.OrdinalIgnoreCase);
 
         public ItemCatalog(IWebHostEnvironment env, ILogger<ItemCatalog> log)
         {
@@ -63,6 +64,17 @@ namespace RRSOS.PCC.Dashboard
                 }
 
                 _products.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+
+                foreach (var (gId, name) in _products)
+                {
+                    if (!IsStorable(gId))
+                        continue;
+
+                    if (!_byName.TryGetValue(name.Trim(), out var ids))
+                        _byName[name.Trim()] = ids = new List<string>();
+
+                    ids.Add(gId);
+                }
             }
             catch (Exception e)
             {
@@ -99,6 +111,31 @@ namespace RRSOS.PCC.Dashboard
                 ? null
                 : found;
         }
+
+        /// <summary>
+        /// The item a container's label names, by game id ("Tree5Seed", any letter case) or by the item's name ("Mushroom",
+        /// "Rocket Engine"; one trailing "s" is tolerated). A name shared by several items names none.
+        /// </summary>
+        public string? ResolveLabel(string label)
+        {
+            label = label?.Trim() ?? "";
+            if (label.Length == 0)
+                return null;
+
+            if (ResolveItemLabel(label) is { } byId)
+                return byId.GId;
+
+            foreach (var candidate in label.EndsWith('s') || label.EndsWith('S') ? new[] { label, label[..^1] } : new[] { label })
+            {
+                if (_byName.TryGetValue(candidate, out var ids) && ids.Count == 1)
+                    return ids[0];
+            }
+
+            return null;
+        }
+
+        private bool IsStorable(string gId) =>
+            CategoryOf(gId) is not (ItemCategory.Machine or ItemCategory.BasePart or ItemCategory.Container or ItemCategory.WorldMarker or ItemCategory.Wreck or ItemCategory.Unknown);
 
         /// <summary>The type for a game group id: the exact id, else the id without its trailing digits ("Iron1" is "Iron"), else Unknown.</summary>
         public ItemType TypeOf(string groupId)

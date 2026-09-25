@@ -9,6 +9,9 @@ namespace RRSOS.PCC.Dashboard
         string? BackupPath,
         DateTime At);
 
+    /// <summary>What Set Supply Lines did, or for a preview would do. Outcome is null when the save could not be read.</summary>
+    public sealed record DroneNetworkReport(bool Success, string? Error, DroneNetworkOutcome? Outcome, string? BackupPath, DateTime At);
+
     /// <summary>
     /// The Cheats page's RESUPPLY button: applies every configured (container label, product) pair, then every container labelled with an item id, to the
     /// selected save, by editing the save file on disk (see <see cref="SaveResupplyEngine"/>). Generalized from
@@ -71,37 +74,92 @@ namespace RRSOS.PCC.Dashboard
                 if (!outcome.Changed)
                     return new ResupplyReport(true, null, outcome.Lines, null, at);
 
-                // Keep the original before anything is written.
-                var backup = WriteBackup(savePath, original, at);
-
-                var edited = (hasBom ? new byte[] { 0xEF, 0xBB, 0xBF } : Array.Empty<byte>())
-                    .Concat(Encoding.UTF8.GetBytes(outcome.NewText!))
-                    .ToArray();
-
-                // Write beside the save and swap it in, so a crash can never leave half a save behind.
-                var temp = savePath + ".resupply.tmp";
-                File.WriteAllBytes(temp, edited);
-
-                try
-                {
-                    if (Signature(savePath) != before)
-                        return new ResupplyReport(false, "The save changed while resupplying, so nothing was written. Is a game still running a world? Try again from the main menu.", outcome.Lines, backup, at);
-
-                    File.Move(temp, savePath, overwrite: true);
-                }
-                finally
-                {
-                    if (File.Exists(temp))
-                        File.Delete(temp);
-                }
-
-                PruneBackups(savePath);
-                return new ResupplyReport(true, null, outcome.Lines, backup, at);
+                var (backup, error) = Commit(savePath, original, hasBom, outcome.NewText!, before, at, "resupplying");
+                return new ResupplyReport(error is null, error, outcome.Lines, backup, at);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 return Fail("Could not update the save file: " + ex.Message, at);
             }
+        }
+
+        /// <summary>Previews (write: false) or applies the Drone Network settings to the save, changing only the producers and containers named in the wishes; see <see cref="DroneNetworkEngine"/>.</summary>
+        public async Task<DroneNetworkReport> DroneNetworkAsync(string savePath, bool write, IReadOnlyDictionary<long, DroneWish>? producerWishes = null, IReadOnlyDictionary<long, DroneWish>? containerWishes = null)
+        {
+            await _gate.WaitAsync();
+            try
+            {
+                return await Task.Run(() => RunDroneNetwork(savePath, write, producerWishes, containerWishes));
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        private DroneNetworkReport RunDroneNetwork(string savePath, bool write, IReadOnlyDictionary<long, DroneWish>? producerWishes, IReadOnlyDictionary<long, DroneWish>? containerWishes)
+        {
+            var at = DateTime.Now;
+
+            if (string.IsNullOrEmpty(savePath) || !File.Exists(savePath))
+                return new DroneNetworkReport(false, "No save file is selected.", null, null, at);
+
+            try
+            {
+                var before = Signature(savePath);
+                var original = ReadShared(savePath);
+
+                var hasBom = original.Length >= 3 && original[0] == 0xEF && original[1] == 0xBB && original[2] == 0xBF;
+                var text = Encoding.UTF8.GetString(original, hasBom ? 3 : 0, original.Length - (hasBom ? 3 : 0));
+
+                var outcome = DroneNetworkEngine.Apply(text, label => _catalog.ResolveLabel(label), producerWishes, containerWishes);
+
+                if (outcome.Failed)
+                    return new DroneNetworkReport(false, "Nothing was changed. " + string.Join(" ", outcome.Problems), outcome, null, at);
+
+                if (!write || !outcome.Changed)
+                    return new DroneNetworkReport(true, null, outcome, null, at);
+
+                var (backup, error) = Commit(savePath, original, hasBom, outcome.NewText!, before, at, "setting the drone network");
+                return new DroneNetworkReport(error is null, error, outcome, backup, at);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return new DroneNetworkReport(false, "Could not read or update the save file: " + ex.Message, null, null, at);
+            }
+        }
+
+        /// <summary>
+        /// Backs the original up, then writes the edited text beside the save and swaps it in, so a crash can never leave
+        /// half a save behind. Nothing is written if the file changed since it was read.
+        /// </summary>
+        private (string? Backup, string? Error) Commit(string savePath, byte[] original, bool hasBom, string newText, (long Length, DateTime LastWriteUtc) before, DateTime at, string doing)
+        {
+            // Keep the original before anything is written.
+            var backup = WriteBackup(savePath, original, at);
+
+            var edited = (hasBom ? new byte[] { 0xEF, 0xBB, 0xBF } : Array.Empty<byte>())
+                .Concat(Encoding.UTF8.GetBytes(newText))
+                .ToArray();
+
+            var temp = savePath + ".resupply.tmp";
+            File.WriteAllBytes(temp, edited);
+
+            try
+            {
+                if (Signature(savePath) != before)
+                    return (backup, $"The save changed while {doing}, so nothing was written. Is a game still running a world? Try again from the main menu.");
+
+                File.Move(temp, savePath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temp))
+                    File.Delete(temp);
+            }
+
+            PruneBackups(savePath);
+            return (backup, null);
         }
 
         private static ResupplyReport Fail(string error, DateTime at) =>
