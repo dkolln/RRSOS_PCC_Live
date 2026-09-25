@@ -225,58 +225,124 @@
     "Type": 3330
   },
 
-  "Butterfly10Larvae": {
+  "Butterfly1Larvae": {
     "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
-    "Tier": "10",
+    "Name": "Butterfly Larva Abstreus",
+    "Tier": "1",
     "Type": 3340
   },
-  "Butterfly8Larvae": {
+  "Butterfly2Larvae": {
     "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
-    "Tier": "8",
-    "Type": 3340
-  },
-  "Butterfly6Larvae": {
-    "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
-    "Tier": "6",
-    "Type": 3340
-  },
-  "Butterfly5Larvae": {
-    "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
-    "Tier": "5",
-    "Type": 3340
-  },
-  "Butterfly4Larvae": {
-    "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
-    "Tier": "4",
+    "Name": "Butterfly Larva Alben",
+    "Tier": "2",
     "Type": 3340
   },
   "Butterfly3Larvae": {
     "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
+    "Name": "Butterfly Larva Azurae",
     "Tier": "3",
+    "Type": 3340
+  },
+  "Butterfly4Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Chevrone",
+    "Tier": "4",
+    "Type": 3340
+  },
+  "Butterfly5Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Empalio",
+    "Tier": "5",
+    "Type": 3340
+  },
+  "Butterfly6Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Fensea",
+    "Tier": "6",
+    "Type": 3340
+  },
+  "Butterfly7Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Fiorente",
+    "Tier": "7",
+    "Type": 3340
+  },
+  "Butterfly8Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Futura",
+    "Tier": "8",
+    "Type": 3340
+  },
+  "Butterfly9Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Galaxe",
+    "Tier": "9",
+    "Type": 3340
+  },
+  "Butterfly10Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Leani",
+    "Tier": "10",
+    "Type": 3340
+  },
+  "Butterfly11Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Liux",
+    "Tier": "11",
+    "Type": 3340
+  },
+  "Butterfly12Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Lorpen",
+    "Tier": "12",
+    "Type": 3340
+  },
+  "Butterfly13Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Nere",
+    "Tier": "13",
+    "Type": 3340
+  },
+  "Butterfly14Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Oesbe",
+    "Tier": "14",
+    "Type": 3340
+  },
+  "Butterfly15Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Penga",
+    "Tier": "15",
+    "Type": 3340
+  },
+  "Butterfly16Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Aemel",
+    "Tier": "16",
+    "Type": 3340
+  },
+  "Butterfly17Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Golden",
+    "Tier": "17",
+    "Type": 3340
+  },
+  "Butterfly18Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly Larva Imeo",
+    "Tier": "18",
     "Type": 3340
   },
   "Butterfly19Larvae": {
     "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
+    "Name": "Butterfly Larva Faleria",
     "Tier": "19",
     "Type": 3340
   },
   "Butterfly20Larvae": {
     "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
+    "Name": "Butterfly Larva Feliciana",
     "Tier": "20",
-    "Type": 3340
-  },
-  "Butterfly7Larvae": {
-    "BaseId": "ButterflyLarva",
-    "Name": "Butterfly Larva",
-    "Tier": "7",
     "Type": 3340
   },
   "Algae1Seed": {
@@ -1559,24 +1625,6 @@
     "Type": 3360
   },
 
-  "Butterfly1Larvae": {
-    "BaseId": "ButterflyLarvae",
-    "Name": "Butterfly Larvae",
-    "Tier": "",
-    "Type": 3340
-  },
-  "Butterfly2Larvae": {
-    "BaseId": "ButterflyLarvae",
-    "Name": "Butterfly Larvae",
-    "Tier": "2",
-    "Type": 3340
-  },
-  "Butterfly9Larvae": {
-    "BaseId": "ButterflyLarvae",
-    "Name": "Butterfly Larvae",
-    "Tier": "9",
-    "Type": 3340
-  },
 
   "Fish1Eggs": {
     "BaseId": "FishEggs",
