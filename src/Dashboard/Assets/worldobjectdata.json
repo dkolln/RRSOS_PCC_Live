@@ -1628,20 +1628,92 @@
 
   "Fish1Eggs": {
     "BaseId": "FishEggs",
-    "Name": "Fish Eggs",
+    "Name": "Fish Eggs Provios",
     "Tier": "1",
+    "Type": 3720
+  },
+  "Fish2Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Vilnus",
+    "Tier": "2",
+    "Type": 3720
+  },
+  "Fish3Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Gerrero",
+    "Tier": "3",
+    "Type": 3720
+  },
+  "Fish4Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Khrom",
+    "Tier": "4",
+    "Type": 3720
+  },
+  "Fish5Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Ulani",
+    "Tier": "5",
+    "Type": 3720
+  },
+  "Fish6Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Aelera",
+    "Tier": "6",
+    "Type": 3720
+  },
+  "Fish7Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Tegede",
+    "Tier": "7",
+    "Type": 3720
+  },
+  "Fish8Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Ecaru",
+    "Tier": "8",
+    "Type": 3720
+  },
+  "Fish9Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Buyu",
+    "Tier": "9",
+    "Type": 3720
+  },
+  "Fish10Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Tiloo",
+    "Tier": "10",
+    "Type": 3720
+  },
+  "Fish11Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Golden",
+    "Tier": "11",
+    "Type": 3720
+  },
+  "FishGalbea": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Galbea",
+    "Tier": "",
+    "Type": 3720
+  },
+  "FishVelkia": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Velkia",
+    "Tier": "",
+    "Type": 3720
+  },
+  "FishStabu": {
+    "BaseId": "FishEggs",
+    "Name": "Fish Eggs Stabu",
+    "Tier": "",
     "Type": 3720
   },
   "Fish12Eggs": {
     "BaseId": "FishEggs",
     "Name": "Fish Eggs",
     "Tier": "12",
-    "Type": 3720
-  },
-  "Fish6Eggs": {
-    "BaseId": "FishEggs",
-    "Name": "Fish Eggs",
-    "Tier": "6",
     "Type": 3720
   },
 
