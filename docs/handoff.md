@@ -42,8 +42,23 @@ This top section is current; the older write-ups further down are history.
   never look changed). Item table: seeds `Seed1` to `Seed4` are Shanga, Pestera, Nulna, Tuska; the tree seeds
   `Tree0Seed` to `Tree13Seed` are "Tree Seed" + Iterra, Linifolia, Aleatus, Cernea, Elegea, Humelora, Aemora, Pleom,
   Soleus, Shreox, Rosea, Lillia, Prunea, Ruberu (the owner's list, matching RRSOS-PCC's `worldobjects.json`). The
-  owner's Custom-1 has 13 chests labelled Tree1 to Tree13 (15 slots each); their Resupply configs for them are in
+  **Item-id containers** (Resupply, after the configured rows; `SaveResupplyEngine.Apply`'s `autoItem`): a container
+  whose label is an item's own game id in any letter case ("MalisseaH", "tree5seed", "Iron") is filled with that item;
+  only empty slots by default, or replace-all with the option ticked (both options are on the Cheats page and saved in
+  `resupply-configs.json` as `AutoFillByGId`, on by default, and `AutoFillReplaceAll`, off). Skips containers a config
+  already handled, and labels that are buildings (Machine, BasePart, Container, WorldMarker, Wreck); an id only counts
+  if it is in `worldobjectdata.json`. The owner's Custom-1 has 13 chests labelled Tree1 to Tree13 (15 slots each); their Resupply configs for them are in
   the owner's `resupply-configs.json` (per-PC data, not in the repo). Both repos carry the same name table.
+- **Object search** in the Notes card (`Instruments/ObjectSearch.razor`): a text box; typing shows matching objects'
+  Name and gId (from the item catalog, `worldobjectdata.json`), by name or id, any case, spaces ignored, exact match
+  first, 50 rows. Selecting a match adds a note "Name = gId": click a row, or Enter for the highlighted one (the first
+  match; ↑/↓ moves it; Enter with no match does nothing). Only objects in that table are searchable, so a missing id
+  there is missing here too.
+- **Hand edit to Custom-1 (owner's request, 2026-09-24):** emptied all 62 storage chests (`Container1`/`Container2`,
+  by the dashboard's nearest-base-within-100-m rule) of the base "Home" (pod 201600281): 55 held 1,400 items; the item
+  records were deleted, not orphaned. Growers and machines were left alone. Backup: `save-backups\Custom-1.20260924-231731.json`.
+  Done with a verified script (every other record byte-identical); the owner then cleared their Cheats configs
+  (backup `resupply-configs.json.before-clear.bak`) to test the item-id fill.
 - **Antenna-synced radar sweeps** (plugin 0.6.0, `AntennaReader`; dashboard `wwwroot/js/radar.js`). The Transmission
   Antenna's dish is `Radar_Base_01`, spun by the game's `Turn_Move` at 50°/s clockwise; the dish faces −90° from that
   part's forward axis (calibrated by the owner with the "Antenna faces N" button under the mini maps, then confirmed

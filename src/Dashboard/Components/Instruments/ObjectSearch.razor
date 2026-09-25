@@ -1,0 +1,142 @@
+@* Look up any game object by name or by its id: type "nulna" to find its id, or "seed3" to see what it is. Just a text box
+   until something is typed, then the matches (Name and id) appear as you type. Selecting one adds it to the notes as
+   "Name = id": click it, or press Enter for the highlighted one (the first match, moved with the arrow keys). The table
+   is the item catalog (Assets/worldobjectdata.json), the same one the Cheats page picks products from. *@
+@inject ItemCatalog Catalog
+@inject NotebookService Notebook
+
+<div class="object-search">
+    <input class="object-search-input" placeholder="Search objects by name or id…"
+           value="@_query" @oninput="OnInput" @onkeydown="OnKeyDown" spellcheck="false" autocomplete="off" />
+
+    @if (Query.Length > 0)
+    {
+        var matches = Matches;
+
+        @if (matches.Count == 0)
+        {
+            <div class="object-search-none">No object matches "@Query".</div>
+        }
+        else
+        {
+            <div class="object-search-rows">
+                @for (var i = 0; i < matches.Count; i++)
+                {
+                    var (gId, name) = matches[i];
+                    var index = i;
+
+                    <div class="object-search-row @(index == Selected(matches.Count) ? "is-selected" : "")"
+                         role="button" title="Click to add to the notes: @name = @gId"
+                         @onclick="() => AddAsync(matches[index])">
+                        <span class="object-search-name">@name</span>
+                        <span class="object-search-gid">@gId</span>
+                    </div>
+                }
+            </div>
+
+            @if (_more > 0)
+            {
+                <div class="object-search-more">and @_more more: keep typing to narrow it down</div>
+            }
+        }
+    }
+    else if (_added is not null)
+    {
+        <div class="object-search-added">Added to notes: @_added</div>
+    }
+</div>
+
+@code {
+    private const int MaxRows = 50;
+
+    private string _query = "";
+    private int _more;
+    private int _selected;
+    private string? _added;
+
+    private string Query => _query.Trim();
+
+    private int Selected(int count) => Math.Clamp(_selected, 0, Math.Max(0, count - 1));
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? "";
+        _selected = 0;
+        _added = null;
+    }
+
+    // Enter adds the highlighted match, and does nothing when there is none.
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (Query.Length == 0)
+            return;
+
+        var matches = Matches;
+        if (matches.Count == 0)
+            return;
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _selected = Math.Min(matches.Count - 1, Selected(matches.Count) + 1);
+                break;
+            case "ArrowUp":
+                _selected = Math.Max(0, Selected(matches.Count) - 1);
+                break;
+            case "Enter":
+                await AddAsync(matches[Selected(matches.Count)]);
+                break;
+            case "Escape":
+                _query = "";
+                break;
+        }
+    }
+
+    private async Task AddAsync((string GId, string Name) match)
+    {
+        var text = $"{match.Name} = {match.GId}";
+        await Notebook.AddNoteAsync(text);
+
+        _added = text;
+        _query = "";
+        _selected = 0;
+    }
+
+    // Matches on the name or the id, in any letter case and ignoring spaces ("seed 3" finds "Seed3"). An exact match
+    // comes first, then names or ids that start with the text, then the rest, each group in name order.
+    private IReadOnlyList<(string GId, string Name)> Matches
+    {
+        get
+        {
+            var q = Squash(Query);
+            var found = new List<(int Rank, string GId, string Name)>();
+
+            foreach (var (gId, name) in Catalog.AllProducts)
+            {
+                var id = Squash(gId);
+                var text = Squash(name);
+
+                var rank =
+                    id == q || text == q ? 0 :
+                    id.StartsWith(q, StringComparison.Ordinal) || text.StartsWith(q, StringComparison.Ordinal) ? 1 :
+                    id.Contains(q, StringComparison.Ordinal) || text.Contains(q, StringComparison.Ordinal) ? 2 :
+                    -1;
+
+                if (rank >= 0)
+                    found.Add((rank, gId, name));
+            }
+
+            _more = Math.Max(0, found.Count - MaxRows);
+
+            return found
+                .OrderBy(f => f.Rank)
+                .ThenBy(f => f.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(f => f.GId, StringComparer.OrdinalIgnoreCase)
+                .Take(MaxRows)
+                .Select(f => (f.GId, f.Name))
+                .ToList();
+        }
+    }
+
+    private static string Squash(string s) => s.Replace(" ", "").ToLowerInvariant();
+}

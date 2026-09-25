@@ -39,7 +39,7 @@ namespace RRSOS.PCC.Dashboard
         }
 
         private readonly Dictionary<string, ItemType> _types = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, string> _names = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, (string GId, string Name)> _names = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<(string GId, string Name)> _products = new();
 
         public ItemCatalog(IWebHostEnvironment env, ILogger<ItemCatalog> log)
@@ -58,7 +58,7 @@ namespace RRSOS.PCC.Dashboard
                     if (!string.IsNullOrWhiteSpace(pair.Value.Name))
                     {
                         _products.Add((pair.Key, pair.Value.Name!));
-                        _names[pair.Key] = pair.Value.Name!;
+                        _names[pair.Key] = (pair.Key, pair.Value.Name!);
                     }
                 }
 
@@ -81,7 +81,24 @@ namespace RRSOS.PCC.Dashboard
         /// plugin gets names from the game itself). The id when the table has no name for it.
         /// </summary>
         public string NameOf(string groupId) =>
-            _names.TryGetValue(groupId, out var name) ? name : groupId;
+            _names.TryGetValue(groupId, out var known) ? known.Name : groupId;
+
+        /// <summary>
+        /// The item a container's label names, when the label is (in any letter case) the game id of something that can
+        /// be stored: "MalisseaH", "tree5seed", "Iron". Buildings, machines, containers, world markers and wrecks are not
+        /// items, so a chest that happens to be labelled "Container1" or "pod" is left alone. Null when the label is no item.
+        /// </summary>
+        public (string GId, string Name)? ResolveItemLabel(string label)
+        {
+            label = label?.Trim() ?? "";
+            if (label.Length == 0 || !_names.TryGetValue(label, out var found))
+                return null;
+
+            return CategoryOf(found.GId) is ItemCategory.Machine or ItemCategory.BasePart or ItemCategory.Container
+                or ItemCategory.WorldMarker or ItemCategory.Wreck or ItemCategory.Unknown
+                ? null
+                : found;
+        }
 
         /// <summary>The type for a game group id: the exact id, else the id without its trailing digits ("Iron1" is "Iron"), else Unknown.</summary>
         public ItemType TypeOf(string groupId)

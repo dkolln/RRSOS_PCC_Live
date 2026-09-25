@@ -1,3 +1,4 @@
+@implements IDisposable
 @inject NotebookService NotebookService
 
 <div class="notes">
@@ -46,8 +47,20 @@
 
     private List<Note> Sorted => _notebook.Notes.OrderBy(n => n.Priority).ToList();
 
-    protected override async Task OnInitializedAsync() =>
+    protected override async Task OnInitializedAsync()
+    {
         _notebook = await NotebookService.LoadAsync();
+        NotebookService.Changed += OnNotebookChanged;
+    }
+
+    // A note added from the object search: read the notebook again.
+    private void OnNotebookChanged() => _ = InvokeAsync(async () =>
+    {
+        _notebook = await NotebookService.LoadAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose() => NotebookService.Changed -= OnNotebookChanged;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

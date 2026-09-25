@@ -44,7 +44,8 @@
                 Type the exact text of a container (rename it in-game first), then pick the product it should hold.
                 RESUPPLY fills each labelled container with that product, up to its slot count. With
                 <strong>Replace all</strong> ticked, everything already in it becomes that product too; unticked,
-                what is there is left alone and only the empty slots are filled.
+                what is there is left alone and only the empty slots are filled. After the configs, any container
+                labelled with an item's own id (see the option below the list) is filled with that item too.
             </p>
 
             @if (_rows.Count > 0)
@@ -106,6 +107,17 @@
             </div>
 
             <button class="add-row" @onclick="AddRow">+ Add config</button>
+
+            <div class="auto-fill">
+                <label>
+                    <input type="checkbox" checked="@_autoFill" @onchange="e => SetAutoFill(e.Value is true)" />
+                    Also fill any container labelled with an item id (like <code>MalisseaH</code>), after the configs above
+                </label>
+                <label class="@(_autoFill ? "" : "is-off")">
+                    <input type="checkbox" checked="@_autoReplace" disabled="@(!_autoFill)" @onchange="e => SetAutoReplace(e.Value is true)" />
+                    Replace what is already in those containers (unticked: only empty slots are filled)
+                </label>
+            </div>
         </section>
 
         <button class="resupply-btn" disabled="@(!CanResupply)" @onclick="RunResupply">
@@ -134,6 +146,8 @@
 
     private List<ConfigRow> _rows = new();
     private string _selectedSave = "";
+    private bool _autoFill = true;
+    private bool _autoReplace;
     private string _saveFolder = "";
     private IReadOnlyList<string> _saveFiles = Array.Empty<string>();
     private bool _busy;
@@ -147,6 +161,8 @@
 
         var file = await ConfigStore.LoadAsync();
         _selectedSave = file.SelectedSaveFile ?? "";
+        _autoFill = file.AutoFillByGId;
+        _autoReplace = file.AutoFillReplaceAll;
         _rows = file.Configs.Select(c => new ConfigRow
         {
             Id = c.Id,
@@ -183,7 +199,7 @@
     private bool CanResupply =>
         !_busy && Live.Status != LiveStatus.Live && !HasDuplicates
         && !string.IsNullOrEmpty(_selectedSave)
-        && _rows.Any(r => r.ContainerLabel.Trim().Length > 0 && r.ProductGId.Length > 0);
+        && (_autoFill || _rows.Any(r => r.ContainerLabel.Trim().Length > 0 && r.ProductGId.Length > 0));
 
     private void GoHome() => Nav.NavigateTo("/");
 
@@ -198,6 +214,18 @@
     private async Task DeleteRow(ConfigRow row)
     {
         _rows.Remove(row);
+        await Persist();
+    }
+
+    private async Task SetAutoFill(bool value)
+    {
+        _autoFill = value;
+        await Persist();
+    }
+
+    private async Task SetAutoReplace(bool value)
+    {
+        _autoReplace = value;
         await Persist();
     }
 
@@ -252,6 +280,8 @@
         var file = new ResupplyConfigFile
         {
             SelectedSaveFile = _selectedSave,
+            AutoFillByGId = _autoFill,
+            AutoFillReplaceAll = _autoReplace,
             Configs = _rows.Select(r => r.ToConfig()).ToList()
         };
 
@@ -283,7 +313,7 @@
                 .Select(r => r.ToConfig())
                 .ToList();
 
-            ShowToasts(await Resupply.ResupplyAsync(path, configs));
+            ShowToasts(await Resupply.ResupplyAsync(path, configs, new ResupplyOptions(_autoFill, _autoReplace)));
         }
         finally
         {

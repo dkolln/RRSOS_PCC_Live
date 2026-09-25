@@ -23,6 +23,21 @@ namespace RRSOS.PCC.Dashboard
             return JsonSerializer.Deserialize<Notebook>(text) ?? new Notebook();
         }
 
+        /// <summary>Raised when a note is added from somewhere other than the notes list itself (the object search), so the list reloads.</summary>
+        public event Action? Changed;
+
+        /// <summary>Adds a note at the end of the list and saves it.</summary>
+        public async Task AddNoteAsync(string text)
+        {
+            var notebook = await LoadAsync();
+            var nextId = notebook.Notes.Count == 0 ? 1 : notebook.Notes.Max(n => n.Id) + 1;
+            var nextPriority = notebook.Notes.Count == 0 ? 1 : notebook.Notes.Max(n => n.Priority) + 1;
+
+            notebook.Notes.Add(new Note { Id = nextId, Text = text, Created = DateTime.UtcNow, Priority = nextPriority });
+            await SaveAsync(notebook);
+            Changed?.Invoke();
+        }
+
         public async Task SaveAsync(Notebook notebook)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);

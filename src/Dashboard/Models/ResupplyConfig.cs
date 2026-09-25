@@ -13,5 +13,14 @@ namespace RRSOS.PCC.Dashboard
     {
         public string? SelectedSaveFile { get; set; }
         public List<ResupplyConfig> Configs { get; set; } = new();
+
+        /// <summary>Also fill any container whose label is an item id ("MalisseaH"), after the configs. On unless turned off.</summary>
+        public bool AutoFillByGId { get; set; } = true;
+
+        /// <summary>For those containers: also replace what is already in them. Off: only their empty slots are filled.</summary>
+        public bool AutoFillReplaceAll { get; set; }
     }
+
+    /// <summary>What a Resupply run does beyond the configured rows (see <see cref="ResupplyConfigFile"/>).</summary>
+    public sealed record ResupplyOptions(bool AutoFillByGId, bool AutoFillReplaceAll);
 }

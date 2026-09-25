@@ -67,7 +67,14 @@ namespace RRSOS.PCC.Dashboard
         /// </summary>
         private sealed record TouchedInventory(long InventoryId, string GId, IReadOnlyCollection<long>? OnlyIds);
 
-        public static ResupplyOutcome Apply(string text, IReadOnlyList<ResupplyConfig> configs, Random? random = null)
+        /// <param name="autoItem">
+        /// When given, every container whose label is an item id it recognises ("MalisseaH" gives that item) is filled
+        /// as well, after the configured ones, and never one a config already handled. It says what item a label names,
+        /// or null. Such containers are only topped up (their empty slots filled) unless <paramref name="autoReplaceAll"/>.
+        /// </param>
+        public static ResupplyOutcome Apply(
+            string text, IReadOnlyList<ResupplyConfig> configs, Random? random = null,
+            Func<string, (string GId, string Name)?>? autoItem = null, bool autoReplaceAll = false)
         {
             random ??= Random.Shared;
 
@@ -99,7 +106,27 @@ namespace RRSOS.PCC.Dashboard
             var inventoryExpectations = new List<InventoryExpectation>();
             var touched = new List<TouchedInventory>();
 
-            foreach (var config in configs)
+            // The configured ones first, then a container labelled with an item id (unless a config already names that label).
+            var work = configs.ToList();
+
+            if (autoItem is not null)
+            {
+                var configured = new HashSet<string>(
+                    configs.Select(c => c.ContainerLabel?.Trim() ?? "").Where(l => l.Length > 0),
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var label in records
+                    .Where(r => !r.IsInventory && r.LiId is not null && !string.IsNullOrWhiteSpace(r.Text))
+                    .Select(r => r.Text!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(l => l, StringComparer.OrdinalIgnoreCase))
+                {
+                    if (!configured.Contains(label) && autoItem(label) is { } item)
+                        work.Add(new ResupplyConfig("item-id:" + label, label, item.GId, item.Name, autoReplaceAll));
+                }
+            }
+
+            foreach (var config in work)
             {
                 var label = config.ContainerLabel?.Trim() ?? "";
 

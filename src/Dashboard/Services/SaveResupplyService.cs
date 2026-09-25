@@ -10,7 +10,7 @@ namespace RRSOS.PCC.Dashboard
         DateTime At);
 
     /// <summary>
-    /// The Cheats page's RESUPPLY button: applies every configured (container label, product) pair to the
+    /// The Cheats page's RESUPPLY button: applies every configured (container label, product) pair, then every container labelled with an item id, to the
     /// selected save, by editing the save file on disk (see <see cref="SaveResupplyEngine"/>). Generalized from
     /// RRSOS-PCC's ResupplyService, same atomic write with a backup and a before/after signature check.
     ///
@@ -25,15 +25,20 @@ namespace RRSOS.PCC.Dashboard
 
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly IConfiguration _config;
+        private readonly ItemCatalog _catalog;
 
-        public SaveResupplyService(IConfiguration config) => _config = config;
+        public SaveResupplyService(IConfiguration config, ItemCatalog catalog)
+        {
+            _config = config;
+            _catalog = catalog;
+        }
 
-        public async Task<ResupplyReport> ResupplyAsync(string savePath, IReadOnlyList<ResupplyConfig> configs)
+        public async Task<ResupplyReport> ResupplyAsync(string savePath, IReadOnlyList<ResupplyConfig> configs, ResupplyOptions? options = null)
         {
             await _gate.WaitAsync();
             try
             {
-                return await Task.Run(() => Run(savePath, configs));
+                return await Task.Run(() => Run(savePath, configs, options));
             }
             finally
             {
@@ -41,7 +46,7 @@ namespace RRSOS.PCC.Dashboard
             }
         }
 
-        private ResupplyReport Run(string savePath, IReadOnlyList<ResupplyConfig> configs)
+        private ResupplyReport Run(string savePath, IReadOnlyList<ResupplyConfig> configs, ResupplyOptions? options)
         {
             var at = DateTime.Now;
 
@@ -56,7 +61,9 @@ namespace RRSOS.PCC.Dashboard
                 var hasBom = original.Length >= 3 && original[0] == 0xEF && original[1] == 0xBB && original[2] == 0xBF;
                 var text = Encoding.UTF8.GetString(original, hasBom ? 3 : 0, original.Length - (hasBom ? 3 : 0));
 
-                var outcome = SaveResupplyEngine.Apply(text, configs);
+                var outcome = options is { AutoFillByGId: true }
+                    ? SaveResupplyEngine.Apply(text, configs, autoItem: _catalog.ResolveItemLabel, autoReplaceAll: options.AutoFillReplaceAll)
+                    : SaveResupplyEngine.Apply(text, configs);
 
                 if (outcome.Failed)
                     return new ResupplyReport(false, "Nothing was changed. " + string.Join(" ", outcome.Problems), outcome.Lines, null, at);

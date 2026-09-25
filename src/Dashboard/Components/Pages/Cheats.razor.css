@@ -185,6 +185,36 @@ h2 {
     font-size: 0.75rem;
 }
 
+/* The item-id containers option, under the config list */
+.auto-fill {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+    color: #9ac7ff;
+    font-size: 0.85rem;
+}
+
+.auto-fill label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.auto-fill label.is-off {
+    opacity: 0.5;
+}
+
+.auto-fill input {
+    accent-color: #7ab8ff;
+    cursor: pointer;
+}
+
+.auto-fill code {
+    color: #e6f2ff;
+}
+
 .replace-all {
     display: flex;
     align-items: center;
