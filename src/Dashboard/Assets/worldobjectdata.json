@@ -482,25 +482,25 @@
   },
   "Seed1": {
     "BaseId": "Seed",
-    "Name": "Seed Nulna",
+    "Name": "Seed Shanga",
     "Tier": "1",
     "Type": 3410
   },
   "Seed2": {
     "BaseId": "Seed",
-    "Name": "Seed Tuska",
+    "Name": "Seed Pestera",
     "Tier": "2",
     "Type": 3410
   },
   "Seed3": {
     "BaseId": "Seed",
-    "Name": "Seed Shanga",
+    "Name": "Seed Nulna",
     "Tier": "3",
     "Type": 3410
   },
   "Seed4": {
     "BaseId": "Seed",
-    "Name": "Seed Pestera",
+    "Name": "Seed Tuska",
     "Tier": "4",
     "Type": 3410
   },
