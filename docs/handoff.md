@@ -52,6 +52,9 @@ This top section is current; the older write-ups further down are history.
   Spacesuits: `Skin-01`..`Skin-07`, `09`, `13`..`20` are "Spacesuit" + Comto, Blasto, Primo, Goldeo, Scifo, Cipto, Beteo,
   Fablo, Mekio, Abyso, Ettio, Plesao, Rorao, Starforma, Glitx, Colonnya (DLC tags kept in the name; the owner's list).
   `Skin-08/10/11/12` were not on it and keep RRSOS-PCC's names (Tureo, Tubio, Vateo, Widio).
+  Butterfly larvae: `Butterfly1Larvae` to `Butterfly20Larvae` are "Butterfly Larva" + Abstreus, Alben, Azurae, Chevrone,
+  Empalio, Fensea, Fiorente, Futura, Galaxe, Leani, Liux, Lorpen, Nere, Oesbe, Penga, Aemel, Golden, Imeo, Faleria,
+  Feliciana (the owner's list; RRSOS-PCC's old names for these ids were wrong).
 - **Object search** in the Notes card (`Instruments/ObjectSearch.razor`): a text box; typing shows matching objects'
   Name and gId (from the item catalog, `worldobjectdata.json`), by name or id, any case, spaces ignored, exact match
   first, 50 rows. Selecting a match adds a note "Name = gId": click a row, or Enter for the highlighted one (the first
