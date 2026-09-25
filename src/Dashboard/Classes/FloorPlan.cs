@@ -12,6 +12,12 @@ namespace RRSOS.PCC.Dashboard
         Aquarium,
         Tower,
         Console,
+
+        // A trade rocket's landing circle, on a trade platform's deck.
+        Rocket,
+
+        // The arc of that circle where you go in.
+        RocketEntrance,
         Other,
 
         // Walls, drawn as lines over the pieces.
@@ -124,6 +130,7 @@ namespace RRSOS.PCC.Dashboard
                 .Where(s => s.Position is not null)
                 .SelectMany(LaunchPlatformLevels)
                 .SelectMany(VehiclePlatformConsole)
+                .SelectMany(TradePlatformConsole)
                 .Select(s => new Piece(s))
                 .ToList();
 
@@ -232,6 +239,25 @@ namespace RRSOS.PCC.Dashboard
                 yield return Part(s, "Vehicle console", s.Position!.Y + PlatformDeck, -10.85, -9.65, -2.1, -0.9, 1);
         }
 
+        /// <summary>
+        /// A trade platform's console (a small marker, 1.2 m square) and the circle where its rocket lands, both on its deck. Found by standing at it, facing it, on the
+        /// deck at (2.49, 2.74) in the platform's own frame (facing +x, toward the south edge); the console is put 1 m ahead of that spot.
+        /// </summary>
+        private static IEnumerable<StructureData> TradePlatformConsole(StructureData s)
+        {
+            yield return s;
+
+            if (!s.Group.StartsWith("TradePlatform", StringComparison.OrdinalIgnoreCase))
+                yield break;
+
+            // The rocket lands across the middle of four foundations: a circle of half a foundation's radius centred on the
+            // corner they share, at z -4.01 (the owner stood 2.8 m from it, on the circle's edge, and the plugin's own
+            // deck search found a flat 6 m slab there).
+            yield return Part(s, "Trade rocket", s.Position!.Y + PlatformDeck, -3.045, 3.045, -7.055, -0.965, 1);
+            yield return Part(s, "Trade rocket entrance", s.Position!.Y + PlatformDeck, -3.045, 3.045, -7.055, -0.965, 1);
+            yield return Part(s, "Trade console", s.Position!.Y + PlatformDeck, 2.9, 4.1, 2.15, 3.35, 1);
+        }
+
         // A made-up piece that stands where the real one does and turns with it; "y" is chosen so it lands on the right floor.
         private static StructureData Part(StructureData s, string group, double y, double minX, double maxX, double minZ, double maxZ, double top) => new()
         {
@@ -245,7 +271,7 @@ namespace RRSOS.PCC.Dashboard
         private static int Order(PlanPart part) => part switch
         {
             PlanPart.Foundation or PlanPart.Platform => 0,
-            PlanPart.Dome => 1,
+            PlanPart.Dome or PlanPart.Rocket => 1,
             _ => 2
         };
 
@@ -296,6 +322,12 @@ namespace RRSOS.PCC.Dashboard
                 {
                     // Its shape is known too (see VehiclePlatformRamp): the deck is the slab the plugin measured.
                     (_minX, _maxX, _minZ, _maxZ, top) = (-12.72f, 5.55f, -10.92f, 8.56f, 0f);
+                    Measured = true;
+                }
+                else if (IsTradePlatform)
+                {
+                    // Its shape is known too (see TradePlatformDeck): the deck only; the stairs are drawn as an extra.
+                    (_minX, _maxX, _minZ, _maxZ, top) = (-6.09f, 6.09f, -10.1f, 8.17f, 0f);
                     Measured = true;
                 }
                 else if (MeasuredBox(data, Part) is { Min: { } bmin, Max: { } bmax })
@@ -361,6 +393,37 @@ namespace RRSOS.PCC.Dashboard
             private bool IsVehiclePlatform => Data.Group.StartsWith("VehicleCrafter", StringComparison.OrdinalIgnoreCase);
 
             /// <summary>
+            /// Where the trade rocket's circle is entered, as an angle round its centre in the platform's frame (0 is +x, toward the
+            /// south; 90 is +z, toward the east), and how wide the opening is. It is at the east edge: the first guess, from the
+            /// owner facing it from inside the circle (aim 80 degrees off -z), put it on the west side, and the owner said it is
+            /// the exact opposite. The width is a guess (a doorway, about 2 m of the 3 m circle).
+            /// </summary>
+            private const float TradeRocketEntranceAngle = 90f, TradeRocketEntranceWidth = 40f;
+
+            private bool IsTradePlatform => Data.Group.StartsWith("TradePlatform", StringComparison.OrdinalIgnoreCase);
+
+            /// <summary>
+            /// A trade platform's deck, in its own frame (x, z; its yaw is 180, so x runs south and z runs east): 3 foundations
+            /// of 6.09 m along z, from -10.1 to +8.17, and 2 across x, from -6.09 to +6.09, no cut corners. Found by standing
+            /// on it: the owner's east corners and northwest corner read as the middles of foundations (about ±3.1 to ±3.4 m
+            /// across, 5.2 m east, -7.8 m west), and the plugin's measured box (z -10.1 to +15.05) is exactly this deck plus the stairs.
+            /// </summary>
+            private static readonly Vector2[] TradePlatformDeck =
+            {
+                new(-6.09f, -10.1f), new(6.09f, -10.1f), new(6.09f, 8.17f), new(-6.09f, 8.17f)
+            };
+
+            /// <summary>
+            /// Its stairs: off the middle of the deck's east edge (in line with its position), half a foundation wide (3 m) and
+            /// 6.88 m long, down to the ground, out to where the measured box ends (15.05). Described by the owner and checked by
+            /// standing on them (0.6 m off the middle line at the top, 11.1 m out and 2 m below the deck part way down).
+            /// </summary>
+            private static readonly Vector2[] TradePlatformStairs =
+            {
+                new(-1.5f, 8.17f), new(1.5f, 8.17f), new(1.5f, 15.05f), new(-1.5f, 15.05f)
+            };
+
+            /// <summary>
             /// A vehicle platform's deck, in its own frame (x, z): the slab the plugin measured (X -12.72 to +5.55, 3 tiles of
             /// 6.09 m; Z -10.92 to +8.56), with both of its -X corners cut on the diagonal, 6.09 m each way. Found by
             /// standing on it: the +Z one is a diagonal piece between the ramp and the deck, the -Z one a drop-off; the
@@ -407,6 +470,33 @@ namespace RRSOS.PCC.Dashboard
 
             private IReadOnlyList<Vector2> MakeOutline()
             {
+                // Where you go in to a trade rocket: a short arc on its circle, at TradeRocketEntranceAngle.
+                if (Part == PlanPart.RocketEntrance)
+                {
+                    var (ex, ez, er) = ((_minX + _maxX) / 2, (_minZ + _maxZ) / 2, (_maxX - _minX) / 2);
+                    const float Thickness = 0.25f, Steps = 8;
+                    var half = TradeRocketEntranceWidth / 2 * MathF.PI / 180;
+                    var centre = TradeRocketEntranceAngle * MathF.PI / 180;
+
+                    IEnumerable<Vector2> Arc(float radius, bool forward) => Enumerable.Range(0, (int)Steps + 1)
+                        .Select(i => forward ? i : (int)Steps - i)
+                        .Select(i => centre - half + 2 * half * i / Steps)
+                        .Select(a => ToEastNorth(ex + radius * MathF.Cos(a), ez + radius * MathF.Sin(a)));
+
+                    return Arc(er + Thickness, true).Concat(Arc(er - Thickness, false)).ToList();
+                }
+
+                // A trade rocket's landing circle: centred in its box, which is its own square.
+                if (Part == PlanPart.Rocket)
+                {
+                    var (cx, cz, radius) = ((_minX + _maxX) / 2, (_minZ + _maxZ) / 2, (_maxX - _minX) / 2);
+
+                    return Enumerable.Range(0, 32)
+                        .Select(i => i * MathF.PI * 2 / 32)
+                        .Select(a => ToEastNorth(cx + radius * MathF.Cos(a), cz + radius * MathF.Sin(a)))
+                        .ToList();
+                }
+
                 if (Part is PlanPart.Dome or PlanPart.Aquarium)
                 {
                     // Domes and the T2 aquarium are round, centred on their position. Some have an entrance sticking out
@@ -460,6 +550,12 @@ namespace RRSOS.PCC.Dashboard
                 {
                     Extras.Add(VehiclePlatformRamp.Select(p => ToEastNorth(p.X, p.Y)).ToList());
                     return VehiclePlatformDeck.Select(p => ToEastNorth(p.X, p.Y)).ToList();
+                }
+
+                if (IsTradePlatform)
+                {
+                    Extras.Add(TradePlatformStairs.Select(p => ToEastNorth(p.X, p.Y)).ToList());
+                    return TradePlatformDeck.Select(p => ToEastNorth(p.X, p.Y)).ToList();
                 }
 
                 if (IsLaunchPlatform)
@@ -556,8 +652,12 @@ namespace RRSOS.PCC.Dashboard
                     return PlanPart.Foundation;
                 if (group.Equals("LaunchTower", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.Tower;
-                if (group.Equals("Vehicle console", StringComparison.OrdinalIgnoreCase))
+                if (group.Equals("Vehicle console", StringComparison.OrdinalIgnoreCase) || group.Equals("Trade console", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.Console;
+                if (group.Equals("Trade rocket", StringComparison.OrdinalIgnoreCase))
+                    return PlanPart.Rocket;
+                if (group.Equals("Trade rocket entrance", StringComparison.OrdinalIgnoreCase))
+                    return PlanPart.RocketEntrance;
                 if (group.Contains("Platform", StringComparison.OrdinalIgnoreCase) || group.StartsWith("VehicleCrafter", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.Platform;
                 if (group.StartsWith("Aquarium", StringComparison.OrdinalIgnoreCase))

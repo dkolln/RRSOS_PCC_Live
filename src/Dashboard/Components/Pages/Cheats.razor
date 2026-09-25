@@ -21,7 +21,12 @@
         }
     </header>
 
-    <main class="cheats-body">
+    <nav class="cheat-tabs">
+        <button class="cheat-tab @(_tab == CheatTab.Resupply ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.Resupply)">Resupply</button>
+        <button class="cheat-tab @(_tab == CheatTab.DroneNetwork ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.DroneNetwork)">Drone Network</button>
+    </nav>
+
+    <main class="cheats-body @(_tab == CheatTab.DroneNetwork ? "wide" : "")">
 
         <section class="save-picker">
             <label for="save-select">Save file</label>
@@ -38,6 +43,231 @@
             }
         </section>
 
+        @if (_tab == CheatTab.DroneNetwork)
+        {
+            <section class="config-section">
+                <h2>Drone Network</h2>
+                <p class="hint">
+                    Sets up the drone supply lines in the selected game, which needs at least one drone station.
+                    Nothing is changed unless you switch it below. Drones carry an item from something that
+                    <strong>supplies</strong> it to something that <strong>demands</strong> it. A <strong>producer</strong>
+                    (collector, beehive...) supplies what it makes: the kinds of item it holds; an <strong>extractor</strong>
+                    (random ore or gas) or <strong>ecosystem</strong> (random larvae) supplies everything. A
+                    <strong>container</strong> is a sink that demands its one product (which also feeds any autocrafter in
+                    range) or a source that supplies it, never both. A container's product is what its label names (an
+                    item id, or an item name like <code>Mushroom</code>), else the one thing it holds when it is all
+                    alike. Mixed containers ("Misc", or unlabelled with a bunch of items) are ignored unless you pick
+                    an item. Priorities are kept.
+                </p>
+
+                @if (string.IsNullOrEmpty(_selectedSave))
+                {
+                    <p class="hint">Choose a save above.</p>
+                }
+                else if (_droneReport is null)
+                {
+                    <p class="hint">Reading the save…</p>
+                }
+                else if (!_droneReport.Success || _droneReport.Outcome is null)
+                {
+                    <p class="drone-problem">@_droneReport.Error</p>
+                }
+                else
+                {
+                    var o = _droneReport.Outcome;
+                    var machines = o.Consumers.Where(c => !c.Editable).ToList();
+                    var containers = o.Consumers.Where(c => c.Editable).ToList();
+                    var ignored = containers.Count(c => c.State == DroneDemandState.Ignored);
+
+                    <div class="drone-status">
+                        <div class="@(o.Stations > 0 ? "" : "drone-problem")">
+                            Drone stations: <strong>@o.Stations</strong>@(o.Stations == 0 ? " — build one in that game first" : "")
+                        </div>
+                        <div>
+                            Producers (@o.Producers.Count): <strong>@_changes.Count(c => c.Value.On)</strong> will supply,
+                            <strong>@_changes.Count(c => !c.Value.On)</strong> will stop.
+                        </div>
+                        <div>
+                            Containers (@containers.Count, @ignored mixed and ignored): <strong>@_containerChanges.Count(c => c.Value.On)</strong> will be set up,
+                            <strong>@_containerChanges.Count(c => !c.Value.On)</strong> will stop.
+                        </div>
+                        <div class="producer-bar">
+                            <button class="bar-btn" @onclick="ResetChanges" disabled="@(_changes.Count + _containerChanges.Count == 0)">Undo all my changes</button>
+                        </div>
+                    </div>
+
+                    <datalist id="drone-items">
+                                                @foreach (var (gId, name) in _itemChoices)
+                        {
+                            <option value="@gId">@name</option>
+                        }
+                    </datalist>
+
+                    <div class="drone-columns">
+
+                        <div class="drone-column">
+                            <h2 class="producers-title">Producers</h2>
+                            <p class="hint">
+                                Ticked means it supplies the item(s) in the box: what it holds now, or one you pick. An
+                                empty producer needs an item picked. "Supplies something else" (an old long list) is
+                                left alone unless you press Fix.
+                            </p>
+
+                            @foreach (var group in o.Producers.GroupBy(p => p.GId).OrderBy(g => Catalog.NameOf(g.Key), StringComparer.OrdinalIgnoreCase))
+                            {
+                                <div class="producer-group" @key="group.Key">
+                                    <div class="producer-group-head">
+                                        <span class="producer-type">@Catalog.NameOf(group.Key) <span class="product-gid">@group.Key</span> × @group.Count()</span>
+                                        <button class="bar-btn" @onclick="() => SetGroup(group, true)">All on</button>
+                                        <button class="bar-btn" @onclick="() => SetGroup(group, false)">All off</button>
+                                    </div>
+
+                                    @foreach (var p in group.OrderBy(p => p.Position, StringComparer.Ordinal))
+                                    {
+                                        var on = IsOn(p);
+                                        var item = ItemFor(p);
+                                        var change = _changes.TryGetValue(p.InventoryId, out var wish) ? wish : null;
+
+                                        <div class="consumer-row @(change is not null ? "is-changed" : "")" @key="p.InventoryId">
+                                            <label class="producer-check">
+                                                <input type="checkbox" checked="@on" disabled="@(!on && item.Length == 0)" @onchange="e => SetProducer(p, e.Value is true)" />
+                                                <span class="producer-where">@(p.Position.Length > 0 ? p.Position : "?")</span>
+                                            </label>
+                                            <input class="item-pick" list="drone-items" placeholder="pick an item…" value="@(item == DroneNetworkEngine.Everything ? "everything" : item)" disabled="@(item == DroneNetworkEngine.Everything)"
+                                                   title="What this producer supplies; comma-separated ids when it holds several kinds. Extractors supply everything."
+                                                   @onchange="e => PickProducerItem(p, e.Value?.ToString() ?? string.Empty)" />
+                                            <div class="consumer-sub">
+                                                <span class="producer-contents">@(p.Label.Length > 0 ? p.Label + " · " : "")@(p.Contents.Length > 0 ? p.Contents : "empty")</span>
+                                                <span class="producer-state state-@p.State.ToString().ToLowerInvariant()">
+                                                    @(p.State switch
+                                                    {
+                                                        DroneSupplyState.All => "Supplies it",
+                                                        DroneSupplyState.Partial => "Supplies something else",
+                                                        _ => "Not supplying"
+                                                    })
+                                                </span>
+                                                @if (p.State == DroneSupplyState.Partial && change?.On != true && item.Length > 0)
+                                                {
+                                                    <button class="bar-btn" title="Set it to supply just the item in the box" @onclick="() => FixProducer(p)">Fix</button>
+                                                }
+                                                @if (change is not null)
+                                                {
+                                                    <span class="producer-will">→ @(change.On ? "will supply " + (item == DroneNetworkEngine.Everything ? "everything" : item) : "will stop supplying")</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div class="drone-column">
+                            <h2 class="producers-title">Containers</h2>
+                            <p class="hint">
+                                Each container demands its product (a sink, which also feeds any autocrafter in range)
+                                or supplies it (a source). "Own settings" means it has settings that do not fit: it
+                                stays as it is unless you tick it.
+                            </p>
+                            <div class="producer-bar">
+                                <button class="bar-btn" @onclick="SetAllNotSet" disabled="@(!containers.Any(c => c.State is DroneDemandState.NotSet or DroneDemandState.Partial))">Tick every container that has a product but is not set</button>
+                                <label class="replace-all">
+                                    <input type="checkbox" checked="@_hideSet" @onchange="e => _hideSet = e.Value is true" />
+                                    Hide already set
+                                </label>
+                                <label class="replace-all">
+                                    <input type="checkbox" checked="@_showIgnored" @onchange="e => _showIgnored = e.Value is true" />
+                                    Show mixed (ignored)
+                                </label>
+                                <input class="item-pick" placeholder="Filter by label…" @bind="_containerFilter" @bind:event="oninput" />
+                            </div>
+
+                            @foreach (var group in containers.GroupBy(c => c.GId).OrderBy(g => g.Key, StringComparer.Ordinal))
+                            {
+                                var shown = group.Where(c => (!_hideSet || !IsSet(c) || _containerChanges.ContainsKey(c.InventoryId))
+                                        && (_showIgnored || c.State != DroneDemandState.Ignored || _containerChanges.ContainsKey(c.InventoryId))
+                                        && (_containerFilter.Length == 0 || c.Label.Contains(_containerFilter, StringComparison.OrdinalIgnoreCase) || ItemFor(c).Contains(_containerFilter, StringComparison.OrdinalIgnoreCase)))
+                                    .OrderBy(c => c.Label, StringComparer.OrdinalIgnoreCase).ToList();
+
+                                <div class="producer-group" @key="group.Key">
+                                    <div class="producer-group-head">
+                                        <span class="producer-type">@Catalog.NameOf(group.Key) <span class="product-gid">@group.Key</span> × @group.Count()@(shown.Count < group.Count() ? $" ({shown.Count} shown)" : "")</span>
+                                        <button class="bar-btn" title="Skips containers with their own settings and mixed ones" @onclick="() => SetContainers(shown, true)">All on</button>
+                                        <button class="bar-btn" @onclick="() => SetContainers(shown, false)">All off</button>
+                                    </div>
+
+                                    @foreach (var c in shown)
+                                    {
+                                        var on = IsOn(c);
+                                        var item = ItemFor(c);
+                                        var supplier = IsSupplier(c);
+                                        var change = _containerChanges.TryGetValue(c.InventoryId, out var want) ? want : null;
+
+                                        <div class="consumer-row @(change is not null ? "is-changed" : "")" @key="c.InventoryId">
+                                            <label class="producer-check">
+                                                <input type="checkbox" checked="@on" disabled="@(!on && item.Length == 0)" @onchange="e => SetContainer(c, e.Value is true)" />
+                                                <span class="producer-where">@(c.Label.Length > 0 ? c.Label : "(no label)")</span>
+                                            </label>
+                                            <div class="consumer-pick">
+                                                <label class="supplier-check" title="Make this the chest that supplies every item, like the one at the base entrance: you empty your pockets into it and the drones pull from it wherever something demands. Unticked, it is an ordinary sink that demands its product.">
+                                                    <input type="checkbox" checked="@supplier" @onchange="e => SetSupplier(c, e.Value is true)" />
+                                                    Supplier
+                                                </label>
+                                                <input class="item-pick" list="drone-items" placeholder="pick an item…" value="@(supplier ? "everything" : item)" disabled="@supplier"
+                                                       title="The one item this container demands"
+                                                       @onchange="e => PickItem(c, e.Value?.ToString() ?? string.Empty)" />
+                                            </div>
+                                            <div class="consumer-sub">
+                                                <span class="producer-state state-@(c.State == DroneDemandState.Set ? "all" : c.State == DroneDemandState.NotSet ? "none" : "partial")">
+                                                    @(c.State switch
+                                                    {
+                                                        DroneDemandState.Set => c.Mode == ContainerMode.Supply ? "Source: supplies it" : "Sink: demands it",
+                                                        DroneDemandState.Partial => "Demands it and supplies more",
+                                                        DroneDemandState.Other => c.Supplies.Split(',').Length > 20 && c.Demands.Length == 0 ? "Supplies everything (own settings)" : "Own settings",
+                                                        DroneDemandState.Ignored => "Mixed: ignored",
+                                                        _ => "Not set"
+                                                    })
+                                                </span>
+                                                @if (c.State == DroneDemandState.Partial && change?.On != true)
+                                                {
+                                                    <button class="bar-btn" title="Make it a plain sink" @onclick="() => Fix(c)">Fix</button>
+                                                }
+                                                @if (change is not null)
+                                                {
+                                                    <span class="producer-will">→ @(change.On ? (change.Mode == ContainerMode.Demand ? "will demand " + item : change.Item == DroneNetworkEngine.Everything ? "will supply everything" : "will supply " + item) : "will stop")</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            @if (machines.Count > 0)
+                            {
+                                <div class="producer-group">
+                                    <div class="producer-group-head">
+                                        <span class="producer-type">Machines with demands of their own <span class="hint">(shown, not changed)</span></span>
+                                    </div>
+
+                                    @foreach (var m in machines.OrderBy(m => m.GId, StringComparer.Ordinal).ThenBy(m => m.Position, StringComparer.Ordinal))
+                                    {
+                                        <div class="consumer-row" @key="m.InventoryId">
+                                            <span class="producer-where">@Catalog.NameOf(m.GId)@(m.Position.Length > 0 ? " · " + m.Position : "")</span>
+                                            <span class="producer-contents">demands @m.Demands</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                    </div>
+                }
+            </section>
+            <button class="resupply-btn" disabled="@(!CanSetDrones)" @onclick="RunDroneNetwork">
+                @(_busy ? "SETTING..." : "SET SUPPLY LINES")
+            </button>
+        }
+        else
+        {
         <section class="config-section">
             <h2>Resupply configs</h2>
             <p class="hint">
@@ -123,6 +353,7 @@
         <button class="resupply-btn" disabled="@(!CanResupply)" @onclick="RunResupply">
             @(_busy ? "RESUPPLYING..." : "RESUPPLY")
         </button>
+        }
 
     </main>
 </div>
@@ -144,7 +375,18 @@
         public ResupplyConfig ToConfig() => new(Id, ContainerLabel.Trim(), ProductGId, ProductName, ReplaceAll);
     }
 
-    private List<ConfigRow> _rows = new();
+    private enum CheatTab { Resupply, DroneNetwork }
+
+    private CheatTab _tab = CheatTab.Resupply;
+    private DroneNetworkReport? _droneReport;
+
+    // What the user has switched, by inventory id. Anything not here is left exactly as the save has it.
+    private readonly Dictionary<long, DroneWish> _changes = new();           // producers
+    private readonly Dictionary<long, DroneWish> _containerChanges = new();  // containers
+    private bool _hideSet = true;
+    private bool _showIgnored;
+    private string _containerFilter = "";
+    private IReadOnlyList<(string GId, string Name)> _itemChoices = Array.Empty<(string, string)>();    private List<ConfigRow> _rows = new();
     private string _selectedSave = "";
     private bool _autoFill = true;
     private bool _autoReplace;
@@ -154,6 +396,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _itemChoices = Catalog.AllProducts
+            .Where(p => Catalog.CategoryOf(p.GId) is not (ItemCategory.Machine or ItemCategory.BasePart or ItemCategory.Container or ItemCategory.WorldMarker or ItemCategory.Wreck or ItemCategory.Unknown))
+            .ToList();
+
         Live.Changed += OnLiveChanged;
 
         _saveFolder = SaveFolderResolver.DetectFolder(Config);
@@ -207,6 +453,205 @@
     {
         _selectedSave = e.Value?.ToString() ?? "";
         await Persist();
+        await RefreshDroneReport();
+    }
+
+    private async Task SelectTab(CheatTab tab)
+    {
+        _tab = tab;
+
+        if (tab == CheatTab.DroneNetwork)
+            await RefreshDroneReport();
+    }
+
+    // What Set Supply Lines would do to the selected save right now: read-only, so it is safe to run whenever asked.
+    private async Task RefreshDroneReport()
+    {
+        _droneReport = null;
+        _changes.Clear();
+        _containerChanges.Clear();
+
+        if (_tab != CheatTab.DroneNetwork || string.IsNullOrEmpty(_selectedSave))
+            return;
+
+        var save = _selectedSave;
+        var report = await Resupply.DroneNetworkAsync(Path.Combine(_saveFolder, save), write: false);
+
+        if (save == _selectedSave) // the picker may have moved on while this was reading
+            _droneReport = report;
+    }
+
+    // ---- producers: on = supply what it holds (or the item picked), off = supply nothing
+
+    private static bool IsInitiallyOn(DroneProducer p) => p.State != DroneSupplyState.None;
+
+    private bool IsOn(DroneProducer p) => _changes.TryGetValue(p.InventoryId, out var w) ? w.On : IsInitiallyOn(p);
+
+    // What it would supply: the item picked here, else what it holds now.
+    private string ItemFor(DroneProducer p) =>
+        _changes.TryGetValue(p.InventoryId, out var w) && !string.IsNullOrEmpty(w.Item) ? w.Item : p.Products;
+
+    private void SetProducer(DroneProducer p, bool on)
+    {
+        var picked = _changes.TryGetValue(p.InventoryId, out var w) ? w.Item : null;
+
+        if (on == IsInitiallyOn(p) && string.IsNullOrEmpty(picked))
+            _changes.Remove(p.InventoryId); // back to what the save has: nothing to do for it
+        else if (!on || ItemFor(p).Length > 0)
+            _changes[p.InventoryId] = new DroneWish(on, picked);
+    }
+
+    private void FixProducer(DroneProducer p) => _changes[p.InventoryId] = new DroneWish(true, null);
+
+    private void PickProducerItem(DroneProducer p, string text)
+    {
+        if (text.Trim().Length == 0)
+        {
+            _changes.Remove(p.InventoryId);
+            return;
+        }
+
+        if (ResolveChoice(text) is { } gId)
+            _changes[p.InventoryId] = new DroneWish(true, gId);
+    }
+
+    private void SetGroup(IEnumerable<DroneProducer> group, bool on)
+    {
+        foreach (var p in group.Where(p => !on || ItemFor(p).Length > 0))
+            SetProducer(p, on);
+    }
+
+    private void ResetChanges()
+    {
+        _changes.Clear();
+        _containerChanges.Clear();
+    }
+
+    // The picker takes a game id or an item name; anything else is ignored.
+    private string? ResolveChoice(string text)
+    {
+        text = text.Trim();
+
+        if (text is "*" || text.Equals("everything", StringComparison.OrdinalIgnoreCase))
+            return DroneNetworkEngine.Everything;
+
+        var byId = _itemChoices.FirstOrDefault(p => string.Equals(p.GId, text, StringComparison.OrdinalIgnoreCase));
+        if (byId.GId is not null)
+            return byId.GId;
+
+        return _itemChoices.FirstOrDefault(p => string.Equals(p.Name, text, StringComparison.OrdinalIgnoreCase)).GId;
+    }
+
+    // ---- containers: each is a sink (demands its product) or a source (supplies it), never both
+
+    private static bool IsInitiallyOn(DroneConsumer c) => c.State is DroneDemandState.Set or DroneDemandState.Partial;
+
+    private static ContainerMode InitialMode(DroneConsumer c) => c.Mode ?? ContainerMode.Demand;
+
+    private bool IsOn(DroneConsumer c) => _containerChanges.TryGetValue(c.InventoryId, out var w) ? w.On : IsInitiallyOn(c);
+
+    private ContainerMode ModeFor(DroneConsumer c) => _containerChanges.TryGetValue(c.InventoryId, out var w) ? w.Mode : InitialMode(c);
+
+    // The item it moves: the one picked here, else its product (its label's item, or the one thing it holds).
+    private string ItemFor(DroneConsumer c) =>
+        _containerChanges.TryGetValue(c.InventoryId, out var w) && !string.IsNullOrEmpty(w.Item) ? w.Item : c.Item;
+
+    // Records a container's wish, dropping it again when it says what the save already has.
+    private void Wish(DroneConsumer c, bool on, string? picked, ContainerMode mode)
+    {
+        var unchanged = on == IsInitiallyOn(c) && string.IsNullOrEmpty(picked) && (!on || mode == InitialMode(c));
+
+        if (unchanged)
+            _containerChanges.Remove(c.InventoryId);
+        else if (!on || !string.IsNullOrEmpty(picked) || c.Item.Length > 0)
+            _containerChanges[c.InventoryId] = new DroneWish(on, picked, mode);
+    }
+
+    private string? PickedFor(DroneConsumer c) => _containerChanges.TryGetValue(c.InventoryId, out var w) ? w.Item : null;
+
+    private void SetContainer(DroneConsumer c, bool on) => Wish(c, on, PickedFor(c), ModeFor(c));
+
+    // A supplier chest supplies every item (the one at the base entrance). Already one when it supplies a long list and demands nothing.
+    private bool IsSupplier(DroneConsumer c) =>
+        _containerChanges.TryGetValue(c.InventoryId, out var w)
+            ? w.On && w.Mode == ContainerMode.Supply && w.Item == DroneNetworkEngine.Everything
+            : c.Demands.Length == 0 && c.Supplies.Split(',').Length > 20;
+
+    private void SetSupplier(DroneConsumer c, bool on)
+    {
+        if (on)
+            _containerChanges[c.InventoryId] = new DroneWish(true, DroneNetworkEngine.Everything, ContainerMode.Supply);
+        else if (c.Item.Length > 0)
+            Wish(c, true, null, ContainerMode.Demand); // back to a plain sink for its product
+        else
+            _containerChanges[c.InventoryId] = new DroneWish(false); // no product to go back to: clear it
+    }
+
+    private void Fix(DroneConsumer c) => _containerChanges[c.InventoryId] = new DroneWish(true, null, ModeFor(c));
+
+    private void PickItem(DroneConsumer c, string text)
+    {
+        if (text.Trim().Length == 0)
+        {
+            _containerChanges.Remove(c.InventoryId);
+            return;
+        }
+
+        // "Everything" is a source: choosing it makes the container one.
+        if (ResolveChoice(text) is { } gId)
+            Wish(c, true, gId == c.Item ? null : gId, gId == DroneNetworkEngine.Everything ? ContainerMode.Supply : ModeFor(c));
+    }
+
+    // Switching a whole group on leaves containers with their own hand-made settings, and mixed ones, alone.
+    private void SetContainers(IEnumerable<DroneConsumer> group, bool on)
+    {
+        foreach (var c in group.Where(c => !on || (c.State is DroneDemandState.NotSet or DroneDemandState.Set or DroneDemandState.Partial && ItemFor(c).Length > 0)))
+            SetContainer(c, on);
+    }
+
+    private void SetAllNotSet()
+    {
+        if (_droneReport?.Outcome is { } o)
+            SetContainers(o.Consumers.Where(c => c.Editable && c.State is DroneDemandState.NotSet or DroneDemandState.Partial), true);
+    }
+
+    private static bool IsSet(DroneConsumer c) => c.State is DroneDemandState.Set;
+
+    private bool CanSetDrones =>
+        !_busy && Live.Status != LiveStatus.Live && !string.IsNullOrEmpty(_selectedSave)
+        && _droneReport is { Success: true, Outcome: { Stations: > 0 } } && (_containerChanges.Count > 0 || _changes.Count > 0);
+    private async Task RunDroneNetwork()
+    {
+        if (!CanSetDrones)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Have you exited to the Main Menu?\n\nSET SUPPLY LINES edits your save file. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        StateHasChanged();
+
+        try
+        {
+            var report = await Resupply.DroneNetworkAsync(Path.Combine(_saveFolder, _selectedSave), write: true, new Dictionary<long, DroneWish>(_changes), new Dictionary<long, DroneWish>(_containerChanges));
+
+            if (!report.Success || report.Outcome is null)
+                Toasts.Show("Drone network failed. " + report.Error, ToastKind.Error, TimeSpan.FromSeconds(9));
+            else
+                Toasts.Show(
+                    $"Drone network: producers {report.Outcome.ProducersActivated} now supplying, {report.Outcome.ProducersCleared} stopped; containers {report.Outcome.ContainersActivated} set, {report.Outcome.ContainersCleared} stopped",
+                    ToastKind.Success);
+
+            await RefreshDroneReport();
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private void AddRow() => _rows.Add(new ConfigRow());

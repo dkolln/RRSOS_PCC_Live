@@ -29,8 +29,19 @@ This top section is current; the older write-ups further down are history.
     top 30 m up is a floor; floors 4 and 5 show the tower only), and vehicle platform (measured deck with both −X
     corners cut diagonally, ramp off +Z across the two +X tiles, console marker). Platforms' decks are 5 m above
     their position.
-  - **Not mapped yet: the trade platform** — the owner has not built one. When they do: same corner walk, then a
-    fixed shape like the other two in `FloorPlan.cs`.
+  - **Trade platform** (mapped 2026-09-25, from the owner standing on it while the game ran; my reads of `live.json` are
+    seconds late, so they stand still and say "here"): a deck of 3 foundations (6.09 m each) east-west by 2 north-south,
+    18.27 x 12.18 m, no cut corners, plus 3 m wide stairs (half a foundation) off the middle of the east end, 6.88 m long,
+    down to the ground. In its own frame (yaw 180: x runs south, z runs east): deck x -6.09 to 6.09, z -10.1 to 8.17;
+    stairs x -1.5 to 1.5, z 8.17 to 15.05. The plugin's measured box (z -10.1 to 15.05) is exactly deck plus stairs, and
+    the owner's corner readings were the middles of foundations (north/south ±3.1 to 3.4 m, 5.2 m east, -7.8 m west).
+    A **trade rocket circle** (`Trade rocket`, `PlanPart.Rocket`, dashed red) lands across the middle of four foundations: radius
+    3.045 m (half a foundation; a guess from "about a foundation", which the owner may want as 6.09) centred on the corner they
+    share, deck-frame (0, -4.01). Its **entrance** is a yellow arc (`Trade rocket entrance`, `PlanPart.RocketEntrance`) on the
+    circle's **east** edge (angle 90°; the first guess, west, was exactly backwards, per the owner), width 40° (a guess, ~2 m); `TradeRocketEntranceAngle` / `TradeRocketEntranceWidth` in `FloorPlan.cs`. The owner stood 2.8 m from that centre; the plugin's deck box also found a flat 6 m slab there.
+    A small square (1.2 m, `Trade console`, the desk with the console) marks where the owner stood facing it: deck-frame x
+    2.9 to 4.1, z 2.15 to 3.35, placed 1 m ahead of that spot, so its distance is a guess. Not checked: the bottom of the
+    stairs, and the stairs' exact width (the owner said "roughly half a foundation").
 - **Boneyard from the save** (plugin 0.5.0 dropped live loose items; the counts were wrong). `SaveLooseService` reads
   the newest save (not `Backup.json`) every 10 s when it changes: records with a `"pos"` are in the world. Same
   raw-material + nearest base within 100 m rules; this planet only (`planetHash`). Title shows the save's time.
@@ -55,6 +66,24 @@ This top section is current; the older write-ups further down are history.
   Butterfly larvae: `Butterfly1Larvae` to `Butterfly20Larvae` are "Butterfly Larva" + Abstreus, Alben, Azurae, Chevrone,
   Empalio, Fensea, Fiorente, Futura, Galaxe, Leani, Liux, Lorpen, Nere, Oesbe, Penga, Aemel, Golden, Imeo, Faleria,
   Feliciana (the owner's list; RRSOS-PCC's old names for these ids were wrong).
+- **Cheats has a sub-menu** (tabs under the header: Resupply, Drone Network). **Drone Network** (`DroneNetworkEngine`,
+  `SaveResupplyService.DroneNetworkAsync`, same backup / atomic write / undo-check as Resupply): needs at least one
+  `DroneStation*` in the chosen save; shows a read-only preview, then **Set Supply Lines** writes. The game keeps a
+  container's or machine's drone settings on its *inventory* record (`demandGrps`, `supplyGrps` = comma lists of item
+  gIds, `priority`; never-configured records lack all three). Every configured record carries its own full copy of a
+  list, so a "supply everything" list is ~2.8 KB per record: the owner ruled that out except for one chest. The owner's
+  model, which is all the tool writes: drones carry an item from something that supplies it to something that demands
+  it. A **producer** supplies what it makes (the kinds of item it holds; pick an item if empty; **ore and gas extractors and ecosystems supply everything**, since they pull random ore, gas or larvae; autocrafters are not
+  producers here, they hold ingredients too). A **container** (`Container1/2/3`) is a **sink**: it demands its one
+  product and supplies nothing (a demand chest also feeds any autocrafter in range, no drone involved), never both.
+  Its product is what its label names (item id, or a unique item name like "Mushroom", `ItemCatalog.ResolveLabel`), else
+  the one thing it holds when all alike; mixed ones ("Misc", unlabelled with many items) are ignored unless an item is
+  picked. The one exception is the **Supplier** checkbox: a chest that supplies every item (the owner's pocket-emptying
+  chest at the base entrance); "everything" is learned from the save (longest supply list + what others add; 211 in
+  Custom-1, 206 in Custom-2), with a built-in Custom-1 list (`DroneNetworkEverything.cs`) as a fallback. **Nothing is
+  changed unless picked**; old-style chests (demand X + supply all but X, which the game's own UI produced) show as
+  "Demands it and supplies more" with a Fix button. Tested on copies of both saves (only the picked inventories changed,
+  items and slots untouched).
 - **Object search** in the Notes card (`Instruments/ObjectSearch.razor`): a text box; typing shows matching objects'
   Name and gId (from the item catalog, `worldobjectdata.json`), by name or id, any case, spaces ignored, exact match
   first, 50 rows. Selecting a match adds a note "Name = gId": click a row, or Enter for the highlighted one (the first
@@ -96,7 +125,7 @@ This top section is current; the older write-ups further down are history.
 
 ## Next
 
-Nothing is in progress. Open ideas (none asked for yet): the trade platform once built; more spoken alerts (an
+Nothing is in progress. Open ideas (none asked for yet): more spoken alerts (an
 extractor or grower full, power deficit); loose items or flying drones drawn on the floor plan.
 
 ## How the owner works (in addition to the rules further down)
