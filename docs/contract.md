@@ -107,8 +107,20 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
   sweeps follow the nearest antenna this way (`wwwroot/js/radar.js`, with the -90 built in); a button under the maps
   ("Antenna faces N") lets a player re-calibrate, kept per browser.
 
+## The blueprint list (`blueprints.json`, added in plugin 0.8.0)
+
+- Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\blueprints.json`. Written **once per game session** (when the game's group data is ready), not
+  on every tick. Read by the dashboard's Cheats → Base Building ("Equipment and tokens" recipe).
+- Shape: `{ "chip": "BlueprintT1", "tiers": [[ids] x10], "messages": [ids], "loot": [ids] }`.
+  - `chip`: the one blueprint item gId the game knows.
+  - `tiers`: the building groups unlocked by a blueprint chip, per tier (`unlockingData.tier1..10GroupToUnlock`).
+  - `messages`: groups unlocked by a message (toxicity items), not by chips.
+  - `loot`: groups whose deconstruction drops a chip linked to that group (`Group.GetLootRecipeOnDeconstruct`).
+- A chip is `{"id","gId":"BlueprintT1","liGrps":"<group>"}` in the save; `liGrps` names the building it unlocks.
+
 ## Changes
 
+- **Plugin 0.8.0**: new file `blueprints.json` (see above).
 - **Plugin 0.7.0**: `live.json` gains `vehicles`: every truck (group `VehicleTruck`), oldest first, each shaped like
   `vehicle` plus its `id`. `vehicle` stays, as the first truck, for older readers. The dashboard names trucks "Truck 1",
   "Truck 2", ... in that order (the game gives them no names).

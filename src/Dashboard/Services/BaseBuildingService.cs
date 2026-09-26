@@ -9,8 +9,11 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>How many chests the group is: one per item, or one per bundle for a "one of each" group.</summary>
         public int ChestCount => Bundles?.Count ?? Items.Count;
 
-        /// <summary>The most a stocked chest must hold, so which templates are big enough (0 for an ordinary group).</summary>
-        public int MinSlots => Bundles is { Count: > 0 } ? Bundles.Max(b => b.Items.Count) : 0;
+        /// <summary>
+        /// The most a stocked chest must hold, so which templates are big enough (0 for an ordinary group). A bundle that can be split over several chests does
+        /// not count here (nor one that drops what the save has already unlocked).
+        /// </summary>
+        public int MinSlots => Bundles is { Count: > 0 } ? Bundles.Where(b => !b.SkipUnlocked && !b.Split).Select(b => b.Items.Count).DefaultIfEmpty(0).Max() : 0;
     }
 
     /// <summary>
@@ -80,11 +83,42 @@ namespace RRSOS.PCC.Dashboard
 
         private readonly ItemCatalog _catalog;
         private readonly SaveResupplyService _saves;
+        private readonly IConfiguration _config;
 
-        public BaseBuildingService(ItemCatalog catalog, SaveResupplyService saves)
+        public BaseBuildingService(ItemCatalog catalog, SaveResupplyService saves, IConfiguration config)
         {
             _catalog = catalog;
             _saves = saves;
+            _config = config;
+        }
+
+        /// <summary>
+        /// The buildings the game locks behind blueprints and the group id of the blueprint chip, from <c>blueprints.json</c>, which the plugin (0.8.0 and up)
+        /// writes the first time a world is loaded; null when it has not been written yet. Messages-only unlocks are not blueprints and are left out.
+        /// </summary>
+        public (string Chip, IReadOnlyList<string> Groups)? BlueprintGroups()
+        {
+            try
+            {
+                var path = Path.Combine(LivePaths.Folder(_config), "blueprints.json");
+                if (!File.Exists(path))
+                    return null;
+
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var doc = System.Text.Json.JsonDocument.Parse(stream);
+                var chip = doc.RootElement.TryGetProperty("chip", out var c) && c.GetString() is { Length: > 0 } id ? id : "BlueprintT1";
+                // The buildings behind blueprints (one list per tier), then the ones found by deconstructing them (the exercise bike, ...). Message-only unlocks are not blueprints.
+                var groups = doc.RootElement.GetProperty("tiers").EnumerateArray()
+                    .SelectMany(tier => tier.EnumerateArray().Select(g => g.GetString() ?? ""))
+                    .Concat(doc.RootElement.TryGetProperty("loot", out var loot) ? loot.EnumerateArray().Select(g => g.GetString() ?? "") : Enumerable.Empty<string>())
+                    .Where(g => g.Length > 0).Distinct(StringComparer.Ordinal).ToList();
+
+                return groups.Count == 0 ? null : (chip, groups);
+            }
+            catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                return null;
+            }
         }
 
         // Something a new platform must not be built on top of: any building piece, machine or container.
@@ -111,8 +145,8 @@ namespace RRSOS.PCC.Dashboard
 
         private static readonly string[] GearWords = { "gear", "equipment", "suit", "suits", "spacesuit", "spacesuits", "blueprint", "blueprints", "token", "tokens", "loadout" };
 
-        // The "one of each" group: spacesuits, personal equipment, vehicle equipment and blueprints go one of each into their own chest, and the
-        // terra token box is filled with 5,000 tokens. Read from the item table by type, so a new suit or upgrade joins by itself.
+        // The stocked group: spacesuits, personal equipment and vehicle equipment go one of each into their own chest; the blueprint chest is filled with blueprint chips
+        // (each unlocks one more building) and the terra token box with 5,000 tokens. Read from the item table by type, so a new suit or upgrade joins by itself.
         private BuildRecipe GearRecipe(HashSet<string> known)
         {
             IReadOnlyList<string> Of(Func<string, bool> pick) => known.Where(pick).OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
@@ -121,13 +155,18 @@ namespace RRSOS.PCC.Dashboard
             var suits = known.Where(g => _catalog.TypeOf(g) == ItemType.Spacesuit).OrderBy(Number).ToList();
             var personal = Of(g => _catalog.TypeOf(g) == ItemType.Tool).Concat(Of(g => _catalog.TypeOf(g) == ItemType.Gear && !g.StartsWith("BlueprintT", StringComparison.Ordinal))).ToList();
             var vehicle = Of(g => _catalog.TypeOf(g) == ItemType.Part);
-            var blueprints = known.Where(g => Regex.IsMatch(g, @"^BlueprintT\d+$")).OrderBy(Number).ToList();
 
             var bundles = new List<BuildBundle>();
             if (suits.Count > 0) bundles.Add(new BuildBundle("Spacesuits", suits));
             if (personal.Count > 0) bundles.Add(new BuildBundle("Personal equipment", personal));
             if (vehicle.Count > 0) bundles.Add(new BuildBundle("Vehicle equipment", vehicle));
-            if (blueprints.Count > 0) bundles.Add(new BuildBundle("Blueprints", blueprints));
+            // Blueprints are chips, and every one in a real save is BlueprintT1 (never T2 or T3, which the game drops on load). A chip linked to a building
+            // unlocks exactly that one when claimed, so with the plugin's list of the buildings behind blueprints the chest gets one linked chip for each
+            // building the save has not unlocked yet. Without the list, it is filled with bare chips (each unlocks the next locked building).
+            if (BlueprintGroups() is { } blueprints)
+                bundles.Add(new BuildBundle("Blueprints", blueprints.Groups.Select(g => blueprints.Chip + "@" + g).ToList(), null, SkipUnlocked: true, Split: true));
+            else if (known.Contains("BlueprintT1"))
+                bundles.Add(new BuildBundle("Blueprints", Array.Empty<string>(), "BlueprintT1"));
             if (known.Contains("TerraTokens5000")) bundles.Add(new BuildBundle("Terra tokens", Array.Empty<string>(), "TerraTokens5000"));
 
             return new BuildRecipe("gear", "Equipment and tokens (one of each)", bundles.SelectMany(b => b.Items).ToList(), bundles);
