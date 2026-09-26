@@ -119,6 +119,42 @@
     "Tier": "",
     "Type": 2110
   },
+  "Bauxite": {
+    "BaseId": "Bauxite",
+    "Name": "Bauxite",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Dolomite": {
+    "BaseId": "Dolomite",
+    "Name": "Dolomite",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Uraninite": {
+    "BaseId": "Uraninite",
+    "Name": "Uraninite",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Selenium": {
+    "BaseId": "Selenium",
+    "Name": "Selenium",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Phosphorus": {
+    "BaseId": "Phosphorus",
+    "Name": "Phosphorus",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Amber": {
+    "BaseId": "Amber",
+    "Name": "Amber",
+    "Tier": "",
+    "Type": 2110
+  },
   "Iron": {
     "BaseId": "Iron",
     "Name": "Iron",
@@ -1496,6 +1532,12 @@
     "Tier": "",
     "Type": 2130
   },
+  "CosmicQuartz": {
+    "BaseId": "CosmicQuartz",
+    "Name": "Cosmic Quartz",
+    "Tier": "",
+    "Type": 2130
+  },
   "QuasarQuartz": {
     "BaseId": "QuasarQuartz",
     "Name": "Quasar Quartz",
@@ -2414,6 +2456,288 @@
     "Name": "Terra Tokens (5000)",
     "Tier": "",
     "Type": 2710
+  },
+  "Seed9Humble": {
+    "BaseId": "Seed9Humble",
+    "Name": "Seed9Humble",
+    "Tier": "9",
+    "Type": 3410
+  },
+  "Seed10Humble": {
+    "BaseId": "Seed10Humble",
+    "Name": "Seed10Humble",
+    "Tier": "10",
+    "Type": 3410
+  },
+  "Seed11Humble": {
+    "BaseId": "Seed11Humble",
+    "Name": "Seed11Humble",
+    "Tier": "11",
+    "Type": 3410
+  },
+  "Tree14Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree14Seed",
+    "Tier": "14",
+    "Type": 3420
+  },
+  "Tree15Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree15Seed",
+    "Tier": "15",
+    "Type": 3420
+  },
+  "Tree16Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree16Seed",
+    "Tier": "16",
+    "Type": 3420
+  },
+  "Tree17Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree17Seed",
+    "Tier": "17",
+    "Type": 3420
+  },
+  "Tree18Seed": {
+    "BaseId": "TreeSeed",
+    "Name": "Tree18Seed",
+    "Tier": "18",
+    "Type": 3420
+  },
+  "Butterfly21Larvae": {
+    "BaseId": "ButterflyLarva",
+    "Name": "Butterfly21Larvae",
+    "Tier": "21",
+    "Type": 3340
+  },
+  "Fish15Eggs": {
+    "BaseId": "FishEggs",
+    "Name": "Fish15Eggs",
+    "Tier": "15",
+    "Type": 3720
+  },
+  "ToxicGoo": {
+    "BaseId": "ToxicGoo",
+    "Name": "ToxicGoo",
+    "Tier": "",
+    "Type": 2310
+  },
+  "ToxicWater": {
+    "BaseId": "ToxicWater",
+    "Name": "ToxicWater",
+    "Tier": "",
+    "Type": 2310
+  },
+  "Toxins": {
+    "BaseId": "Toxins",
+    "Name": "Toxins",
+    "Tier": "",
+    "Type": 2310
+  },
+  "ToxicSpores": {
+    "BaseId": "ToxicSpores",
+    "Name": "ToxicSpores",
+    "Tier": "",
+    "Type": 2310
+  },
+  "MicroPlastics": {
+    "BaseId": "MicroPlastics",
+    "Name": "MicroPlastics",
+    "Tier": "",
+    "Type": 3640
+  },
+  "PurifiedWater": {
+    "BaseId": "PurifiedWater",
+    "Name": "PurifiedWater",
+    "Tier": "",
+    "Type": 4310
+  },
+  "PurificationCapsule": {
+    "BaseId": "PurificationCapsule",
+    "Name": "PurificationCapsule",
+    "Tier": "",
+    "Type": 4410
+  },
+  "PurificationGel": {
+    "BaseId": "PurificationGel",
+    "Name": "PurificationGel",
+    "Tier": "",
+    "Type": 2310
+  },
+  "ChlorineCapsule1": {
+    "BaseId": "ChlorineCapsule",
+    "Name": "ChlorineCapsule1",
+    "Tier": "1",
+    "Type": 2220
+  },
+  "PristineMushroom": {
+    "BaseId": "PristineMushroom",
+    "Name": "PristineMushroom",
+    "Tier": "",
+    "Type": 4110
+  },
+  "AntiToxinsExplosive1": {
+    "BaseId": "AntiToxinsExplosive",
+    "Name": "AntiToxinsExplosive1",
+    "Tier": "1",
+    "Type": 9410
+  },
+  "AntiToxinsExplosive2": {
+    "BaseId": "AntiToxinsExplosive",
+    "Name": "AntiToxinsExplosive2",
+    "Tier": "2",
+    "Type": 9410
+  },
+  "ToxicityMedecine": {
+    "BaseId": "ToxicityMedecine",
+    "Name": "ToxicityMedecine",
+    "Tier": "",
+    "Type": 4410
+  },
+  "ToxicityAmmo": {
+    "BaseId": "ToxicityAmmo",
+    "Name": "ToxicityAmmo",
+    "Tier": "",
+    "Type": 9410
+  },
+  "ToxicityAmmoPack": {
+    "BaseId": "ToxicityAmmoPack",
+    "Name": "ToxicityAmmoPack",
+    "Tier": "",
+    "Type": 9410
+  },
+  "ToxicityMedecinePack": {
+    "BaseId": "ToxicityMedecinePack",
+    "Name": "ToxicityMedecinePack",
+    "Tier": "",
+    "Type": 4410
+  },
+  "Flare": {
+    "BaseId": "Flare",
+    "Name": "Flare",
+    "Tier": "",
+    "Type": 9410
+  },
+  "AnimalBones": {
+    "BaseId": "AnimalBones",
+    "Name": "AnimalBones",
+    "Tier": "",
+    "Type": 3660
+  },
+  "PlasticPolymer": {
+    "BaseId": "PlasticPolymer",
+    "Name": "PlasticPolymer",
+    "Tier": "",
+    "Type": 3640
+  },
+  "Rod-plastic": {
+    "BaseId": "Rod-plastic",
+    "Name": "Rod-plastic",
+    "Tier": "",
+    "Type": 2410
+  },
+  "Minable-Tungsten": {
+    "BaseId": "Minable-Tungsten",
+    "Name": "Minable-Tungsten",
+    "Tier": "",
+    "Type": 2110
+  },
+  "Rod-tungsten": {
+    "BaseId": "Rod-tungsten",
+    "Name": "Rod-tungsten",
+    "Tier": "",
+    "Type": 2410
+  },
+  "Fertilizer3": {
+    "BaseId": "Fertilizer3",
+    "Name": "Fertilizer3",
+    "Tier": "3",
+    "Type": 2610
+  },
+  "RocketReactor2": {
+    "BaseId": "RocketReactor",
+    "Name": "RocketReactor2",
+    "Tier": "2",
+    "Type": 7330
+  },
+  "KeyCard2": {
+    "BaseId": "KeyCard2",
+    "Name": "KeyCard2",
+    "Tier": "",
+    "Type": 11310
+  },
+  "FuseTradeRocketsSpeed1": {
+    "BaseId": "FuseTradeRocketsSpeed1",
+    "Name": "FuseTradeRocketsSpeed1",
+    "Tier": "",
+    "Type": 8010
+  },
+  "FuseAnimals1": {
+    "BaseId": "FuseAnimals1",
+    "Name": "FuseAnimals1",
+    "Tier": "",
+    "Type": 8010
+  },
+  "FuseGrowth1": {
+    "BaseId": "FuseGrowth1",
+    "Name": "FuseGrowth1",
+    "Tier": "",
+    "Type": 8010
+  },
+  "FuseInsects1": {
+    "BaseId": "FuseInsects1",
+    "Name": "FuseInsects1",
+    "Tier": "",
+    "Type": 8010
+  },
+  "FusePurification1": {
+    "BaseId": "FusePurification1",
+    "Name": "FusePurification1",
+    "Tier": "",
+    "Type": 8010
+  },
+  "AnimalFood2": {
+    "BaseId": "AnimalFood2",
+    "Name": "AnimalFood2",
+    "Tier": "",
+    "Type": 4120
+  },
+  "AnimalFood3": {
+    "BaseId": "AnimalFood3",
+    "Name": "AnimalFood3",
+    "Tier": "",
+    "Type": 4120
+  },
+  "CookCroissant": {
+    "BaseId": "CookCroissant",
+    "Name": "CookCroissant",
+    "Tier": "",
+    "Type": 4120
+  },
+  "CookCake1": {
+    "BaseId": "CookCake1",
+    "Name": "CookCake1",
+    "Tier": "",
+    "Type": 4120
+  },
+  "CookStew1": {
+    "BaseId": "CookStew1",
+    "Name": "CookStew1",
+    "Tier": "",
+    "Type": 4120
+  },
+  "CookStewFish1": {
+    "BaseId": "CookStewFish1",
+    "Name": "CookStewFish1",
+    "Tier": "",
+    "Type": 4120
+  },
+  "Drone3": {
+    "BaseId": "Drone3",
+    "Name": "Drone3",
+    "Tier": "",
+    "Type": 11110
   },
 
   "Treadmill1": {
