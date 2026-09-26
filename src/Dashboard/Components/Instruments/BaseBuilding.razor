@@ -96,19 +96,32 @@
                     <select @onchange="OnRecipe">
                         @foreach (var r in _recipes)
                         {
-                            <option value="@r.Key" selected="@(r.Key == _recipeKey)">@r.Name (@r.Items.Count)</option>
+                            <option value="@r.Key" selected="@(r.Key == _recipeKey)">@r.Name (@r.ChestCount@(r.Bundles is null ? "" : " chests"))</option>
                         }
                     </select>
                 </label>
                 <label>Template
                     <select @onchange="OnTemplate">
-                        @foreach (var t in _templates)
+                        @foreach (var t in ValidTemplates)
                         {
                             <option value="@t.Name" selected="@(t.Name == _templateName)">@t.Name</option>
                         }
                     </select>
                 </label>
             </div>
+
+            @if (CurrentRecipe is { MinSlots: > 0 } stocked)
+            {
+                <p class="hint">
+                    This group is stocked, one of each item in a chest, so only templates whose chests hold at least @stocked.MinSlots items are offered
+                    (Container2 or Container3).
+                </p>
+
+                @if (ValidTemplates.Count == 0)
+                {
+                    <p class="bb-problem">No stored template has @stocked.MinSlots slots. Capture a Container2 or Container3 template first.</p>
+                }
+            }
 
             @if (_plan is null)
             {
@@ -152,8 +165,8 @@
 
                         @foreach (var c in p.Chests)
                         {
-                            <rect x="@Sx(c.Z + 0.5)" y="@Sy(c.X + 0.5)" width="1" height="1" class="bb-chest @(c.Label is null ? "is-spare" : "")">
-                                <title>@(c.Label is null ? "spare chest" : c.Label + " (" + Catalog.NameOf(c.Label) + ")")</title>
+                            <rect x="@Sx(c.Z + 0.5)" y="@Sy(c.X + 0.5)" width="1" height="1" class="bb-chest @(c.Label is null && c.Title is null ? "is-spare" : "")">
+                                <title>@(c.Label is not null ? c.Label + " (" + Catalog.NameOf(c.Label) + ")" : c.Title is not null ? c.Title + " (" + (c.Stock?.Count ?? 0) + " items" + (c.FillWith is null ? "" : " + " + c.FillWith + " to capacity") + ")" : "spare chest")</title>
                             </rect>
                         }
                     }
@@ -163,10 +176,12 @@
                     <summary>The labels, platform by platform</summary>
                     @foreach (var p in _plan.Platforms)
                     {
-                        <div class="bb-muted">Platform @p.Index: @string.Join(", ", p.Chests.Select(c => c.Label ?? "(spare)"))</div>
+                        <div class="bb-muted">Platform @p.Index: @string.Join(", ", p.Chests.Select(c => c.Label ?? (c.Title is null ? "(spare)" : $"{c.Title} ({c.Stock?.Count ?? 0}{(c.FillWith is null ? "" : " + " + c.FillWith + " to capacity")})")))</div>
                     }
                 </details>
 
+                @if (CurrentRecipe?.Bundles is null)
+                {
                 <label class="bb-option">
                     <input type="checkbox" checked="@_setDemand" @onchange="e => _setDemand = e.Value is true" />
                     Also set each labelled chest to demand its item (so the drones fill it)
@@ -175,6 +190,11 @@
                     <input type="checkbox" checked="@_fill" @onchange="e => _fill = e.Value is true" />
                     Also fill each labelled chest to capacity with its item (@(_plan.Template.Slots > 0 ? _plan.Template.Slots : 15) each, @(_plan.Labelled * (_plan.Template.Slots > 0 ? _plan.Template.Slots : 15)) items)
                 </label>
+                }
+                else
+                {
+                    <p class="hint">A stocked group is filled as it is built (one of each item, and the token box to capacity); the demand and fill options do not apply.</p>
+                }
 
                 <button class="resupply-btn" disabled="@(!CanBuild)" @onclick="Build">
                     @(_busy ? "BUILDING..." : "BUILD ROW")
@@ -203,6 +223,11 @@
     private bool _busy;
     private string? _buildMessage;
     private bool _buildOk;
+
+    private BuildRecipe? CurrentRecipe => _recipes.FirstOrDefault(x => x.Key == _recipeKey);
+
+    // The stored templates a group can use: for a stocked group only those whose chests hold everything in the biggest bundle.
+    private List<BuildTemplate> ValidTemplates => _templates.Where(t => t.Slots >= (CurrentRecipe?.MinSlots ?? 0)).ToList();
 
     private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true, Platforms.Count: > 0 };
 
@@ -268,14 +293,19 @@
     private async Task Replan()
     {
         _plan = null;
-        var template = _templates.FirstOrDefault(t => t.Name == _templateName);
-        var recipe = _recipes.FirstOrDefault(r => r.Key == _recipeKey);
+        var recipe = CurrentRecipe;
+
+        // Switch to a template that is big enough when the group needs one.
+        if (recipe is not null && !ValidTemplates.Any(t => t.Name == _templateName))
+            _templateName = ValidTemplates.FirstOrDefault()?.Name ?? _templateName;
+
+        var template = ValidTemplates.FirstOrDefault(t => t.Name == _templateName);
 
         if (_beaconId == 0 || template is null || recipe is null)
             return;
 
         var beacon = _beaconId;
-        var plan = await Building.PlanAsync(SavePath, beacon, template, recipe.Items);
+        var plan = await Building.PlanAsync(SavePath, beacon, template, recipe);
 
         if (beacon == _beaconId)
             _plan = plan;
@@ -304,8 +334,8 @@
 
     private async Task Build()
     {
-        var template = _templates.FirstOrDefault(t => t.Name == _templateName);
-        var recipe = _recipes.FirstOrDefault(x => x.Key == _recipeKey);
+        var template = ValidTemplates.FirstOrDefault(t => t.Name == _templateName);
+        var recipe = CurrentRecipe;
         if (!CanBuild || template is null || recipe is null || _plan is null)
             return;
 
@@ -322,7 +352,7 @@
 
         try
         {
-            var edit = await Building.BuildAsync(SavePath, _beaconId, template, recipe.Items, _setDemand, _fill);
+            var edit = await Building.BuildAsync(SavePath, _beaconId, template, recipe, _setDemand, _fill);
 
             if (!edit.Success || edit.Result is null)
             {

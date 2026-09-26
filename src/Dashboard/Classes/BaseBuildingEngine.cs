@@ -21,7 +21,15 @@ namespace RRSOS.PCC.Dashboard
     /// </summary>
     public sealed record BuildTemplate(string Name, string ChestGId, int Slots, double Spacing, int DirX, int DirZ, List<TemplateChest> Chests);
 
-    public sealed record PlannedChest(double X, double Y, double Z, string Rot, string? Label);
+    /// <summary>
+    /// One stocked chest of a "one of each" group (spacesuits, blueprints, ...): a title for its label, the items it holds once each, and an
+    /// item to fill the rest of it with (the terra token box). Unlike a labelled chest it has no item filter and is not set to demand anything.
+    /// </summary>
+    public sealed record BuildBundle(string Title, IReadOnlyList<string> Items, string? FillWith = null);
+
+    /// <param name="Label">The item a labelled chest is for (its gId), or null for a spare or a stocked chest.</param>
+    /// <param name="Title">The label of a stocked chest ("Spacesuits"), with <paramref name="Stock"/> and <paramref name="FillWith"/>.</param>
+    public sealed record PlannedChest(double X, double Y, double Z, string Rot, string? Label, string? Title = null, IReadOnlyList<string>? Stock = null, string? FillWith = null);
 
     /// <param name="FoundationExists">A foundation already stands there, so only the chests would be added.</param>
     /// <param name="Conflicts">Things already standing on the platform's square that a build would collide with.</param>
@@ -33,7 +41,7 @@ namespace RRSOS.PCC.Dashboard
     {
         public bool Ok => Problems.Count == 0 && Platforms.All(p => p.Conflicts.Count == 0);
         public int ChestCount => Platforms.Sum(p => p.Chests.Count);
-        public int Labelled => Platforms.Sum(p => p.Chests.Count(c => c.Label != null));
+        public int Labelled => Platforms.Sum(p => p.Chests.Count(c => c.Label != null || c.Title != null));
     }
 
     public sealed record CaptureResult(BuildTemplate? Template, IReadOnlyList<string> Problems);
@@ -330,9 +338,26 @@ namespace RRSOS.PCC.Dashboard
 
                     var demand = setDemand && chest.Label is not null ? $",\"demandGrps\":\"{chest.Label}\",\"supplyGrps\":\"\",\"priority\":0" : "";
 
-                    // A filled chest holds one item record per slot, each a new object of its own.
+                    // A stocked chest holds one of each item of its bundle, and its fill item to capacity; a filled labelled chest holds one item record
+                    // per slot. Each is a new object of its own.
                     var held = new List<long>();
-                    if (fill && chest.Label is not null)
+                    if (chest.Title is not null)
+                    {
+                        var stock = (chest.Stock ?? Array.Empty<string>()).Concat(chest.FillWith is null ? Array.Empty<string>() : Enumerable.Repeat(chest.FillWith, Math.Max(0, slots - (chest.Stock?.Count ?? 0)))).ToList();
+                        if (stock.Count > slots)
+                            return Failed($"\"{chest.Title}\" has {stock.Count} items but its chest holds {slots}, so nothing was built.");
+
+                        foreach (var gId in stock)
+                        {
+                            var itemId = NewObjectId();
+                            objectIds.Add(itemId);
+                            held.Add(itemId);
+                            newObjects.Add($"{{\"id\":{itemId},\"gId\":\"{gId}\"}}");
+                        }
+
+                        items += held.Count;
+                    }
+                    else if (fill && chest.Label is not null)
                     {
                         for (var n = 0; n < slots; n++)
                         {
@@ -350,12 +375,12 @@ namespace RRSOS.PCC.Dashboard
                     chestLinks.Add(nextInventory);
 
                     var liGrps = chest.Label is not null ? $",\"liGrps\":\"{chest.Label}\"" : "";
-                    var label = chest.Label is not null ? $",\"text\":\"{chest.Label}\"" : "";
+                    var label = chest.Label is not null ? $",\"text\":\"{chest.Label}\"" : chest.Title is not null ? $",\"text\":\"{chest.Title}\"" : "";
                     var chestId = NewObjectId();
                     objectIds.Add(chestId);
                     newObjects.Add($"{{\"id\":{chestId},\"gId\":\"{plan.Template.ChestGId}\",\"liId\":{nextInventory}{liGrps},\"pos\":\"{Pos(chest.X, chest.Y, chest.Z)}\",\"rot\":\"{chest.Rot}\",\"planet\":{planet}{label}}}");
 
-                    if (chest.Label is not null)
+                    if (chest.Label is not null || chest.Title is not null)
                         labelled++;
                 }
             }
@@ -437,7 +462,14 @@ namespace RRSOS.PCC.Dashboard
         }
         /// <param name="items">The gIds to label the chests with, in order.</param>
         /// <param name="isBuilding">Whether an object of this gId is something a new platform must not be built on top of.</param>
-        public static BuildPlan Plan(string text, long beaconId, BuildTemplate template, IReadOnlyList<string> items, Func<string, bool> isBuilding)
+        public static BuildPlan Plan(string text, long beaconId, BuildTemplate template, IReadOnlyList<string> items, Func<string, bool> isBuilding) =>
+            PlanCore(text, beaconId, template, items, null, isBuilding);
+
+        /// <summary>A plan for stocked chests: one chest per bundle, each holding one of each of its items. The template's chests must be big enough for the largest bundle.</summary>
+        public static BuildPlan Plan(string text, long beaconId, BuildTemplate template, IReadOnlyList<BuildBundle> bundles, Func<string, bool> isBuilding) =>
+            PlanCore(text, beaconId, template, bundles.Select(b => b.Title).ToList(), bundles, isBuilding);
+
+        private static BuildPlan PlanCore(string text, long beaconId, BuildTemplate template, IReadOnlyList<string> items, IReadOnlyList<BuildBundle>? bundles, Func<string, bool> isBuilding)
         {
             var world = Read(text);
             var beacon = Beacons(world).FirstOrDefault(b => b.Id == beaconId);
@@ -458,6 +490,14 @@ namespace RRSOS.PCC.Dashboard
 
             if (items.Count == 0)
                 problems.Add("There is nothing to build for.");
+
+            // A stocked chest has to hold everything in its bundle.
+            if (bundles is not null && bundles.Count > 0)
+            {
+                var biggest = bundles.OrderByDescending(b => b.Items.Count).First();
+                if (biggest.Items.Count > template.Slots)
+                    problems.Add($"\"{biggest.Title}\" has {biggest.Items.Count} items but the {template.Name} template's chests hold {template.Slots}. Use a template with more slots (Container2 or Container3).");
+            }
 
             if (problems.Count > 0)
                 return new BuildPlan(beacon, template, items, Array.Empty<PlannedPlatform>(), problems);
@@ -487,16 +527,34 @@ namespace RRSOS.PCC.Dashboard
                     .Select(o => $"{o.GId} at ({o.X:0.#}, {o.Z:0.#})")
                     .ToList();
 
-                var chests = new List<PlannedChest>();
-                foreach (var c in template.Chests)
+                // Where each chest ends up: the template's offset turned to this row's direction, and the chest turned with it.
+                var (cs, sn) = (Math.Round(Math.Cos(turn * Math.PI / 180)), Math.Round(Math.Sin(turn * Math.PI / 180)));
+                var placed = template.Chests.Select(c =>
                 {
-                    // Rotate the offset in the (x, z) plane by the turn, and the chest with it.
-                    var (cs, sn) = (Math.Round(Math.Cos(turn * Math.PI / 180)), Math.Round(Math.Sin(turn * Math.PI / 180)));
                     // Positive turns carry +z toward +x: (x, z) -> (x cos + z sin, -x sin + z cos).
                     var ox = c.Dx * cs + c.Dz * sn;
                     var oz = -c.Dx * sn + c.Dz * cs;
+                    return (Ox: ox, Oz: oz, c.Dy, Rot: TurnRot(c.Rot, turn));
+                }).ToList();
 
-                    chests.Add(new PlannedChest(Math.Round(fx + ox, 3), Math.Round(fy + c.Dy, 3), Math.Round(fz + oz, 3), TurnRot(c.Rot, turn), next < items.Count ? items[next] : null));
+                // Labels go in the order you would read the platform standing at the beacon, looking down the row: nearest first, and
+                // across each pair from the LEFT chest to the RIGHT one. So a recipe that lists an item and then its rod puts the
+                // item on the left and the rod beside it on the right, and Fish1Eggs is the nearest left chest. Left is (-dirZ, dirX):
+                // for a row going north (+x) it is +z, the west side (east is -z).
+                var ordered = placed
+                    .OrderBy(p => Math.Round(p.Ox * beacon.DirX + p.Oz * beacon.DirZ, 1))
+                    .ThenByDescending(p => Math.Round(-p.Ox * beacon.DirZ + p.Oz * beacon.DirX, 1));
+
+                var chests = new List<PlannedChest>();
+                foreach (var p in ordered)
+                {
+                    var (px, py, pz) = (Math.Round(fx + p.Ox, 3), Math.Round(fy + p.Dy, 3), Math.Round(fz + p.Oz, 3));
+                    if (bundles is not null)
+                        chests.Add(next < bundles.Count
+                            ? new PlannedChest(px, py, pz, p.Rot, null, bundles[next].Title, bundles[next].Items, bundles[next].FillWith)
+                            : new PlannedChest(px, py, pz, p.Rot, null));
+                    else
+                        chests.Add(new PlannedChest(px, py, pz, p.Rot, next < items.Count ? items[next] : null));
                     next++;
                 }
 
