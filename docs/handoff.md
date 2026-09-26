@@ -64,6 +64,8 @@ This top section is current; the older write-ups further down are history.
   Golden; **`Fish12Eggs` is Velkia** (confirmed in the owner's Custom-1 backpack, 2026-09-25), and `Fish13Eggs` Galbea and
   `Fish14Eggs` Stabu are the owner's best guess (the list they gave named `FishGalbea`, `FishVelkia`, `FishStabu`, which the
   game does not use; there are no such records in a save). The list also gives biomass multipliers, not stored.
+  Frog eggs: `Frog1Eggs` to `Frog16Eggs` are "Frog Eggs" + Generic, Huli, Felicianna, Strabo, Trajuu, Aiolus, Afae, Cillus, Amedo,
+  Kenjoss, Lavaum, Leglus, Jumi, Seren (Selenea Expansion), Acuzzi, Toxifia; `FrogGoldEggs` is "Frog Eggs Golden" (the owner's list).
   Spacesuits: `Skin-01`..`Skin-07`, `09`, `13`..`20` are "Spacesuit" + Comto, Blasto, Primo, Goldeo, Scifo, Cipto, Beteo,
   Fablo, Mekio, Abyso, Ettio, Plesao, Rorao, Starforma, Glitx, Colonnya (DLC tags kept in the name; the owner's list).
   `Skin-08/10/11/12` were not on it and keep RRSOS-PCC's names (Tureo, Tubio, Vateo, Widio).
