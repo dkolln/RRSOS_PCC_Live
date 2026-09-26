@@ -1,0 +1,392 @@
+@inject BaseBuildingService Building
+@inject BuildTemplateStore Templates
+@inject ItemCatalog Catalog
+@inject ToastService Toasts
+@inject WorldFileService World
+@inject IJSRuntime JS
+
+<section class="bb">
+    <h2>Base Building</h2>
+    <p class="hint">
+        Place a foundation with a <strong>beacon</strong> on it, named for what the row is for (like <code>Fish</code>), turned to point
+        the way the row should grow. Save, then pick it here: the row is built from the platform the beacon points at, out in that
+        direction, one platform per template, each chest labelled with the next item of the recipe. Building writes the
+        foundations and chests into the save (with a backup first), so do it with the game at the main menu.
+    </p>
+
+    @if (string.IsNullOrEmpty(SavePath))
+    {
+        <p class="hint">Choose a save above.</p>
+    }
+    else if (_error is not null)
+    {
+        <p class="bb-problem">@_error</p>
+    }
+    else
+    {
+        <div class="bb-cols">
+
+            <div class="bb-col">
+                <h3>Templates</h3>
+                @if (_templates.Count == 0)
+                {
+                    <p class="hint">
+                        None yet. Build a sample once (a beacon pointing at a platform that carries the chests you want, and nothing else on
+                        it), save, and capture it below. Keep the sample in the game until it is captured.
+                    </p>
+                }
+
+                @foreach (var t in _templates)
+                {
+                    <div class="bb-card" @key="t.Name">
+                        <div class="bb-card-head">
+                            <strong>@t.Name</strong>
+                            <span class="bb-muted">@t.ChestGId · @t.Slots slots · @t.Chests.Count per platform · @t.Spacing m</span>
+                            <button class="bar-btn" title="Forget this template" @onclick="() => DeleteTemplate(t)">×</button>
+                        </div>
+                        <div class="bb-muted">
+                            @string.Join("  ", t.Chests.Select((c, i) => $"{i + 1}: ({c.Dx:0.#}, {c.Dz:0.#})"))
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="bb-col">
+                <h3>Beacons in this save</h3>
+                @if (_beacons.Count == 0)
+                {
+                    <p class="hint">No named beacons found.</p>
+                }
+                else if (_beacons.GroupBy(b => b.Text, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
+                {
+                    <p class="hint">
+                        Some beacons share a name (one for each base, say). Pick the one you mean: a row is only ever built from the one beacon
+                        you pick, near the base shown.
+                    </p>
+                }
+
+                @foreach (var b in _beacons)
+                {
+                    <div class="bb-card @(b.Id == _beaconId ? "is-picked" : "")" @key="b.Id">
+                        <div class="bb-card-head">
+                            <label class="bb-pick">
+                                <input type="radio" name="beacon" checked="@(b.Id == _beaconId)" @onchange="() => PickBeacon(b)" />
+                                <strong>@b.Text</strong>
+                            </label>
+                            <span class="bb-muted">points @Compass(b) · @NearBase(b) · @(b.FoundationId is null ? "not on a foundation" : "on a foundation")</span>
+                            <button class="bar-btn" title="Read the platform this beacon points at and keep it as a template" @onclick="() => Capture(b)">Capture template</button>
+                        </div>
+                        <div class="bb-muted">north @b.X.ToString("0.#") · east @((-b.Z).ToString("0.#")) · yaw @b.YawDegrees.ToString("0")°</div>
+                    </div>
+                }
+
+                @if (_captureMessage is not null)
+                {
+                    <p class="@(_captureOk ? "bb-ok" : "bb-problem")">@_captureMessage</p>
+                }
+            </div>
+
+        </div>
+
+        @if (_beaconId != 0 && _templates.Count > 0)
+        {
+            <h3>Plan</h3>
+            <div class="bb-controls">
+                <label>Recipe
+                    <select @onchange="OnRecipe">
+                        @foreach (var r in _recipes)
+                        {
+                            <option value="@r.Key" selected="@(r.Key == _recipeKey)">@r.Name (@r.Items.Count)</option>
+                        }
+                    </select>
+                </label>
+                <label>Template
+                    <select @onchange="OnTemplate">
+                        @foreach (var t in _templates)
+                        {
+                            <option value="@t.Name" selected="@(t.Name == _templateName)">@t.Name</option>
+                        }
+                    </select>
+                </label>
+            </div>
+
+            @if (_plan is null)
+            {
+                <p class="hint">Working out the plan…</p>
+            }
+            else if (_plan.Problems.Count > 0)
+            {
+                @foreach (var p in _plan.Problems)
+                {
+                    <p class="bb-problem">@p</p>
+                }
+            }
+            else
+            {
+                var spare = _plan.ChestCount - _plan.Labelled;
+
+                <p class="bb-summary">
+                    <strong>@_plan.Platforms.Count</strong> platforms going @Compass(_plan.Beacon), <strong>@_plan.ChestCount</strong> chests,
+                    <strong>@_plan.Labelled</strong> labelled@(spare > 0 ? $", {spare} spare (left unlabelled)" : "").
+                    @if (_plan.Platforms.Any(p => p.FoundationExists))
+                    {
+                        <span class="bb-muted"> Foundations already there: @string.Join(", ", _plan.Platforms.Where(p => p.FoundationExists).Select(p => p.Index)).</span>
+                    }
+                </p>
+
+                @foreach (var p in _plan.Platforms.Where(p => p.Conflicts.Count > 0))
+                {
+                    <p class="bb-problem">Platform @p.Index is not clear: @string.Join(", ", p.Conflicts)</p>
+                }
+
+                <svg class="bb-svg" viewBox="@ViewBox(_plan)" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="@Sx(_plan.Beacon.FoundationZ + _plan.Template.Spacing / 2)" y="@Sy(_plan.Beacon.FoundationX + _plan.Template.Spacing / 2)"
+                          width="@Num(_plan.Template.Spacing)" height="@Num(_plan.Template.Spacing)" class="bb-found is-start" />
+                    <circle cx="@Sx(_plan.Beacon.Z)" cy="@Sy(_plan.Beacon.X)" r="0.6" class="bb-beacon" />
+
+                    @foreach (var p in _plan.Platforms)
+                    {
+                        <rect x="@Sx(p.Z + _plan.Template.Spacing / 2)" y="@Sy(p.X + _plan.Template.Spacing / 2)"
+                              width="@Num(_plan.Template.Spacing)" height="@Num(_plan.Template.Spacing)"
+                              class="bb-found @(p.FoundationExists ? "is-there" : "is-new") @(p.Conflicts.Count > 0 ? "is-blocked" : "")" />
+
+                        @foreach (var c in p.Chests)
+                        {
+                            <rect x="@Sx(c.Z + 0.5)" y="@Sy(c.X + 0.5)" width="1" height="1" class="bb-chest @(c.Label is null ? "is-spare" : "")">
+                                <title>@(c.Label is null ? "spare chest" : c.Label + " (" + Catalog.NameOf(c.Label) + ")")</title>
+                            </rect>
+                        }
+                    }
+                </svg>
+
+                <details class="bb-labels">
+                    <summary>The labels, platform by platform</summary>
+                    @foreach (var p in _plan.Platforms)
+                    {
+                        <div class="bb-muted">Platform @p.Index: @string.Join(", ", p.Chests.Select(c => c.Label ?? "(spare)"))</div>
+                    }
+                </details>
+
+                <label class="bb-option">
+                    <input type="checkbox" checked="@_setDemand" @onchange="e => _setDemand = e.Value is true" />
+                    Also set each labelled chest to demand its item (so the drones fill it)
+                </label>
+                <label class="bb-option">
+                    <input type="checkbox" checked="@_fill" @onchange="e => _fill = e.Value is true" />
+                    Also fill each labelled chest to capacity with its item (@(_plan.Template.Slots > 0 ? _plan.Template.Slots : 15) each, @(_plan.Labelled * (_plan.Template.Slots > 0 ? _plan.Template.Slots : 15)) items)
+                </label>
+
+                <button class="resupply-btn" disabled="@(!CanBuild)" @onclick="Build">
+                    @(_busy ? "BUILDING..." : "BUILD ROW")
+                </button>
+                @if (GameLive)
+                {
+                    <p class="bb-problem">The game is running a world. Exit to the main menu first.</p>
+                }
+                @if (_buildMessage is not null)
+                {
+                    <p class="@(_buildOk ? "bb-ok" : "bb-problem")">@_buildMessage</p>
+                }
+            }
+        }
+    }
+</section>
+
+@code {
+    [Parameter] public string SavePath { get; set; } = "";
+
+    /// <summary>True while the game has a world loaded: the save would only be overwritten.</summary>
+    [Parameter] public bool GameLive { get; set; }
+
+    private bool _setDemand = true;
+    private bool _fill;
+    private bool _busy;
+    private string? _buildMessage;
+    private bool _buildOk;
+
+    private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true, Platforms.Count: > 0 };
+
+    private string _loadedFor = "";
+    private string? _error;
+    private IReadOnlyList<BuildBeacon> _beacons = Array.Empty<BuildBeacon>();
+    private List<BuildTemplate> _templates = new();
+    private IReadOnlyList<BuildRecipe> _recipes = Array.Empty<BuildRecipe>();
+    private long _beaconId;
+    private string _templateName = "";
+    private string _recipeKey = "";
+    private BuildPlan? _plan;
+    private string? _captureMessage;
+    private bool _captureOk;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SavePath == _loadedFor)
+            return;
+
+        _loadedFor = SavePath;
+        _beaconId = 0;
+        _plan = null;
+        _captureMessage = null;
+        _error = null;
+        _recipes = Building.Recipes();
+        _templates = await Templates.LoadAsync();
+        _templateName = _templates.FirstOrDefault()?.Name ?? "";
+
+        if (string.IsNullOrEmpty(SavePath) || !File.Exists(SavePath))
+        {
+            _beacons = Array.Empty<BuildBeacon>();
+            return;
+        }
+
+        var (beacons, error) = await Building.ScanAsync(SavePath);
+        _beacons = beacons;
+        _error = error;
+
+        if (_beacons.Count == 1)
+            await PickBeacon(_beacons[0]);
+    }
+
+    private async Task PickBeacon(BuildBeacon b)
+    {
+        _beaconId = b.Id;
+        _recipeKey = Building.RecipeFor(b.Text)?.Key ?? _recipes.FirstOrDefault()?.Key ?? "";
+        await Replan();
+    }
+
+    private async Task OnRecipe(ChangeEventArgs e)
+    {
+        _recipeKey = e.Value?.ToString() ?? "";
+        await Replan();
+    }
+
+    private async Task OnTemplate(ChangeEventArgs e)
+    {
+        _templateName = e.Value?.ToString() ?? "";
+        await Replan();
+    }
+
+    private async Task Replan()
+    {
+        _plan = null;
+        var template = _templates.FirstOrDefault(t => t.Name == _templateName);
+        var recipe = _recipes.FirstOrDefault(r => r.Key == _recipeKey);
+
+        if (_beaconId == 0 || template is null || recipe is null)
+            return;
+
+        var beacon = _beaconId;
+        var plan = await Building.PlanAsync(SavePath, beacon, template, recipe.Items);
+
+        if (beacon == _beaconId)
+            _plan = plan;
+    }
+
+    private async Task Capture(BuildBeacon b)
+    {
+        var result = await Building.CaptureAsync(SavePath, b.Id, "");
+
+        if (result.Template is null)
+        {
+            _captureOk = false;
+            _captureMessage = string.Join(" ", result.Problems);
+            return;
+        }
+
+        var template = result.Template with { Name = result.Template.ChestGId };
+        await Templates.SaveAsync(template);
+        _templates = await Templates.LoadAsync();
+        _templateName = template.Name;
+        _captureOk = true;
+        _captureMessage = $"Captured \"{template.Name}\": {template.Chests.Count} {template.ChestGId} of {template.Slots} slots per platform, platforms {template.Spacing} m apart.";
+        Toasts.Show(_captureMessage, ToastKind.Success);
+        await Replan();
+    }
+
+    private async Task Build()
+    {
+        var template = _templates.FirstOrDefault(t => t.Name == _templateName);
+        var recipe = _recipes.FirstOrDefault(x => x.Key == _recipeKey);
+        if (!CanBuild || template is null || recipe is null || _plan is null)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Have you exited to the Main Menu?\n\nBUILD ROW adds {_plan.Platforms.Count(p => !p.FoundationExists)} foundations and {_plan.ChestCount} chests{(_fill ? $" and {_plan.Labelled * (_plan.Template.Slots > 0 ? _plan.Template.Slots : 15)} items" : "")} to your save file. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        _buildMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var edit = await Building.BuildAsync(SavePath, _beaconId, template, recipe.Items, _setDemand, _fill);
+
+            if (!edit.Success || edit.Result is null)
+            {
+                _buildOk = false;
+                _buildMessage = edit.Error ?? "The build failed.";
+                Toasts.Show("Base building failed. " + _buildMessage, ToastKind.Error, TimeSpan.FromSeconds(9));
+            }
+            else
+            {
+                _buildOk = true;
+                _buildMessage = $"Built: {edit.Result.Foundations} foundations and {edit.Result.Chests} chests ({edit.Result.Labelled} labelled{(edit.Result.Items > 0 ? $", filled with {edit.Result.Items} items" : "")}). Backup: {edit.BackupPath}";
+                Toasts.Show($"Built {edit.Result.Foundations} foundations and {edit.Result.Chests} chests", ToastKind.Success);
+            }
+
+            _loadedFor = ""; // read the save again: the row is in it now
+            await OnParametersSetAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteTemplate(BuildTemplate t)
+    {
+        await Templates.DeleteAsync(t.Name);
+        _templates = await Templates.LoadAsync();
+        _templateName = _templates.FirstOrDefault()?.Name ?? "";
+        await Replan();
+    }
+
+    // The base a beacon belongs to, by the dashboard's own rule (the nearest base within 100 m), from the last world file it read.
+    private string NearBase(BuildBeacon b)
+    {
+        var near = World.Bases.Bases
+            .Select(x => (Base: x, Distance: Math.Sqrt(Math.Pow(x.Flat.X - b.X, 2) + Math.Pow(x.Flat.Y - b.Z, 2))))
+            .Where(t => t.Distance <= BaseDirectory.OwnershipRadius)
+            .OrderBy(t => t.Distance)
+            .FirstOrDefault();
+
+        return near.Base is null ? "no known base within 100 m" : $"near {near.Base.Name} ({near.Distance:0} m)";
+    }
+
+    // North is +x and east is -z in the save; a beacon or row pointing +x points north.
+    private static string Compass(BuildBeacon b) => (b.DirX, b.DirZ) switch
+    {
+        (1, _) => "north",
+        (-1, _) => "south",
+        (_, 1) => "west",
+        _ => "east"
+    };
+
+    // Plan drawing: north up, east right, in metres. x (north) runs up and z (east is -z) runs across.
+    private static string Num(double v) => v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Sx(double z) => Num(-z);
+    private static string Sy(double x) => Num(-x);
+
+    private static string ViewBox(BuildPlan plan)
+    {
+        var s = plan.Template.Spacing;
+        var xs = plan.Platforms.Select(p => p.X).Append(plan.Beacon.FoundationX).ToList();
+        var zs = plan.Platforms.Select(p => p.Z).Append(plan.Beacon.FoundationZ).ToList();
+        double left = -(zs.Max() + s / 2) - 1, right = -(zs.Min() - s / 2) + 1;
+        double top = -(xs.Max() + s / 2) - 1, bottom = -(xs.Min() - s / 2) + 1;
+        return $"{Num(left)} {Num(top)} {Num(right - left)} {Num(bottom - top)}";
+    }
+}

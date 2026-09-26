@@ -1,0 +1,38 @@
+﻿.bb { display: flex; flex-direction: column; gap: 10px; }
+
+.bb h3 { margin: 6px 0 2px; font-size: 0.85rem; letter-spacing: 1.5px; text-transform: uppercase; color: #9ac7ff; }
+
+.bb-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.bb-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+.bb-card { padding: 8px 10px; background: #0f141f; border: 1px solid #1a2a3a; border-radius: 6px; font-size: 0.8rem; color: #9ac7ff; }
+.bb-card.is-picked { border-color: #7ab8ff; }
+.bb-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bb-card-head strong { color: #e6f2ff; }
+.bb-pick { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.bb-pick input { accent-color: #7ab8ff; }
+.bb-muted { color: #5f7d99; font-size: 0.78rem; }
+
+.bb-controls { display: flex; gap: 16px; flex-wrap: wrap; color: #7f9db9; font-size: 0.8rem; }
+.bb-controls select { margin-left: 6px; padding: 4px 8px; background: #0b0f17; border: 1px solid #24384d; border-radius: 4px; color: #cfe4ff; font: inherit; }
+
+.bb-summary { margin: 4px 0; color: #cfe4ff; font-size: 0.9rem; }
+.bb-summary strong { color: #ffd86b; }
+.bb-problem { color: #ff9a6b; font-size: 0.85rem; margin: 2px 0; }
+.bb-ok { color: #4fd18b; font-size: 0.85rem; margin: 2px 0; }
+
+.bb-svg { width: 100%; max-height: 520px; background: #0b0f17; border: 1px solid #1a2a3a; border-radius: 6px; }
+.bb-found { fill: rgba(122, 184, 255, 0.10); stroke: #3a5a7a; stroke-width: 0.15; }
+.bb-found.is-start { fill: rgba(150, 165, 180, 0.12); stroke: #5f7d99; }
+.bb-found.is-there { stroke: #2f6b4c; fill: rgba(79, 209, 139, 0.10); }
+.bb-found.is-blocked { stroke: #ff6b6b; stroke-width: 0.35; }
+.bb-chest { fill: #ffb347; stroke: #0a1019; stroke-width: 0.08; }
+.bb-chest.is-spare { fill: #5f7d99; }
+.bb-beacon { fill: #ffd23f; stroke: #0a1019; stroke-width: 0.1; }
+
+.bb-labels { color: #9ac7ff; font-size: 0.8rem; }
+.bb-labels summary { cursor: pointer; color: #7f9db9; }
+
+@media (max-width: 1000px) { .bb-cols { grid-template-columns: minmax(0, 1fr); } }
+.bb-option { display: flex; align-items: center; gap: 6px; color: #9ac7ff; font-size: 0.85rem; cursor: pointer; }
+.bb-option input { accent-color: #7ab8ff; cursor: pointer; }
