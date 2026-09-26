@@ -1718,46 +1718,106 @@
     "Type": 9210
   },
 
+  "Frog1Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Generic",
+    "Tier": "1",
+    "Type": 3710
+  },
+  "Frog2Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Huli",
+    "Tier": "2",
+    "Type": 3710
+  },
+  "Frog3Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Felicianna",
+    "Tier": "3",
+    "Type": 3710
+  },
+  "Frog4Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Strabo",
+    "Tier": "4",
+    "Type": 3710
+  },
+  "Frog5Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Trajuu",
+    "Tier": "5",
+    "Type": 3710
+  },
+  "Frog6Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Aiolus",
+    "Tier": "6",
+    "Type": 3710
+  },
+  "Frog7Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Afae",
+    "Tier": "7",
+    "Type": 3710
+  },
+  "Frog8Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Cillus",
+    "Tier": "8",
+    "Type": 3710
+  },
+  "Frog9Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Amedo",
+    "Tier": "9",
+    "Type": 3710
+  },
   "Frog10Eggs": {
     "BaseId": "FrogEggs",
-    "Name": "Frog Eggs",
+    "Name": "Frog Eggs Kenjoss",
     "Tier": "10",
     "Type": 3710
   },
   "Frog11Eggs": {
     "BaseId": "FrogEggs",
-    "Name": "Frog Eggs",
+    "Name": "Frog Eggs Lavaum",
     "Tier": "11",
     "Type": 3710
   },
   "Frog12Eggs": {
     "BaseId": "FrogEggs",
-    "Name": "Frog Eggs",
+    "Name": "Frog Eggs Leglus",
     "Tier": "12",
     "Type": 3710
   },
-  "Frog1Eggs": {
+  "Frog13Eggs": {
     "BaseId": "FrogEggs",
-    "Name": "Frog Eggs",
-    "Tier": "1",
+    "Name": "Frog Eggs Jumi",
+    "Tier": "13",
     "Type": 3710
   },
-  "Frog4Eggs": {
+  "Frog14Eggs": {
     "BaseId": "FrogEggs",
-    "Name": "Frog Eggs",
-    "Tier": "4",
+    "Name": "Frog Eggs Seren (Selenea Expansion)",
+    "Tier": "14",
+    "Type": 3710
+  },
+  "Frog15Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Acuzzi",
+    "Tier": "15",
+    "Type": 3710
+  },
+  "Frog16Eggs": {
+    "BaseId": "FrogEggs",
+    "Name": "Frog Eggs Toxifia",
+    "Tier": "16",
     "Type": 3710
   },
   "FrogGoldEggs": {
     "BaseId": "FrogGoldEggs",
-    "Name": "Golden Frog Eggs",
+    "Name": "Frog Eggs Golden",
     "Tier": "",
-    "Type": 3710
-  },
-  "Frog6Eggs": {
-    "BaseId": "FrogEggs",
-    "Name": "Frog Eggs",
-    "Tier": "6",
     "Type": 3710
   },
 
