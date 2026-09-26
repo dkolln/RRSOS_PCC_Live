@@ -29,6 +29,18 @@ This top section is current; the older write-ups further down are history.
     top 30 m up is a floor; floors 4 and 5 show the tower only), and vehicle platform (measured deck with both −X
     corners cut diagonally, ramp off +Z across the two +X tiles, console marker). Platforms' decks are 5 m above
     their position.
+  - **Round 3x3 living compartment** (`Pod9x*`, seen as `Pod9xA`; 2026-09-26): drawn as a **circle**, 24 m across, centred on
+    its position, not the old 12 m square guess. From what the plugin measured while the owner stood in it: box -12 to +12 on
+    both axes, a flat floor slab ~23.2 m wide, the four wall panels on a ring 11.4 m out, and a 3x3 grid of 6 m tiles (the
+    corner ones the rounded ones) inside.
+  - **Domes and the aquarium are centred on the middle of their box, not on their position** (found 2026-09-26): a T2
+    dome's box runs -20 to +12 on its x, so its middle is 4 m from its position. The owner stood in the middle of the
+    Butterfly dome and read 3.95 m along (the box middle to 0.1 m); in Biodome2 (identical box) 2.6 m from the predicted
+    middle (6.6 m from the position). The circle's radius is the box's shorter half (13.6 for the T2 dome, 10.1 for the small
+    `biodome`), and what the longer half reaches past it is an entrance annex on **both** ends (2.4 m; 1.9 m for the small
+    one). That is why the rows of domes now join: centres 32 m apart, 13.6 + 13.6 leaves 5 m, two 2.4 m annexes meet. Drawing
+    the circle on the position had put it 4 m off and made one annex look 8 m long (the owner: "grossly exaggerated"). An
+    earlier 3 m cap on annexes was a wrong fix for that and is gone.
   - **Trade platform** (mapped 2026-09-25, from the owner standing on it while the game ran; my reads of `live.json` are
     seconds late, so they stand still and say "here"): a deck of 3 foundations (6.09 m each) east-west by 2 north-south,
     18.27 x 12.18 m, no cut corners, plus 3 m wide stairs (half a foundation) off the middle of the east end, 6.88 m long,
