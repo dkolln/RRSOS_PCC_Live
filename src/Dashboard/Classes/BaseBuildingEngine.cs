@@ -25,7 +25,15 @@ namespace RRSOS.PCC.Dashboard
     /// One stocked chest of a "one of each" group (spacesuits, blueprints, ...): a title for its label, the items it holds once each, and an
     /// item to fill the rest of it with (the terra token box). Unlike a labelled chest it has no item filter and is not set to demand anything.
     /// </summary>
-    public sealed record BuildBundle(string Title, IReadOnlyList<string> Items, string? FillWith = null);
+    /// <param name="SkipUnlocked">
+    /// The items are blueprint chips written "chip@building" (a chip linked to the building it unlocks), and any whose building the save has already
+    /// unlocked is left out.
+    /// </param>
+    /// <param name="Split">
+    /// When the items do not fit one chest of the template, they are shared over as many chests as needed ("Blueprints (1 of 3)"), each a full one in
+    /// order, instead of the plan being refused.
+    /// </param>
+    public sealed record BuildBundle(string Title, IReadOnlyList<string> Items, string? FillWith = null, bool SkipUnlocked = false, bool Split = false);
 
     /// <param name="Label">The item a labelled chest is for (its gId), or null for a spare or a stocked chest.</param>
     /// <param name="Title">The label of a stocked chest ("Spacesuits"), with <paramref name="Stock"/> and <paramref name="FillWith"/>.</param>
@@ -352,7 +360,11 @@ namespace RRSOS.PCC.Dashboard
                             var itemId = NewObjectId();
                             objectIds.Add(itemId);
                             held.Add(itemId);
-                            newObjects.Add($"{{\"id\":{itemId},\"gId\":\"{gId}\"}}");
+                            // A blueprint chip is written "chip@building": the item is the chip, linked (liGrps) to the building it unlocks.
+                            var at = gId.IndexOf('@');
+                            newObjects.Add(at < 0
+                                ? $"{{\"id\":{itemId},\"gId\":\"{gId}\"}}"
+                                : $"{{\"id\":{itemId},\"gId\":\"{gId[..at]}\",\"liGrps\":\"{gId[(at + 1)..]}\"}}");
                         }
 
                         items += held.Count;
@@ -474,6 +486,29 @@ namespace RRSOS.PCC.Dashboard
             var world = Read(text);
             var beacon = Beacons(world).FirstOrDefault(b => b.Id == beaconId);
             var problems = new List<string>();
+
+            // Blueprint chips for buildings this save has already unlocked are not needed.
+            if (bundles is not null && bundles.Any(b => b.SkipUnlocked))
+            {
+                var unlocked = new HashSet<string>((Regex.Match(text, "\"unlockedGroups\":\"([^\"]*)\"").Groups[1].Value).Split(',', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+                bundles = bundles.Select(b => b.SkipUnlocked ? b with { Items = b.Items.Where(i => !unlocked.Contains(i.Contains('@') ? i[(i.IndexOf('@') + 1)..] : i)).ToList() } : b).ToList();
+            }
+
+            // A bundle that may be split is shared over as many chests as the template's slots need.
+            if (bundles is not null && template.Slots > 0 && bundles.Any(b => b.Split && b.Items.Count > template.Slots))
+            {
+                bundles = bundles.SelectMany(b =>
+                {
+                    if (!b.Split || b.Items.Count <= template.Slots)
+                        return new[] { b };
+
+                    var parts = (int)Math.Ceiling(b.Items.Count / (double)template.Slots);
+                    return Enumerable.Range(0, parts)
+                        .Select(i => b with { Title = $"{b.Title} ({i + 1} of {parts})", Items = b.Items.Skip(i * template.Slots).Take(template.Slots).ToList() })
+                        .ToArray();
+                }).ToList();
+                items = bundles.Select(b => b.Title).ToList();
+            }
 
             if (beacon is null)
                 return new BuildPlan(new BuildBeacon(beaconId, "", 0, 0, 0, 0, 0, 0, null, 0, 0, 0), template, items, Array.Empty<PlannedPlatform>(), new[] { "That beacon is not in the save." });
