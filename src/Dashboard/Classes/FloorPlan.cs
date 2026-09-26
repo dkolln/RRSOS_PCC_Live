@@ -375,6 +375,7 @@ namespace RRSOS.PCC.Dashboard
 
             private const double MaxPlatformSide = 16;
 
+
             /// <summary>More outline for the same piece: a dome's entrance, sticking out of its circle.</summary>
             public List<IReadOnlyList<Vector2>> Extras { get; } = new();
 
@@ -399,6 +400,14 @@ namespace RRSOS.PCC.Dashboard
             /// the exact opposite. The width is a guess (a doorway, about 2 m of the 3 m circle).
             /// </summary>
             private const float TradeRocketEntranceAngle = 90f, TradeRocketEntranceWidth = 40f;
+
+            /// <summary>
+            /// The 3x3 living compartment (Pod9x, seen as Pod9xA) is round, not square: 24 m across, centred on its position. Read
+            /// from what the plugin measured on the owner's (standing in it): a box of -12 to +12 on both axes, a flat floor slab
+            /// about 23.2 m wide on both, the four wall panels on a ring 11.4 m out, and a 3x3 grid of 6 m tiles (the corner ones
+            /// the rounded ones) inside. So it is drawn as a circle of the box's radius, like a dome.
+            /// </summary>
+            private bool IsRoundPod => Data.Group.StartsWith("Pod9x", StringComparison.OrdinalIgnoreCase);
 
             private bool IsTradePlatform => Data.Group.StartsWith("TradePlatform", StringComparison.OrdinalIgnoreCase);
 
@@ -497,19 +506,24 @@ namespace RRSOS.PCC.Dashboard
                         .ToList();
                 }
 
-                if (Part is PlanPart.Dome or PlanPart.Aquarium)
+                if (Part is PlanPart.Dome or PlanPart.Aquarium || IsRoundPod)
                 {
-                    // Domes and the T2 aquarium are round, centred on their position. Some have an entrance sticking out
-                    // on one side (a T2 dome's box runs from -20 to +12), so the radius comes from each axis's nearer
-                    // side, and a side that reaches past the circle gets a short annex drawn onto it.
-                    var r = MathF.Max(1f, MathF.Max(MathF.Min(-_minX, _maxX), MathF.Min(-_minZ, _maxZ)));
+                    // Domes and the T2 aquarium are round, centred on the middle of their box, which is NOT their position: a T2
+                    // dome's box runs from -20 to +12 on its x, so its middle is 4 m off its position (the owner stood in the
+                    // middle of the Butterfly dome: 3.95 m along, exactly the box's middle). The radius is the box's shorter
+                    // half, and whatever the longer one reaches past the circle is an entrance annex, on both ends. Checked on
+                    // the row of domes: centres 32 m apart, radius 13.5 each, annexes of 2.5 m meeting exactly; and the small
+                    // biodome (radius 10.1, annexes 1.9 m) making up the 28 m to the next one.
+                    float cx = (_minX + _maxX) / 2, cz = (_minZ + _maxZ) / 2;
+                    float halfX = (_maxX - _minX) / 2, halfZ = (_maxZ - _minZ) / 2;
+                    var r = MathF.Max(1f, MathF.Min(halfX, halfZ));
 
                     // A corridor-type wall panel (a doorway to a neighbouring piece) can sit flush with the circle even
                     // when the box itself has no overhang there — confirmed in the game between a Biodome and a Biodome2:
                     // both carry a corridor panel facing each other, with a real connector between them, but neither box
                     // reaches past the other's circle. Such a panel still gets a short stub, so the doorway always shows.
                     const float CorridorStub = 3f;
-                    float reachMinusX = -_minX, reachPlusX = _maxX, reachMinusZ = -_minZ, reachPlusZ = _maxZ;
+                    float reachMinusX = halfX, reachPlusX = halfX, reachMinusZ = halfZ, reachPlusZ = halfZ;
 
                     if (Data.PanelBoxes is { Count: > 0 } panelBoxes)
                     {
@@ -518,7 +532,7 @@ namespace RRSOS.PCC.Dashboard
                             if (b.Type != PanelCodes.TypeWall || b.Sub != PanelCodes.WallCorridor || b.Min is null || b.Max is null)
                                 continue;
 
-                            float x0 = (float)b.Min.X, x1 = (float)b.Max.X, z0 = (float)b.Min.Z, z1 = (float)b.Max.Z;
+                            float x0 = (float)b.Min.X - cx, x1 = (float)b.Max.X - cx, z0 = (float)b.Min.Z - cz, z1 = (float)b.Max.Z - cz;
                             var stubReach = r + CorridorStub;
 
                             // The panel's short side (its thickness) says which of the four sides it sits on.
@@ -535,17 +549,16 @@ namespace RRSOS.PCC.Dashboard
                         }
                     }
 
-                    AddAnnex(reachMinusX, r, (a, b) => (-a, b));
-                    AddAnnex(reachPlusX, r, (a, b) => (a, b));
-                    AddAnnex(reachMinusZ, r, (a, b) => (b, -a));
-                    AddAnnex(reachPlusZ, r, (a, b) => (b, a));
+                    AddAnnex(reachMinusX, r, cx, cz, (a, b) => (-a, b));
+                    AddAnnex(reachPlusX, r, cx, cz, (a, b) => (a, b));
+                    AddAnnex(reachMinusZ, r, cx, cz, (a, b) => (b, -a));
+                    AddAnnex(reachPlusZ, r, cx, cz, (a, b) => (b, a));
 
                     return Enumerable.Range(0, 32)
                         .Select(i => i * MathF.PI * 2 / 32)
-                        .Select(a => ToEastNorth(r * MathF.Cos(a), r * MathF.Sin(a)))
+                        .Select(a => ToEastNorth(cx + r * MathF.Cos(a), cz + r * MathF.Sin(a)))
                         .ToList();
                 }
-
                 if (IsVehiclePlatform)
                 {
                     Extras.Add(VehiclePlatformRamp.Select(p => ToEastNorth(p.X, p.Y)).ToList());
@@ -572,15 +585,15 @@ namespace RRSOS.PCC.Dashboard
             }
 
             // An annex from just inside the circle out to how far this side reaches, 2 m wide (halved from 4 m: full width
-            // read as an odd slab rather than a doorway/tunnel). "place" turns (along, across) into (x, z).
-            private void AddAnnex(float reach, float r, Func<float, float, (float X, float Z)> place)
+            // read as an odd slab rather than a doorway/tunnel). "place" turns (along, across) into (x, z) from the circle's centre.
+            private void AddAnnex(float reach, float r, float cx, float cz, Func<float, float, (float X, float Z)> place)
             {
                 const float HalfWidth = 1f;
-                if (reach <= r + 1f)
+                if (reach <= r + 0.5f)
                     return;
 
                 var corners = new[] { place(r - 0.5f, -HalfWidth), place(reach, -HalfWidth), place(reach, HalfWidth), place(r - 0.5f, HalfWidth) };
-                Extras.Add(corners.Select(c => ToEastNorth(c.X, c.Z)).ToList());
+                Extras.Add(corners.Select(c => ToEastNorth(cx + c.X, cz + c.Z)).ToList());
             }
 
             public IEnumerable<PlanShape> Walls()
@@ -681,9 +694,10 @@ namespace RRSOS.PCC.Dashboard
                 if (ladder)
                     return (-0.6f, 0.6f, -0.6f, 0.6f, 0f);
 
-                // Nine floor tiles; guessed as 12 m square with its position placed like Pod4x's (1.14 m in from its -Z side).
+                // Nine floor tiles under one round roof, 24 m across and centred on its position (measured in the game, and now
+                // drawn as a circle); the old guess was a 12 m square.
                 if (group.StartsWith("Pod9x", StringComparison.OrdinalIgnoreCase))
-                    return (-6f, 6f, -1.14f, 10.86f, 6f);
+                    return (-12f, 12f, -12f, 12f, 6f);
                 if (group.StartsWith("Pod4x", StringComparison.OrdinalIgnoreCase))
                     return (-4f, 4f, -1.14f, 6.86f, 6f);
                 if (group.Equals("EscapePod", StringComparison.OrdinalIgnoreCase))
