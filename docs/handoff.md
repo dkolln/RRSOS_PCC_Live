@@ -102,6 +102,28 @@ This top section is current; the older write-ups further down are history.
   changed unless picked**; old-style chests (demand X + supply all but X, which the game's own UI produced) show as
   "Demands it and supplies more" with a Fix button. Tested on copies of both saves (only the picked inventories changed,
   items and slots untouched).
+- **Cheats: Base Building** (third tab; `BaseBuildingEngine`, `BaseBuildingService`, `BuildTemplateStore`, `Instruments/BaseBuilding.razor`).
+  The owner places a foundation with a **beacon** (gId `Beacon`, `text` = "Fish") on it, turned to point the way a row should grow, saves,
+  and picks it here; the tool builds a straight row of platforms out from it, each with the template's chests, each chest labelled
+  and filtered with the next item of a recipe (Fish = `Fish1Eggs`..`Fish14Eggs` from the item table; also Frog, Butterfly, Tree). Facts
+  read from Custom-1 (2026-09-26): a beacon stands 2.519 m above its foundation's position, so do chests; foundations sit 6 m apart on
+  the axes; **direction = the opposite of Unity forward, (-sin yaw, -cos yaw), snapped to an axis** (a beacon at yaw 180 pointed +z = west,
+  at yaw -90 points +x = north; north is +x, east is -z). **Templates** (what one platform of chests looks like: chest gId, slots, each chest's
+  offset/height/rotation, and the direction it was captured in) are captured from a sample the owner builds (a beacon pointing at a platform
+  with chests) and kept in `%LOCALAPPDATA%\RRSOS-PCC-Live\build-templates.json`, one per chest type; applying one to another direction
+  turns the offsets and rotations by a multiple of 90°. The captured `Container1`: 4 chests (0.6, -1.4), (-0.6, -1.4), (0.6, 1.6), (-0.6, 1.6)
+  in a +z row, alternating 0/180°. **Everything on the beacon's own platform and behind it is ignored; only what is ahead matters** (each
+  planned platform is checked for existing pieces; a foundation already there is reused). Every platform gets the full template (14 fish =
+  4 platforms, 2 spare unlabelled chests). Several beacons may share a name (a fish beacon per base): each is listed with the nearest known base and one
+  is picked explicitly. **Build** writes new records with `SaveResupplyService.EditAsync` (backup, atomic write, signature check): a
+  `Foundation` per new platform, each chest as `{id, gId, liId, liGrps, pos, rot, planet, text}` plus its own empty inventory
+  `{id, woIds:"", size}` (with `demandGrps` = its item when "also set demand" is ticked, and, when "also fill each labelled chest" is ticked, `woIds` listing one new
+  `{id, gId}` item record per slot, 15 per fish chest = 210 items for a fish row; the same shape Resupply's item-id fill writes). Save layout: sections joined by CR @ CR, objects first
+  then inventories, records joined by `|` + newline; new objects go in front of the beacon's record, new inventories in front of the last
+  inventory's; new object ids are random in 200M-210M, new inventory ids continue after the highest (the game now uses 100M+ for those).
+  The proof is that removing exactly the added text gives back the original; the check judges only the new records, since real saves
+  already have ids used twice. Tested on copies of Custom-1: 4 foundations + 16 chests + 16 inventories (+ 210 item records with fill) added, nothing else changed. The owner
+  built a fish row into their real Custom-1 on 2026-09-26 (about 06:00) and it looked good in the game.
 - **Object search** in the Notes card (`Instruments/ObjectSearch.razor`): a text box; typing shows matching objects'
   Name and gId (from the item catalog, `worldobjectdata.json`), by name or id, any case, spaces ignored, exact match
   first, 50 rows. Selecting a match adds a note "Name = gId": click a row, or Enter for the highlighted one (the first

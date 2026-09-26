@@ -9,6 +9,9 @@ namespace RRSOS.PCC.Dashboard
         string? BackupPath,
         DateTime At);
 
+    /// <summary>The result of an edit made through <see cref="SaveResupplyService.EditAsync{T}"/>.</summary>
+    public sealed record SaveEdit<T>(bool Success, string? Error, T? Result, string? BackupPath, bool Written);
+
     /// <summary>What Set Supply Lines did, or for a preview would do. Outcome is null when the save could not be read.</summary>
     public sealed record DroneNetworkReport(bool Success, string? Error, DroneNetworkOutcome? Outcome, string? BackupPath, DateTime At);
 
@@ -80,6 +83,52 @@ namespace RRSOS.PCC.Dashboard
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 return Fail("Could not update the save file: " + ex.Message, at);
+            }
+        }
+
+        /// <summary>
+        /// Runs an edit on a save's text with the same safety as every Cheats write: the game must not be in a world (the caller
+        /// checks), a byte-exact backup is kept first, the new file is written beside the save and swapped in, and nothing is
+        /// written if the file changed while working. <paramref name="edit"/> returns the new text (null for no change), a result to
+        /// hand back, and an error (which means no write).
+        /// </summary>
+        public async Task<SaveEdit<T>> EditAsync<T>(string savePath, Func<string, (string? NewText, T Result, string? Error)> edit, string doing)
+        {
+            await _gate.WaitAsync();
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    var at = DateTime.Now;
+                    if (string.IsNullOrEmpty(savePath) || !File.Exists(savePath))
+                        return new SaveEdit<T>(false, "No save file is selected.", default, null, false);
+
+                    try
+                    {
+                        var before = Signature(savePath);
+                        var original = ReadShared(savePath);
+                        var hasBom = original.Length >= 3 && original[0] == 0xEF && original[1] == 0xBB && original[2] == 0xBF;
+                        var text = Encoding.UTF8.GetString(original, hasBom ? 3 : 0, original.Length - (hasBom ? 3 : 0));
+
+                        var (newText, result, error) = edit(text);
+                        if (error is not null)
+                            return new SaveEdit<T>(false, error, result, null, false);
+
+                        if (newText is null)
+                            return new SaveEdit<T>(true, null, result, null, false);
+
+                        var (backup, commitError) = Commit(savePath, original, hasBom, newText, before, at, doing);
+                        return new SaveEdit<T>(commitError is null, commitError, result, backup, commitError is null);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        return new SaveEdit<T>(false, "Could not update the save file: " + ex.Message, default, null, false);
+                    }
+                });
+            }
+            finally
+            {
+                _gate.Release();
             }
         }
 

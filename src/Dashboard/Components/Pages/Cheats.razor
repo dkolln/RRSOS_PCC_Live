@@ -24,9 +24,10 @@
     <nav class="cheat-tabs">
         <button class="cheat-tab @(_tab == CheatTab.Resupply ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.Resupply)">Resupply</button>
         <button class="cheat-tab @(_tab == CheatTab.DroneNetwork ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.DroneNetwork)">Drone Network</button>
+        <button class="cheat-tab @(_tab == CheatTab.BaseBuilding ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.BaseBuilding)">Base Building</button>
     </nav>
 
-    <main class="cheats-body @(_tab == CheatTab.DroneNetwork ? "wide" : "")">
+    <main class="cheats-body @(_tab != CheatTab.Resupply ? "wide" : "")">
 
         <section class="save-picker">
             <label for="save-select">Save file</label>
@@ -43,7 +44,11 @@
             }
         </section>
 
-        @if (_tab == CheatTab.DroneNetwork)
+        @if (_tab == CheatTab.BaseBuilding)
+        {
+            <BaseBuilding SavePath="@(string.IsNullOrEmpty(_selectedSave) ? "" : Path.Combine(_saveFolder, _selectedSave))" GameLive="@(Live.Status == LiveStatus.Live)" />
+        }
+        else if (_tab == CheatTab.DroneNetwork)
         {
             <section class="config-section">
                 <h2>Drone Network</h2>
@@ -375,7 +380,7 @@
         public ResupplyConfig ToConfig() => new(Id, ContainerLabel.Trim(), ProductGId, ProductName, ReplaceAll);
     }
 
-    private enum CheatTab { Resupply, DroneNetwork }
+    private enum CheatTab { Resupply, DroneNetwork, BaseBuilding }
 
     private CheatTab _tab = CheatTab.Resupply;
     private DroneNetworkReport? _droneReport;
