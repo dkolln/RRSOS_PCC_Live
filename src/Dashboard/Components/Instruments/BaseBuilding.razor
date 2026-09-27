@@ -110,7 +110,12 @@
                 </label>
             </div>
 
-            @if (CurrentRecipe is { MinSlots: > 0 } stocked)
+            @if (IsWarehouse && ValidTemplates.Count == 0)
+            {
+                <p class="bb-problem">The warehouse is built from Container3 only (80 slots). Capture a Container3 template first.</p>
+            }
+
+            @if (CurrentRecipe is { MinSlots: > 0, Warehouse: false } stocked)
             {
                 <p class="hint">
                     This group is stocked, one of each item in a chest, so only templates whose chests hold at least @stocked.MinSlots items are offered
@@ -161,7 +166,7 @@
                     {
                         <rect x="@Sx(p.Z + _plan.Template.Spacing / 2)" y="@Sy(p.X + _plan.Template.Spacing / 2)"
                               width="@Num(_plan.Template.Spacing)" height="@Num(_plan.Template.Spacing)"
-                              class="bb-found @(p.FoundationExists ? "is-there" : "is-new") @(p.Conflicts.Count > 0 ? "is-blocked" : "")" />
+                              class="bb-found @(p.FoundationExists ? "is-there" : "is-new") @(p.Group == "(filler)" ? "is-filler" : "") @(p.Conflicts.Count > 0 ? "is-blocked" : "")"><title>@(p.Group is null ? "" : $"Row {p.Row}: {p.Group}")</title></rect>
 
                         @foreach (var c in p.Chests)
                         {
@@ -176,9 +181,20 @@
                     <summary>The labels, platform by platform</summary>
                     @foreach (var p in _plan.Platforms)
                     {
-                        <div class="bb-muted">Platform @p.Index: @string.Join(", ", p.Chests.Select(c => c.Label ?? (c.Title is null ? "(spare)" : $"{c.Title} ({c.Stock?.Count ?? 0}{(c.FillWith is null ? "" : " + " + c.FillWith + " to capacity")})")))</div>
+                        <div class="bb-muted">@(p.Row > 0 ? $"Row {p.Row}, " : "")Platform @p.Index@(p.Group is null ? "" : $" ({p.Group})"): @(p.Group == "(filler)" ? "bare foundation" : "")@string.Join(", ", p.Chests.Select(c => c.Label ?? (c.Title is null ? "(spare)" : $"{c.Title} ({c.Stock?.Count ?? 0}{(c.FillWith is null ? "" : " + " + c.FillWith + " to capacity")})")))</div>
                     }
                 </details>
+
+                @if (IsWarehouse)
+                {
+                    <p class="hint">
+                        The whole warehouse, from this beacon (Container3 only): the first row of groups runs out from the platform the beacon points at, and each next row is
+                        beside it on the beacon's right hand, with a blank aisle of bare foundations on the beacon's left and another after the last row. Every group starts
+                        on a platform of its own, and short rows end in bare foundations. The first chests of each row carry index signs. The DNA and Genetics chests are
+                        holding tanks: titled, but with no filter or demand. <strong>Only buildings are checked for room, not the ground</strong>, so make sure the whole
+                        footprint is clear and flat. The equipment chests are stocked as they are built.
+                    </p>
+                }
 
                 @if (CurrentRecipe?.Bundles is null)
                 {
@@ -188,7 +204,7 @@
                 </label>
                 <label class="bb-option">
                     <input type="checkbox" checked="@_fill" @onchange="e => _fill = e.Value is true" />
-                    Also fill each labelled chest to capacity with its item (@(_plan.Template.Slots > 0 ? _plan.Template.Slots : 15) each, @(_plan.Labelled * (_plan.Template.Slots > 0 ? _plan.Template.Slots : 15)) items)
+                    Also fill each labelled chest to capacity with its item (@(_plan.Template.Slots > 0 ? _plan.Template.Slots : 15) each, @FillItems(_plan) items)
                 </label>
                 }
                 else
@@ -197,7 +213,7 @@
                 }
 
                 <button class="resupply-btn" disabled="@(!CanBuild)" @onclick="Build">
-                    @(_busy ? "BUILDING..." : "BUILD ROW")
+                    @(_busy ? "BUILDING..." : BuildWord)
                 </button>
                 @if (GameLive)
                 {
@@ -207,6 +223,33 @@
                 {
                     <p class="@(_buildOk ? "bb-ok" : "bb-problem")">@_buildMessage</p>
                 }
+            }
+
+            @if (IsWarehouse && _removal is { Any: true } removal)
+            {
+                <h3>Remove warehouse</h3>
+                <p class="bb-summary">
+                    A warehouse stands here: <strong>@removal.Foundations</strong> platforms, <strong>@removal.Chests</strong> chests and
+                    <strong>@removal.Items</strong> items in them@(removal.Signs > 0 ? $", and {removal.Signs} signs on them" : ""). Removing it deletes exactly those (and the chests' inventories), nothing else.
+                </p>
+
+                @if (removal.Blockers.Count > 0)
+                {
+                    <p class="bb-problem">Something else stands in it (@string.Join("; ", removal.Blockers)). Take it away first; nothing is removed while it is there.</p>
+                }
+
+                <button class="resupply-btn is-danger" disabled="@(!CanRemove)" @onclick="RemoveWarehouse">
+                    @(_busy ? "WORKING..." : "REMOVE WAREHOUSE")
+                </button>
+                @if (GameLive)
+                {
+                    <p class="bb-problem">The game is running a world. Exit to the main menu first.</p>
+                }
+            }
+
+            @if (_removeMessage is not null)
+            {
+                <p class="@(_removeOk ? "bb-ok" : "bb-problem")">@_removeMessage</p>
             }
         }
     }
@@ -229,7 +272,20 @@
     // The stored templates a group can use: for a stocked group only those whose chests hold everything in the biggest bundle.
     private List<BuildTemplate> ValidTemplates => _templates.Where(t => t.Slots >= (CurrentRecipe?.MinSlots ?? 0)).ToList();
 
-    private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true, Platforms.Count: > 0 };
+    private BaseBuildingEngine.RemovalPlan? _removal;
+    private string? _removeMessage;
+    private bool _removeOk;
+
+    private bool CanRemove => !_busy && !GameLive && _removal is { Any: true, Blockers.Count: 0 };
+
+    private bool IsWarehouse =>CurrentRecipe is { Warehouse: true };
+
+    private string BuildWord => IsWarehouse ? "BUILD WAREHOUSE" : "BUILD ROW";
+
+    // Items a fill would write: one chest's worth for each labelled chest (the stocked chests of the equipment group are filled as they are built).
+    private static int FillItems(BuildPlan plan) => plan.Platforms.Sum(p => p.Chests.Count(c => c.Label is not null)) * (plan.Template.Slots > 0 ? plan.Template.Slots : 15);
+
+    private bool CanBuild =>!_busy && !GameLive && _plan is { Ok: true, Platforms.Count: > 0 };
 
     private string _loadedFor = "";
     private string? _error;
@@ -306,9 +362,57 @@
 
         var beacon = _beaconId;
         var plan = await Building.PlanAsync(SavePath, beacon, template, recipe);
+        var removal = recipe.Warehouse ? await Building.WarehouseScanAsync(SavePath, beacon, template) : null;
 
         if (beacon == _beaconId)
+        {
             _plan = plan;
+            _removal = removal;
+        }
+    }
+
+    private async Task RemoveWarehouse()
+    {
+        var template = ValidTemplates.FirstOrDefault(t => t.Name == _templateName);
+        if (!CanRemove || template is null || _removal is null)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Have you exited to the Main Menu?\n\nREMOVE WAREHOUSE deletes {_removal.Foundations} platforms, {_removal.Chests} chests, {_removal.Signs} signs and {_removal.Items} items from your save file, and whatever is in those chests goes with them. A backup is made first, and that is the only way back. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        _removeMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var edit = await Building.RemoveWarehouseAsync(SavePath, _beaconId, template);
+
+            if (!edit.Success || edit.Result is null)
+            {
+                _removeOk = false;
+                _removeMessage = edit.Error ?? "The removal failed.";
+                Toasts.Show("Removing the warehouse failed. " + _removeMessage, ToastKind.Error, TimeSpan.FromSeconds(9));
+            }
+            else
+            {
+                var p = edit.Result.Plan;
+                _removeOk = true;
+                _removeMessage = $"Removed {p.Foundations} platforms, {p.Chests} chests, {p.Signs} signs and {p.Items} items. Backup: {edit.BackupPath}";
+                Toasts.Show($"Removed {p.Foundations} platforms and {p.Chests} chests", ToastKind.Success);
+            }
+
+            _loadedFor = ""; // read the save again: the warehouse is gone from it
+            await OnParametersSetAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task Capture(BuildBeacon b)
@@ -341,7 +445,7 @@
 
         var confirmed = await JS.InvokeAsync<bool>(
             "confirm",
-            $"Have you exited to the Main Menu?\n\nBUILD ROW adds {_plan.Platforms.Count(p => !p.FoundationExists)} foundations and {_plan.ChestCount} chests{(_fill ? $" and {_plan.Labelled * (_plan.Template.Slots > 0 ? _plan.Template.Slots : 15)} items" : "")} to your save file. If a world is still loaded, the game will overwrite the change at its next autosave.");
+            $"Have you exited to the Main Menu?\n\n{BuildWord} adds {_plan.Platforms.Count(p => !p.FoundationExists)} foundations, {_plan.ChestCount} chests and {_plan.Platforms.Sum(p => p.Signs?.Count ?? 0)} signs{(_fill ? $" and {FillItems(_plan)} items" : "")} to your save file. If a world is still loaded, the game will overwrite the change at its next autosave.");
 
         if (!confirmed)
             return;
@@ -363,7 +467,7 @@
             else
             {
                 _buildOk = true;
-                _buildMessage = $"Built: {edit.Result.Foundations} foundations and {edit.Result.Chests} chests ({edit.Result.Labelled} labelled{(edit.Result.Items > 0 ? $", filled with {edit.Result.Items} items" : "")}). Backup: {edit.BackupPath}";
+                _buildMessage = $"Built: {edit.Result.Foundations} foundations, {edit.Result.Chests} chests and {edit.Result.Signs} signs ({edit.Result.Labelled} labelled{(edit.Result.Items > 0 ? $", filled with {edit.Result.Items} items" : "")}). Backup: {edit.BackupPath}";
                 Toasts.Show($"Built {edit.Result.Foundations} foundations and {edit.Result.Chests} chests", ToastKind.Success);
             }
 

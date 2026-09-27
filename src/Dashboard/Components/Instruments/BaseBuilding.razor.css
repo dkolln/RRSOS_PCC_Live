@@ -25,6 +25,8 @@
 .bb-found { fill: rgba(122, 184, 255, 0.10); stroke: #3a5a7a; stroke-width: 0.15; }
 .bb-found.is-start { fill: rgba(150, 165, 180, 0.12); stroke: #5f7d99; }
 .bb-found.is-there { stroke: #2f6b4c; fill: rgba(79, 209, 139, 0.10); }
+.resupply-btn.is-danger { background: #8f2d2d; border-color: #ff6b6b; }
+.bb-found.is-filler { fill-opacity: 0.35; }
 .bb-found.is-blocked { stroke: #ff6b6b; stroke-width: 0.35; }
 .bb-chest { fill: #ffb347; stroke: #0a1019; stroke-width: 0.08; }
 .bb-chest.is-spare { fill: #5f7d99; }

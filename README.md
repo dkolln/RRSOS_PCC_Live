@@ -75,6 +75,20 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   comes from the game itself: plugin 0.8.0 writes `blueprints.json` once per session, so run the game once with the
   new plugin first (otherwise the chest is filled with plain chips).
 
+  **Warehouse:** name a beacon **All** (or Everything, or Warehouse) and pick it to build every group at once: six rows of
+  ten platforms (the first row runs out from the beacon, each next row is beside it on the beacon's right hand), each group
+  on platforms of its own, with bare foundations to finish any short row, plus a blank aisle of bare foundations on the
+  beacon's left and another after the last row (8 rows, 80 platforms). The rows are fixed in the code (butterfly larvae,
+  larvae and petri dishes; frog eggs and tree seeds; plant seeds, vegetables and food; ores, rods and fuses; crafting
+  materials, quartz, drones and essentials; equipment and tokens, fish eggs, toxic and purification). The first chests of
+  each row carry index signs (`Butterfly <>`, `Rods >`, ...: `<>` is a group on both the left and right chests, `<` left
+  only, `>` right only). The DNA and Genetics chests are holding tanks: titled, with no filter or demand, so Resupply leaves
+  them alone. It is Container3 only, and needs about 80 platforms of clear, flat ground: only buildings are checked, not
+  the terrain.
+  **REMOVE WAREHOUSE** appears when one stands at the beacon: it deletes those platforms, the chests on them, their
+  inventories and the items inside, and nothing else. It refuses if anything else (a machine, a wall) stands in the
+  footprint, and, like every edit, it backs the save up first and checks the result before writing.
+
 ## Which starts first, the game or the app?
 
 Either. The dashboard reads the plugin's files, and with no fresh file it just says `WAITING FOR THE GAME`. It turns
