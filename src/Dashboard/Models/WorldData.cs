@@ -188,6 +188,12 @@ namespace RRSOS.PCC.Dashboard
         public int Id { get; set; }
         public string Group { get; set; } = "";
         public Vec3? Position { get; set; }
+
+        /// <summary>What the container is set for (plugin 0.10.0 and later): a warehouse chest's demand item, or an autocrafter's recipe.
+        /// <see cref="Label"/> is the group id, <see cref="LabelName"/> its display name. Null when nothing is picked.</summary>
+        public string? Label { get; set; }
+        public string? LabelName { get; set; }
+
         public List<StoredData> Items { get; set; } = new();
         public List<StoredData> Secondary { get; set; } = new();
     }

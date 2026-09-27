@@ -1,0 +1,74 @@
+@* Which raw ingredients are choking this base's factory, right now: one line per missing ingredient ("N Autocrafters
+   are missing Iron"), counting the crafters short of it. Click a line to see which crafters those are. Shown under
+   the floor plan, only once a factory has been built here (see BaseInfo.HasFactory) — different bases can each have
+   their own. *@
+<div class="factory @(Dim ? "is-dim" : "")">
+    <div class="factory-head">
+        <span class="factory-title">Auto Crafter</span>
+        @if (Groups.Count > 0)
+        {
+            <span class="factory-badge is-warn">@Groups.Count short</span>
+        }
+    </div>
+
+    @if (Groups.Count == 0)
+    {
+        <div class="factory-ok">Every crafter has what it needs.</div>
+    }
+    else
+    {
+        <ul class="factory-list">
+            @foreach (var g in Groups)
+            {
+                <li>
+                    <button type="button" class="factory-row" @onclick="() => Toggle(g.ItemId)">
+                        <span class="factory-caret">@(IsOpen(g.ItemId) ? "▾" : "▸")</span>
+                        <span class="factory-count">@g.Crafters.Count</span>
+                        Autocrafter@(g.Crafters.Count == 1 ? "" : "s") @(g.Crafters.Count == 1 ? "is" : "are") missing
+                        <span class="factory-item">@g.ItemName</span>
+                    </button>
+
+                    @if (IsOpen(g.ItemId))
+                    {
+                        <ul class="factory-sublist">
+                            @foreach (var product in g.Crafters)
+                            {
+                                <li class="factory-crafter">@product</li>
+                            }
+                        </ul>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    /// <summary>The selected base, once it has a factory (<see cref="BaseInfo.HasFactory"/>).</summary>
+    [Parameter, EditorRequired]
+    public BaseInfo Info { get; set; } = null!;
+
+    [Parameter]
+    public bool Dim { get; set; }
+
+    private readonly HashSet<string> _open = new(StringComparer.Ordinal);
+
+    private sealed record ShortageGroup(string ItemId, string ItemName, IReadOnlyList<string> Crafters);
+
+    // Every (crafter, missing ingredient) pair, regrouped by ingredient: how many crafters are stuck on it, and which.
+    private List<ShortageGroup> Groups => Info.Crafters
+        .SelectMany(c => c.Missing.Select(m => (m.Id, m.Name, Product: c.ProductName)))
+        .GroupBy(x => x.Id)
+        .Select(g => new ShortageGroup(g.Key, g.First().Name, g.Select(x => x.Product).OrderBy(p => p, StringComparer.CurrentCultureIgnoreCase).ToList()))
+        .OrderByDescending(g => g.Crafters.Count)
+        .ThenBy(g => g.ItemName, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+
+    private bool IsOpen(string itemId) => _open.Contains(itemId);
+
+    private void Toggle(string itemId)
+    {
+        if (!_open.Remove(itemId))
+            _open.Add(itemId);
+    }
+}
