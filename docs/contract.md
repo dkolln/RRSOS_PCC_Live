@@ -118,8 +118,27 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
   - `loot`: groups whose deconstruction drops a chip linked to that group (`Group.GetLootRecipeOnDeconstruct`).
 - A chip is `{"id","gId":"BlueprintT1","liGrps":"<group>"}` in the save; `liGrps` names the building it unlocks.
 
+## The recipe list (`recipes.json`, added in plugin 0.9.0)
+
+- Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\recipes.json`. Written **once per game session** (when a world has loaded), not on every tick. Meant as the one
+  place that says how to make an object, for any tool (the planned Production planner reads it).
+- Shape: `{ "schema": 1, "recipes": [ ... ], "machines": [ ... ] }`.
+- A **recipe** is one object (item or building) that has ingredients:
+  `{ "id": "Rod-osmium", "kind": "item", "ingredients": { "Osmium": 1, "Alloy": 1 }, "category": "...", "craftableIn": ["CraftStationT2"], "hideInCrafter": false, "unlock": { "unit": "...", "value": 0 } }`.
+  - `ingredients`: group id to how many of it (the game lists an ingredient twice for two).
+  - `kind`: `item`, `building` or `other`. `category` and `craftableIn` are only on items.
+  - `craftableIn`: the game's crafting places for the item (`CraftStationT1..T3`, `CraftOvenT1`, `CraftQuartzT1`, `CraftBioLab`, `CraftIncubatorT1`,
+    `CraftGeneticT1`, `CraftDroneT1`, `CraftToxicRefinementT1`, `CraftRocket`, `CraftVehicleT1`, `CraftDeparturePlatform`). An autocrafter can make an item
+    only if it is craftable in one of the first eight of those minus the incubator and genetic ones (see `ActionGroupSelectorAutoCrafter`).
+  - `unlock`: the terraformation unit and value the game unlocks it at (`Null` means not from the start: a blueprint or a story event).
+- A **machine** is a building that crafts: `{ "id": "AutoCrafter1", "crafts": "CraftStationT1", "craftTime": 1.5, "autocrafter": { "range": 0, "craftEverySec": 0 } }`.
+  `range` is the autocrafter's reach in metres (a 3D sphere: height counts), `craftEverySec` how often it tries to craft. `convertsRecipe` marks the machines
+  that finish a recipe by growth (the incubator).
+- Read by the game's own groups (`GroupsHandler.GetAllGroups()`, each `GetRecipe()`), so it covers every planet's items the running game has.
+
 ## Changes
 
+- **Plugin 0.9.0**: new file `recipes.json` (see above).
 - **Plugin 0.8.0**: new file `blueprints.json` (see above).
 - **Plugin 0.7.0**: `live.json` gains `vehicles`: every truck (group `VehicleTruck`), oldest first, each shaped like
   `vehicle` plus its `id`. `vehicle` stays, as the first truck, for older readers. The dashboard names trucks "Truck 1",

@@ -76,7 +76,7 @@ namespace RRSOS.PCC.Dashboard
     /// points along +z: its direction is the opposite of Unity's forward, (-sin yaw, -cos yaw). One sample, so a plan is refused when
     /// a platform stands where the beacon points and the two disagree.
     /// </summary>
-    public static class BaseBuildingEngine
+    public static partial class BaseBuildingEngine
     {
         /// <summary>How far above a foundation's position things placed on it stand (chests and the beacon, in the save).</summary>
         public const double OnFoundation = 2.519;
@@ -683,7 +683,7 @@ namespace RRSOS.PCC.Dashboard
         /// (a beacon pointing south puts one to the east). The first platform of a row carries its index signs. Only buildings are checked for room; the ground
         /// is not known.
         /// </summary>
-        public static BuildPlan PlanWarehouse(string text, long beaconId, BuildTemplate template, IReadOnlyList<WarehouseRow> rows, Func<string, bool> isBuilding)
+        public static BuildPlan PlanWarehouse(string text, long beaconId, BuildTemplate template, IReadOnlyList<WarehouseRow> rows, Func<string, bool> isBuilding, int minWidth = 0)
         {
             var world = Read(text);
             var beacon = Beacons(world).FirstOrDefault(b => b.Id == beaconId);
@@ -748,7 +748,8 @@ namespace RRSOS.PCC.Dashboard
             var rowPlatforms = laid.Select(row => row.Groups.SelectMany(g =>
                 Enumerable.Range(0, (int)Math.Ceiling(g.Cells.Count / (double)perPlatform))
                     .Select(p => (g.Name, Cells: g.Cells.Skip(p * perPlatform).Take(perPlatform).ToList()))).ToList()).ToList();
-            var width = rowPlatforms.Max(r => r.Count);
+            // One extra platform at the back of every row (the owner's 2026-09-27 "11 deep" change), beyond whatever the groups need.
+            var width = Math.Max(rowPlatforms.Max(r => r.Count), minWidth);
             var leadingBlank = laid.TakeWhile(r => r.Blank).Count();
 
             var platforms = new List<PlannedPlatform>();
@@ -794,7 +795,7 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>What removing a warehouse would delete, found from the platforms of its plan. Nothing is deleted by asking.</summary>
         /// <param name="Blockers">Things that stand in the footprint but are not a foundation or a chest (a machine, a wall): they are not ours to delete, so any of them stops a removal.</param>
-        public sealed record RemovalPlan(int Platforms, int Foundations, int Chests, int Items, IReadOnlyList<string> Blockers, IReadOnlyList<long> ObjectIds, IReadOnlyList<long> InventoryIds, int Signs = 0)
+        public sealed record RemovalPlan(int Platforms, int Foundations, int Chests, int Items, IReadOnlyList<string> Blockers, IReadOnlyList<long> ObjectIds, IReadOnlyList<long> InventoryIds, int Signs = 0, int Crafters = 0)
         {
             public bool Any => Foundations > 0 || Chests > 0;
         }
@@ -837,7 +838,7 @@ namespace RRSOS.PCC.Dashboard
         /// Finds a built warehouse from the platforms of its plan (<see cref="PlanWarehouse"/>): the foundations standing there, the chests on them
         /// (any Container), each chest's inventory and every item in it. Anything else standing on a platform is listed as a blocker.
         /// </summary>
-        public static RemovalPlan PlanRemoval(string text, BuildPlan plan, Func<string, bool> isBuilding)
+        public static RemovalPlan PlanRemoval(string text, BuildPlan plan, Func<string, bool> isBuilding, bool includeCrafters = false)
         {
             var world = Read(text);
             var records = ReadRecords(text);
@@ -848,12 +849,19 @@ namespace RRSOS.PCC.Dashboard
             var objects = new HashSet<long>();
             var invIds = new HashSet<long>();
             var blockers = new List<string>();
-            int foundations = 0, chests = 0, items = 0, platforms = 0, signs = 0;
+            int foundations = 0, chests = 0, items = 0, platforms = 0, signs = 0, crafters = 0;
 
             foreach (var p in plan.Platforms)
             {
-                var found = world.Objects.Where(o => o.GId == "Foundation" && Math.Abs(o.X - p.X) < 0.6 && Math.Abs(o.Z - p.Z) < 0.6 && Math.Abs(o.Y - p.Y) < 0.6).ToList();
-                var boxes = world.Objects.Where(o => o.GId.StartsWith("Container", StringComparison.Ordinal)
+                // A factory floor may have been laid by hand on a grid a little off the warehouse's (the owner's is 1 m off), so any foundation of that height whose
+                // centre is in the platform's square is part of it; for a warehouse only one exactly on its platform is.
+                var reach = includeCrafters ? half - 0.05 : 0.6;
+                // A factory floor may carry a ramp (FoundationSlope, at some height between the warehouse and the floor, in place of the usual flat tile): removing the factory
+                // takes those with it too, over a generous band below the floor, since a ramp is only ever built on a factory floor (never the warehouse, which stays flat).
+                var found = world.Objects.Where(o => Math.Abs(o.X - p.X) < reach && Math.Abs(o.Z - p.Z) < reach
+                                                     && (o.GId == "Foundation" && Math.Abs(o.Y - p.Y) < 0.6
+                                                         || (includeCrafters && o.GId == "FoundationSlope" && o.Y > p.Y - 12 && o.Y < p.Y + 1))).ToList();
+                var boxes = world.Objects.Where(o => (o.GId.StartsWith("Container", StringComparison.Ordinal) || (includeCrafters && o.GId.StartsWith("AutoCrafter", StringComparison.Ordinal)))
                                                      && Math.Abs(o.X - p.X) <= half && Math.Abs(o.Z - p.Z) <= half
                                                      && Math.Abs(o.Y - p.Y - OnFoundation) < 0.8).ToList();
                 if (found.Count > 0 || boxes.Count > 0)
@@ -868,6 +876,9 @@ namespace RRSOS.PCC.Dashboard
                         continue;
 
                     chests++;
+                    if (c.GId.StartsWith("AutoCrafter", StringComparison.Ordinal))
+                        crafters++;
+
                     if (c.LiId is not { } li)
                         continue;
 
@@ -909,7 +920,7 @@ namespace RRSOS.PCC.Dashboard
                     blockers.Add($"{o.GId} at ({o.X:0.#}, {o.Z:0.#})");
             }
 
-            return new RemovalPlan(platforms, foundations, chests, items, blockers.Distinct().Take(6).ToList(), objects.ToList(), invIds.ToList(), signs);
+            return new RemovalPlan(platforms, foundations, chests, items, blockers.Distinct().Take(6).ToList(), objects.ToList(), invIds.ToList(), signs, crafters);
         }
 
         /// <summary>
@@ -918,9 +929,9 @@ namespace RRSOS.PCC.Dashboard
         /// that remain must be exactly the original ones in the same order minus the removed ones, and the text between them must be as long as it was
         /// less one separator for each record taken out.
         /// </summary>
-        public static RemovalOutcome Remove(string text, BuildPlan plan, Func<string, bool> isBuilding)
+        public static RemovalOutcome Remove(string text, BuildPlan plan, Func<string, bool> isBuilding, bool includeCrafters = false)
         {
-            var removal = PlanRemoval(text, plan, isBuilding);
+            var removal = PlanRemoval(text, plan, isBuilding, includeCrafters);
 
             if (plan.Problems.Count > 0)
                 return new RemovalOutcome(null, removal, plan.Problems.ToList());
@@ -931,13 +942,24 @@ namespace RRSOS.PCC.Dashboard
             if (removal.Blockers.Count > 0)
                 return new RemovalOutcome(null, removal, new[] { "Something else stands in the warehouse (" + string.Join("; ", removal.Blockers) + "), so nothing was removed. Take it away first." });
 
-            var objectIds = removal.ObjectIds.ToHashSet();
-            var inventoryIds = removal.InventoryIds.ToHashSet();
-            var records = ReadRecords(text);
-            var doomed = records.Where(r => r.IsInventory ? inventoryIds.Contains(r.Id) : objectIds.Contains(r.Id)).OrderBy(r => r.Start).ToList();
+            var (newText, problems) = RemoveByIds(text, removal.ObjectIds, removal.InventoryIds);
+            return problems.Count > 0 ? new RemovalOutcome(null, removal, problems) : new RemovalOutcome(newText, removal, Array.Empty<string>());
+        }
 
-            if (doomed.Count(r => !r.IsInventory) != objectIds.Count || doomed.Count(r => r.IsInventory) != inventoryIds.Count)
-                return new RemovalOutcome(null, removal, new[] { "The records found in the save do not match the warehouse (an id is missing or appears twice), so nothing was removed." });
+        /// <summary>
+        /// Takes exactly the given object and inventory ids out of the text (one record each; a record goes with the separator after it, or before it when it is the last of
+        /// a section), and checks the result before returning it: the records that remain are the original ones minus these, in order, and only separators were lost from the
+        /// text between them. Used by every "remove" (a whole warehouse or factory, or one crafter).
+        /// </summary>
+        private static (string? NewText, List<string> Problems) RemoveByIds(string text, IReadOnlyList<long> objectIds, IReadOnlyList<long> inventoryIds)
+        {
+            var objectSet = objectIds.ToHashSet();
+            var inventorySet = inventoryIds.ToHashSet();
+            var records = ReadRecords(text);
+            var doomed = records.Where(r => r.IsInventory ? inventorySet.Contains(r.Id) : objectSet.Contains(r.Id)).OrderBy(r => r.Start).ToList();
+
+            if (doomed.Count(r => !r.IsInventory) != objectSet.Count || doomed.Count(r => r.IsInventory) != inventorySet.Count)
+                return (null, new List<string> { "The records found in the save do not match what is being removed (an id is missing or appears twice), so nothing was removed." });
 
             var eol = text.Contains("|\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
             var sep = "|" + eol;
@@ -965,7 +987,7 @@ namespace RRSOS.PCC.Dashboard
 
             var newText = result.ToString();
             var problems = VerifyRemoval(text, newText, doomed.Count, sep, doomed);
-            return problems.Count > 0 ? new RemovalOutcome(null, removal, problems) : new RemovalOutcome(newText, removal, Array.Empty<string>());
+            return problems.Count > 0 ? (null, problems) : (newText, new List<string>());
         }
 
         private static List<string> VerifyRemoval(string before, string after, int removed, string sep, List<Rec> doomed)
