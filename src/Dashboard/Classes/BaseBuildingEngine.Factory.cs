@@ -5,8 +5,17 @@ using System.Text.RegularExpressions;
 
 namespace RRSOS.PCC.Dashboard
 {
+    /// <summary>
+    /// One of up to 4 crafters sharing a platform that nothing else claimed, each in its own corner (see <see cref="BaseBuildingEngine.PlanFactory"/>'s third pass): the owner's
+    /// fallback for a product that still has nowhere to go after the ordinary one-crafter-per-platform pass and the local-chest pass, tried only on platforms with no crafter at
+    /// all (mostly the blank aisle rows, which sit right next to every content row). <paramref name="X"/>/<paramref name="Z"/> are this corner's own position, 1.5 m off the
+    /// platform's centre along each local axis.
+    /// </summary>
+    public sealed record FactoryQuarterTenant(string Product, double X, double Z, string? Label, IReadOnlyList<string>? LocalChestItems, double Farthest);
+
     /// <summary>One platform of the factory floor: where it is, whether a foundation is already there, the product whose crafter stands on it (if any), and what is in the way.</summary>
-    public sealed record FactoryFloorCell(int Index, double X, double Z, bool Laid, bool FoundationExists, string? Product, double Farthest, IReadOnlyList<string> Conflicts, string? Label = null);
+    public sealed record FactoryFloorCell(int Index, double X, double Z, bool Laid, bool FoundationExists, string? Product, double Farthest, IReadOnlyList<string> Conflicts, string? Label = null,
+        IReadOnlyList<string>? LocalChestItems = null, IReadOnlyList<FactoryQuarterTenant>? Quarters = null);
 
     /// <summary>
     /// A plan for the factory: crafters on a floor of platforms above the warehouse, one crafter per platform, each set to make one product from the warehouse
@@ -15,7 +24,7 @@ namespace RRSOS.PCC.Dashboard
     public sealed record FactoryBuildPlan(BuildBeacon Beacon, double Range, double Height, double FloorY, IReadOnlyList<FactoryFloorCell> Floor, IReadOnlyList<FactoryProduct> NotBuilt,
         IReadOnlyList<string> Problems, double PowerKw)
     {
-        public int Crafters => Floor.Count(c => c.Product is not null);
+        public int Crafters => Floor.Count(c => c.Product is not null) + Floor.Sum(c => c.Quarters?.Count ?? 0);
         public bool Ok => Problems.Count == 0 && Crafters > 0 && Floor.All(c => c.Conflicts.Count == 0);
     }
 
@@ -63,6 +72,50 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>The crafter the game places (AutoCrafter1), and where its inventory record says its output goes: 8 slots.</summary>
         public const string CrafterGId = "AutoCrafter1";
         private const int CrafterSlots = 8;
+        private const int LocalChestSlots = 15; // Container1
+        private const int HighPriority = 5; // the top of the game's demand-priority scale (-3..5)
+        private const double LocalChestOffset = 1.8;
+        private const double QuarterOffset = 1.5; // a quartered platform's corner, off the centre along each local axis
+
+        /// <summary>
+        /// Reflects <paramref name="pointX"/>/<paramref name="pointZ"/> to the far side of <paramref name="centerX"/>/<paramref name="centerZ"/> along the beacon's own
+        /// forward axis only — its position across that axis (left/right) is kept the same. This is how a local chest's spot is found from its crafter's: the owner's
+        /// "put the AC in a southern corner, the container in the opposite northern corner" — the chest sits in the corner directly on the other side, never sideways.
+        /// </summary>
+        private static (double X, double Z) MirrorAlongBeacon(double centerX, double centerZ, double pointX, double pointZ, int dirX, int dirZ)
+        {
+            var along = (pointX - centerX) * dirX + (pointZ - centerZ) * dirZ;
+            return (pointX - 2 * along * dirX, pointZ - 2 * along * dirZ);
+        }
+
+        /// <summary>
+        /// Where a tenant's local chest should stand: its own platform's opposite corner (see <see cref="MirrorAlongBeacon"/>), unless another tenant already sits
+        /// exactly there — which happens when two tenants of the same platform are themselves a mirror pair (same side, opposite ends) — in which case the chest
+        /// tries the platform's other two corners instead, and only as a last resort (every corner already taken) sits further out along the tenant's own diagonal.
+        /// </summary>
+        private static (double X, double Z) ChestSpotFor(FactoryQuarterTenant tenant, IReadOnlyList<FactoryQuarterTenant> siblings, double platformX, double platformZ, int dirX, int dirZ)
+        {
+            bool Occupied(double x, double z) => siblings.Any(s => Math.Abs(s.X - x) < 0.2 && Math.Abs(s.Z - z) < 0.2);
+
+            var mirrored = MirrorAlongBeacon(platformX, platformZ, tenant.X, tenant.Z, dirX, dirZ);
+            if (!Occupied(mirrored.X, mirrored.Z))
+                return mirrored;
+
+            var (rx, rz) = (dirZ, -dirX);
+            var along = (tenant.X - platformX) * dirX + (tenant.Z - platformZ) * dirZ;
+            var across = (tenant.X - platformX) * rx + (tenant.Z - platformZ) * rz;
+
+            var sameAlong = (platformX + along * dirX - across * rx, platformZ + along * dirZ - across * rz);
+            if (!Occupied(sameAlong.Item1, sameAlong.Item2))
+                return sameAlong;
+
+            var farDiagonal = (platformX - along * dirX - across * rx, platformZ - along * dirZ - across * rz);
+            if (!Occupied(farDiagonal.Item1, farDiagonal.Item2))
+                return farDiagonal;
+
+            // Every corner already has a tenant (all 4 sharing this platform): the only room left is further out along the tenant's own diagonal.
+            return (platformX + (tenant.X - platformX) * 1.53, platformZ + (tenant.Z - platformZ) * 1.53);
+        }
         private const double CrafterSignOffset = 0.99, CrafterSignUp = 2.58;
         private const string CrafterRot = "0,1,0,-4.371139E-08";
 
@@ -119,7 +172,143 @@ namespace RRSOS.PCC.Dashboard
                 taken[pick.Spot.Index] = (r.Product, pick.Farthest);
             }
 
-            foreach (var r in reaches.Where(r => r.Mode != FactoryMode.InRange))
+            // Corners of a platform, 1.5 m off its centre along the beacon's own axes: index 0 is the "south" one (further from the beacon), index 2 the
+            // "north" one directly opposite it (same left/right side, the other way along); 1 and 3 are the same pair on the other side.
+            var (rx, rz) = (beacon.DirZ, -beacon.DirX);
+            var corners = new (double Along, double Across)[] { (QuarterOffset, QuarterOffset), (QuarterOffset, -QuarterOffset), (-QuarterOffset, QuarterOffset), (-QuarterOffset, -QuarterOffset) };
+            FactorySpot[] CornersOf(FactorySpot s, int baseIndex) => corners.Select((c, i) => new FactorySpot(baseIndex + i, s.X + c.Along * beacon.DirX + c.Across * rx, s.Z + c.Along * beacon.DirZ + c.Across * rz)).ToArray();
+
+            // The distance a product reaches its farthest ingredient from a specific corner spot: the real value if that corner reaches everything, else the
+            // fallback the caller already worked out for wherever it landed.
+            double NewSpotFarthest(ProductReach r, FactorySpot spot)
+            {
+                var match = r.Full.FirstOrDefault(f => f.Spot.Index == spot.Index);
+                return match.Spot is not null ? match.Farthest : r.BestFarthest;
+            }
+
+            var quarterAssignments = new Dictionary<int, List<FactoryQuarterTenant>>();
+
+            // Second pass: a product whose ingredients no single platform reaches, or one that lost its tie for the only platform that does, gets whatever
+            // platform is left over that reaches the most of it — in its south corner (away from the beacon), re-checked there, with a local Container1 in the
+            // opposite, north, corner demanding the rest (see ApplyFactory) — the owner's fallback, "if all else fails". Re-evaluated against only the platforms
+            // not already taken, so it never displaces a product placed in the first pass.
+            var pending = reaches.Where(r => r.Mode is FactoryMode.InRange or FactoryMode.LocalChest && !taken.Values.Any(t => t.Product == r.Product)).Select(r => r.Product).ToList();
+            var freeSpots = spots.Where(s => !taken.ContainsKey(s.Index)).ToList();
+
+            if (pending.Count > 0 && freeSpots.Count > 0)
+            {
+                var retry = FactoryPlanner.Evaluate(book, chests, freeSpots, beacon.FoundationY, height, pending);
+                foreach (var r in retry.Where(r => r.Reached.Count > 0).OrderByDescending(r => r.Reached.Count).ThenBy(r => r.Product, StringComparer.Ordinal))
+                {
+                    var full = r.Full.FirstOrDefault(f => !taken.ContainsKey(f.Spot.Index) && !quarterAssignments.ContainsKey(f.Spot.Index));
+                    if (full.Spot is not null)
+                    {
+                        taken[full.Spot.Index] = (r.Product, full.Farthest);
+                        continue;
+                    }
+
+                    var best = r.Best;
+                    if (best is null || taken.ContainsKey(best.Index) || quarterAssignments.ContainsKey(best.Index))
+                        continue;
+
+                    var south = CornersOf(best, 0)[0];
+                    var southReach = FactoryPlanner.Evaluate(book, chests, new[] { south }, beacon.FoundationY, height, new[] { r.Product })[0];
+                    if (southReach.Reached.Count == 0)
+                        continue; // the corner itself reaches nothing (rare); leave it for the third pass to try a different platform
+
+                    quarterAssignments[best.Index] = new List<FactoryQuarterTenant>
+                        { new(r.Product, south.X, south.Z, labelOf(r.Product), southReach.Missing.Count > 0 ? southReach.Missing : null, southReach.BestFarthest) };
+                }
+            }
+
+            // A product placed by the second pass may already sit in notBuilt from the first (it lost the tie for the one platform that reached everything);
+            // the second pass found it a home after all, so that entry is stale.
+            notBuilt.RemoveAll(n => taken.Values.Any(t => t.Product == n.Product) || quarterAssignments.Values.Any(list => list.Any(q => q.Product == n.Product)));
+
+            // Third pass: a product still with nowhere to go (every platform that reaches any of it is already someone's) gets a corner of its own, 1.5 m off the
+            // centre, on a platform nothing else claimed at all — mostly the blank aisle rows, which sit right next to every content row so a corner there
+            // reaches about as well as the platform itself would. Up to 4 products can share one platform this way, each with its own local chest if it needs one.
+            // Tried only for stragglers: a product that already has a platform (even a shared corner) is never moved here.
+            var stillPending = pending.Where(p => !taken.Values.Any(t => t.Product == p) && !quarterAssignments.Values.Any(list => list.Any(q => q.Product == p))).ToList();
+            var unusedSpots = spots.Where(s => !taken.ContainsKey(s.Index) && !quarterAssignments.ContainsKey(s.Index)).ToList();
+
+            if (stillPending.Count > 0 && unusedSpots.Count > 0)
+            {
+                var pool = unusedSpots.SelectMany(s => CornersOf(s, s.Index * 4)).ToList();
+                var quarterReach = FactoryPlanner.Evaluate(book, chests, pool, beacon.FoundationY, height, stillPending);
+                var takenCorners = new HashSet<int>();
+
+                foreach (var r in quarterReach.Where(r => r.Reached.Count > 0).OrderByDescending(r => r.Reached.Count).ThenBy(r => r.Product, StringComparer.Ordinal))
+                {
+                    var full = r.Full.FirstOrDefault(f => !takenCorners.Contains(f.Spot.Index));
+                    var spot = full.Spot ?? (r.Best is { } b && !takenCorners.Contains(b.Index) ? b : null);
+                    if (spot is null)
+                        continue;
+
+                    takenCorners.Add(spot.Index);
+                    var platformIndex = spot.Index / 4;
+                    if (!quarterAssignments.TryGetValue(platformIndex, out var list))
+                        quarterAssignments[platformIndex] = list = new List<FactoryQuarterTenant>();
+
+                    list.Add(new FactoryQuarterTenant(r.Product, spot.X, spot.Z, labelOf(r.Product), r.Missing.Count > 0 ? r.Missing : null, full.Spot is not null ? full.Farthest : r.BestFarthest));
+                }
+            }
+
+            notBuilt.RemoveAll(n => quarterAssignments.Values.Any(list => list.Any(q => q.Product == n.Product)));
+
+            // Fourth pass: the owner's own idea — a stubborn product whose one good spot is a platform someone else already has to themselves gets it anyway: that
+            // platform is converted to quarters too, its original tenant moved off-centre into one corner (re-checked there so it never loses reach doing it),
+            // the stubborn product into another. Tried last, and only for what nothing else could place.
+            var stillStuck = pending.Where(p => !taken.Values.Any(t => t.Product == p) && !quarterAssignments.Values.Any(list => list.Any(q => q.Product == p))).ToList();
+
+            if (stillStuck.Count > 0 && taken.Count > 0)
+            {
+                var takenPlatforms = spots.Where(s => taken.ContainsKey(s.Index)).ToList();
+                var pool = takenPlatforms.SelectMany(s => CornersOf(s, s.Index * 4)).ToList();
+                var retrofitReach = FactoryPlanner.Evaluate(book, chests, pool, beacon.FoundationY, height, stillStuck);
+                var convertedPlatforms = new HashSet<int>();
+                var usedCorners = new HashSet<int>();
+
+                foreach (var r in retrofitReach.Where(r => r.Reached.Count > 0).OrderByDescending(r => r.Reached.Count).ThenBy(r => r.Product, StringComparer.Ordinal))
+                {
+                    var candidates = (r.Full.Select(f => f.Spot).Any() ? r.Full.Select(f => f.Spot) : r.Best is { } b0 ? new[] { b0 } : Array.Empty<FactorySpot>())
+                        .Where(s => !usedCorners.Contains(s.Index) && !convertedPlatforms.Contains(s.Index / 4));
+                    var newSpot = candidates.FirstOrDefault();
+                    if (newSpot is null)
+                        continue;
+
+                    var platformIndex = newSpot.Index / 4;
+                    var platform = takenPlatforms.First(s => s.Index == platformIndex);
+                    var (originalProduct, _) = taken[platformIndex];
+
+                    // Move the original tenant to a different corner of the same platform, and confirm it still reaches at least as much as it did centred.
+                    var originalIngredients = reaches.First(x => x.Product == originalProduct).Ingredients.Keys.ToList();
+                    var originalReachedBefore = reaches.First(x => x.Product == originalProduct).Reached.Count;
+                    var ownCorners = CornersOf(platform, platformIndex * 4).Where(c => c.Index != newSpot.Index).ToList();
+                    var movedReach = FactoryPlanner.Evaluate(book, chests, ownCorners, beacon.FoundationY, height, new[] { originalProduct })[0];
+                    if (movedReach.Reached.Count < originalReachedBefore)
+                        continue; // moving it would make it worse off; leave this platform alone
+
+                    var movedSpot = movedReach.Full.FirstOrDefault().Spot ?? movedReach.Best;
+                    if (movedSpot is null)
+                        continue;
+
+                    taken.Remove(platformIndex);
+                    convertedPlatforms.Add(platformIndex);
+                    usedCorners.Add(newSpot.Index);
+                    usedCorners.Add(movedSpot.Index);
+                    quarterAssignments[platformIndex] = new List<FactoryQuarterTenant>
+                    {
+                        new(originalProduct, movedSpot.X, movedSpot.Z, labelOf(originalProduct), movedReach.Missing.Count > 0 ? movedReach.Missing : null,
+                            movedReach.Full.Count > 0 ? movedReach.Full[0].Farthest : movedReach.BestFarthest),
+                        new(r.Product, newSpot.X, newSpot.Z, labelOf(r.Product), r.Missing.Count > 0 ? r.Missing : null, NewSpotFarthest(r, newSpot))
+                    };
+                }
+            }
+
+            notBuilt.RemoveAll(n => quarterAssignments.Values.Any(list => list.Any(q => q.Product == n.Product)));
+
+            foreach (var r in reaches.Where(r => r.Mode != FactoryMode.InRange && !taken.Values.Any(t => t.Product == r.Product) && !quarterAssignments.Values.Any(list => list.Any(q => q.Product == r.Product))))
                 notBuilt.Add(new FactoryProduct(r.Product, r.Mode, r.Ingredients, r.Best is { } b ? (b.X, crafterY, b.Z) : null, r.Reached, r.Missing, r.BestFarthest, r.Note));
 
             var half = template.Spacing / 2;
@@ -128,7 +317,8 @@ namespace RRSOS.PCC.Dashboard
             foreach (var p in warehouse)
             {
                 taken.TryGetValue(p.Index, out var t);
-                var laid = fullFloor || t.Product is not null;
+                var quarters = quarterAssignments.TryGetValue(p.Index, out var qList) ? qList : null;
+                var laid = fullFloor || t.Product is not null || quarters is not null;
                 var exists = world.Objects.Any(o => o.GId == "Foundation" && Math.Abs(o.X - p.X) < 0.6 && Math.Abs(o.Z - p.Z) < 0.6 && Math.Abs(o.Y - floorY) < 0.6);
 
                 var conflicts = !laid
@@ -142,7 +332,7 @@ namespace RRSOS.PCC.Dashboard
                         .Select(o => $"{o.GId} at ({o.X:0.#}, {o.Z:0.#})")
                         .ToList();
 
-                floor.Add(new FactoryFloorCell(p.Index, p.X, p.Z, laid, exists, t.Product, t.Far, conflicts, t.Product is null ? null : labelOf(t.Product)));
+                floor.Add(new FactoryFloorCell(p.Index, p.X, p.Z, laid, exists, t.Product, t.Far, conflicts, t.Product is null ? null : labelOf(t.Product), null, quarters));
             }
 
             return new FactoryBuildPlan(beacon, range, height, floorY, floor, notBuilt.OrderBy(n => n.Product, StringComparer.Ordinal).ToList(), problems, floor.Count(c => c.Product is not null) * crafterKw);
@@ -221,11 +411,13 @@ namespace RRSOS.PCC.Dashboard
             var foundations = 0;
             var crafters = 0;
             var signs = 0;
+            var localChests = 0;
 
             // Signs are turned like the warehouse's: identity when the beacon points south, the same turn from south for another direction.
             var signTurn = (int)Math.Round(-Math.Atan2(-plan.Beacon.DirZ, -plan.Beacon.DirX) * 180 / Math.PI);
             var signRot = TurnRot("0,0,0,1", signTurn);
             var crafterRot = TurnRot(CrafterRot, signTurn); // the owner's crafters (beacon pointing south) face the beacon; for another direction they turn with it
+            var chestRot = TurnRot(crafterRot, 180); // the owner: a local chest should face the opposite way from the crafter (it was facing the same way, wrongly)
 
             foreach (var cell in plan.Floor.Where(c => c.Laid))
             {
@@ -237,26 +429,59 @@ namespace RRSOS.PCC.Dashboard
                     foundations++;
                 }
 
-                if (cell.Product is null)
-                    continue;
+                // One crafter (+ sign, + a local chest if it needs one), at (cx, cz): the platform's own centre for a normal cell, or one corner of a quartered one.
+                // (chestX, chestZ) is where its local chest would sit if it needs one.
+                void WriteCrafter(double cx, double cz, string product, string? label, IReadOnlyList<string>? localItems, double chestX, double chestZ)
+                {
+                    do { nextInventory++; } while (!used.Add(nextInventory));
+                    newInventories.Add($"{{\"id\":{nextInventory},\"woIds\":\"\",\"size\":{CrafterSlots},\"demandGrps\":\"\",\"supplyGrps\":\"{product}\",\"priority\":0}}");
+                    inventoryIds.Add(nextInventory);
+                    links.Add(nextInventory);
 
-                do { nextInventory++; } while (!used.Add(nextInventory));
-                newInventories.Add($"{{\"id\":{nextInventory},\"woIds\":\"\",\"size\":{CrafterSlots},\"demandGrps\":\"\",\"supplyGrps\":\"{cell.Product}\",\"priority\":0}}");
-                inventoryIds.Add(nextInventory);
-                links.Add(nextInventory);
+                    var crafterId = NewObjectId();
+                    objectIds.Add(crafterId);
+                    var recipe = on ? $",\"liGrps\":\"{product}\"" : "";
+                    newObjects.Add($"{{\"id\":{crafterId},\"gId\":\"{CrafterGId}\",\"liId\":{nextInventory}{recipe},\"pos\":\"{Pos(cx, plan.FloorY + OnFoundation, cz)}\",\"rot\":\"{crafterRot}\",\"planet\":{planet}}}");
+                    crafters++;
 
-                var crafterId = NewObjectId();
-                objectIds.Add(crafterId);
-                var recipe = on ? $",\"liGrps\":\"{cell.Product}\"" : "";
-                newObjects.Add($"{{\"id\":{crafterId},\"gId\":\"{CrafterGId}\",\"liId\":{nextInventory}{recipe},\"pos\":\"{Pos(cell.X, plan.FloorY + OnFoundation, cell.Z)}\",\"rot\":\"{crafterRot}\",\"planet\":{planet}}}");
-                crafters++;
+                    // A crafter has no text label of its own, so a sign hangs on the side facing the beacon (as the owner hung his, 0.99 m in front and 2.58 m up).
+                    var signId = NewObjectId();
+                    objectIds.Add(signId);
+                    var (sx, sz) = (cx - CrafterSignOffset * plan.Beacon.DirX, cz - CrafterSignOffset * plan.Beacon.DirZ);
+                    newObjects.Add($"{{\"id\":{signId},\"gId\":\"Sign\",\"pos\":\"{Pos(sx, plan.FloorY + OnFoundation + CrafterSignUp, sz)}\",\"rot\":\"{signRot}\",\"planet\":{planet},\"text\":\"{label ?? product}\"}}");
+                    signs++;
 
-                // A crafter has no text label of its own, so a sign hangs on the side facing the beacon (as the owner hung his, 0.99 m in front and 2.58 m up).
-                var signId = NewObjectId();
-                objectIds.Add(signId);
-                var (sx, sz) = (cell.X - CrafterSignOffset * plan.Beacon.DirX, cell.Z - CrafterSignOffset * plan.Beacon.DirZ);
-                newObjects.Add($"{{\"id\":{signId},\"gId\":\"Sign\",\"pos\":\"{Pos(sx, plan.FloorY + OnFoundation + CrafterSignUp, sz)}\",\"rot\":\"{signRot}\",\"planet\":{planet},\"text\":\"{cell.Label ?? cell.Product}\"}}");
-                signs++;
+                    // The owner's fallback for a recipe no single platform reaches in full: a Container1 beside the crafter, demanding whatever the crafter's
+                    // spot cannot reach, at high priority (5, the top of the game's -3..5 scale) so drones fill it first — the owner's own sample
+                    // ("OsmiumCrafting") does the same thing by hand, just with one item and priority 1.
+                    if (localItems is { Count: > 0 })
+                    {
+                        do { nextInventory++; } while (!used.Add(nextInventory));
+                        newInventories.Add($"{{\"id\":{nextInventory},\"woIds\":\"\",\"size\":{LocalChestSlots},\"demandGrps\":\"{string.Join(",", localItems)}\",\"supplyGrps\":\"\",\"priority\":{HighPriority}}}");
+                        inventoryIds.Add(nextInventory);
+                        links.Add(nextInventory);
+
+                        var chestId = NewObjectId();
+                        objectIds.Add(chestId);
+                        newObjects.Add($"{{\"id\":{chestId},\"gId\":\"Container1\",\"liId\":{nextInventory},\"pos\":\"{Pos(chestX, plan.FloorY + OnFoundation, chestZ)}\",\"rot\":\"{chestRot}\",\"planet\":{planet},\"text\":\"{(label ?? product) + " inputs"}\"}}");
+                        localChests++;
+                    }
+                }
+
+                if (cell.Product is not null)
+                {
+                    var (rx, rz) = (plan.Beacon.DirZ, -plan.Beacon.DirX); // the beacon's right hand, same as the warehouse rows
+                    WriteCrafter(cell.X, cell.Z, cell.Product, cell.Label, cell.LocalChestItems, cell.X + LocalChestOffset * rx, cell.Z + LocalChestOffset * rz);
+                }
+
+                // A quartered platform: up to 4 stragglers share it, each in its own corner. A tenant's local chest sits a little further out along the same
+                // diagonal as its own corner, so it never reaches into a neighbour's.
+                var quarters = cell.Quarters ?? Array.Empty<FactoryQuarterTenant>();
+                foreach (var tenant in quarters)
+                {
+                    var (chestX, chestZ) = ChestSpotFor(tenant, quarters.Where(t => t != tenant).ToList(), cell.X, cell.Z, plan.Beacon.DirX, plan.Beacon.DirZ);
+                    WriteCrafter(tenant.X, tenant.Z, tenant.Product, tenant.Label, tenant.LocalChestItems, chestX, chestZ);
+                }
             }
 
             var objectText = string.Concat(newObjects.Select(r => r + "|" + eol));
@@ -266,7 +491,7 @@ namespace RRSOS.PCC.Dashboard
             var newText = text.Insert(lastInventory.Start, inventoryText).Insert(beacon.Start, objectText);
 
             var problems = VerifyBuild(text, newText, objectText, inventoryText, objectIds, inventoryIds, links);
-            return problems.Count > 0 ? Failed(problems) : new BuildOutcome(newText, foundations, crafters, crafters, 0, Array.Empty<string>(), signs);
+            return problems.Count > 0 ? Failed(problems) : new BuildOutcome(newText, foundations, crafters + localChests, crafters, 0, Array.Empty<string>(), signs, localChests);
         }
 
         // The two ramps the owner built in Custom-2 (2026-09-27) and asked to have reproduced, captured tile by tile from that save. Both belong to the factory build (they replace
@@ -414,7 +639,7 @@ namespace RRSOS.PCC.Dashboard
         /// products change). Writes a foundation only if the platform has none yet; then an <c>AutoCrafter1</c> set to <paramref name="product"/> (when <paramref name="on"/>)
         /// with its own 8-slot inventory supplying that product, and a sign. Refused if a crafter already stands on that platform.
         /// </summary>
-        public static BuildOutcome AddCrafter(string text, BuildPlan footprint, int platformIndex, string product, string label, bool on, Random? random = null)
+        public static BuildOutcome AddCrafter(string text, BuildPlan footprint, int platformIndex, string product, string label, bool on, IReadOnlyList<string>? localChestItems = null, Random? random = null)
         {
             var platform = footprint.Platforms.FirstOrDefault(p => p.Index == platformIndex);
             if (platform is null)
@@ -425,8 +650,46 @@ namespace RRSOS.PCC.Dashboard
             if (world.Objects.Any(o => o.GId.StartsWith("AutoCrafter", StringComparison.Ordinal) && Math.Abs(o.X - platform.X) <= half && Math.Abs(o.Z - platform.Z) <= half && Math.Abs(o.Y - platform.Y - OnFoundation) < 0.8))
                 return Failed($"Platform {platformIndex} already has a crafter on it.");
 
-            var cell = new FactoryFloorCell(platform.Index, platform.X, platform.Z, true, world.Objects.Any(o => o.GId == "Foundation" && Math.Abs(o.X - platform.X) < half - 0.05 && Math.Abs(o.Z - platform.Z) < half - 0.05 && Math.Abs(o.Y - platform.Y) < 0.6),
-                product, 0, Array.Empty<string>(), label);
+            var foundationExists = world.Objects.Any(o => o.GId == "Foundation" && Math.Abs(o.X - platform.X) < half - 0.05 && Math.Abs(o.Z - platform.Z) < half - 0.05 && Math.Abs(o.Y - platform.Y) < 0.6);
+
+            FactoryFloorCell cell;
+            if (localChestItems is { Count: > 0 })
+            {
+                // Needs a local chest: the south corner for the crafter (away from the beacon), the north one for the chest — see ApplyFactory.
+                var (rx, rz) = (footprint.Beacon.DirZ, -footprint.Beacon.DirX);
+                var south = (X: platform.X + QuarterOffset * footprint.Beacon.DirX + QuarterOffset * rx, Z: platform.Z + QuarterOffset * footprint.Beacon.DirZ + QuarterOffset * rz);
+                cell = new FactoryFloorCell(platform.Index, platform.X, platform.Z, true, foundationExists, null, 0, Array.Empty<string>(), null, null,
+                    new[] { new FactoryQuarterTenant(product, south.X, south.Z, label, localChestItems, 0) });
+            }
+            else
+            {
+                cell = new FactoryFloorCell(platform.Index, platform.X, platform.Z, true, foundationExists, product, 0, Array.Empty<string>(), label);
+            }
+
+            var plan = new FactoryBuildPlan(footprint.Beacon, 0, platform.Y - footprint.Beacon.FoundationY, platform.Y, new[] { cell }, Array.Empty<FactoryProduct>(), Array.Empty<string>(), 0);
+
+            return ApplyFactory(text, plan, on, random);
+        }
+
+        /// <summary>
+        /// Adds one crafter, ad hoc, to a free corner of a platform that has no crafter on it at all (the same fallback as <see cref="PlanFactory"/>'s third pass): up
+        /// to 4 can share one platform this way. Refused if the platform already has any crafter on it — quartering only ever starts from an empty platform; a
+        /// platform with one centred crafter already needs a full BUILD FACTORY rebuild to convert (that can also move the existing crafter to make room).
+        /// </summary>
+        public static BuildOutcome AddQuarterCrafter(string text, BuildPlan footprint, int platformIndex, FactoryQuarterTenant tenant, bool on, Random? random = null)
+        {
+            var platform = footprint.Platforms.FirstOrDefault(p => p.Index == platformIndex);
+            if (platform is null)
+                return Failed($"Platform {platformIndex} is not part of this factory floor.");
+
+            var world = Read(text);
+            var half = footprint.Template.Spacing / 2;
+            if (world.Objects.Any(o => o.GId.StartsWith("AutoCrafter", StringComparison.Ordinal) && Math.Abs(o.X - platform.X) <= half && Math.Abs(o.Z - platform.Z) <= half && Math.Abs(o.Y - platform.Y - OnFoundation) < 0.8))
+                return Failed($"Platform {platformIndex} already has a crafter on it.");
+
+            var cell = new FactoryFloorCell(platform.Index, platform.X, platform.Z, true,
+                world.Objects.Any(o => o.GId == "Foundation" && Math.Abs(o.X - platform.X) < half - 0.05 && Math.Abs(o.Z - platform.Z) < half - 0.05 && Math.Abs(o.Y - platform.Y) < 0.6),
+                null, 0, Array.Empty<string>(), null, null, new[] { tenant });
             var plan = new FactoryBuildPlan(footprint.Beacon, 0, platform.Y - footprint.Beacon.FoundationY, platform.Y, new[] { cell }, Array.Empty<FactoryProduct>(), Array.Empty<string>(), 0);
 
             return ApplyFactory(text, plan, on, random);
@@ -445,10 +708,16 @@ namespace RRSOS.PCC.Dashboard
 
             var signs = world.Objects.Where(o => o.GId == "Sign"
                 && Math.Sqrt(Math.Pow(o.X - crafter.X, 2) + Math.Pow(o.Z - crafter.Z, 2)) < 1.3
-                && o.Y > crafter.Y - 0.5 && o.Y < crafter.Y + 1.5).ToList();
+                && Math.Abs(o.Y - crafter.Y - CrafterSignUp) < 0.5).ToList();
 
-            var objectIds = new List<long> { crafter.Id }.Concat(signs.Select(s => s.Id)).ToList();
-            var inventoryIds = crafter.LiId is { } li ? new List<long> { li } : new List<long>();
+            // Its own local chest, if it has one (the owner's fallback, or the quartering one): a Container1 a little further out than a sign, same height band.
+            var localChests = world.Objects.Where(o => o.GId == "Container1"
+                && Math.Sqrt(Math.Pow(o.X - crafter.X, 2) + Math.Pow(o.Z - crafter.Z, 2)) < 2.6
+                && Math.Abs(o.Y - crafter.Y) < 0.2).ToList();
+
+            var objectIds = new List<long> { crafter.Id }.Concat(signs.Select(s => s.Id)).Concat(localChests.Select(c => c.Id)).ToList();
+            var inventoryIds = (crafter.LiId is { } li ? new[] { (long)li } : Array.Empty<long>())
+                .Concat(localChests.Select(c => c.LiId).Where(id => id is not null).Select(id => (long)id!)).ToList();
 
             var (newText, problems) = RemoveByIds(text, objectIds, inventoryIds);
             return new CrafterEditOutcome(newText, problems);

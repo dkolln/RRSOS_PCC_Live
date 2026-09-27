@@ -60,7 +60,7 @@ namespace RRSOS.PCC.Dashboard
     public sealed record CaptureResult(BuildTemplate? Template, IReadOnlyList<string> Problems);
 
     /// <summary>What Build would write (or did): the new text, and how many of each thing it added. Nothing is returned when there is a problem.</summary>
-    public sealed record BuildOutcome(string? NewText, int Foundations, int Chests, int Labelled, int Items, IReadOnlyList<string> Problems, int Signs = 0)
+    public sealed record BuildOutcome(string? NewText, int Foundations, int Chests, int Labelled, int Items, IReadOnlyList<string> Problems, int Signs = 0, int LocalChests = 0)
     {
         public bool Failed => Problems.Count > 0;
     }
