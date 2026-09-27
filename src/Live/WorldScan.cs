@@ -24,10 +24,11 @@ namespace RRSOS.PCC.Live
 
         /// <summary>
         /// Containers and building pieces farther than this from every pod are left out: they cannot belong to a
-        /// base (the dashboard's rule is the nearest base within 100 m), and this keeps the file small. It also
-        /// drops the hidden storage where launched rockets sit.
+        /// base (the dashboard's rule is the nearest base within 200 m, widened 2026-09-27 for a large factory's
+        /// farthest platforms), and this keeps the file small, with a margin past that 200 m so the dashboard's own
+        /// cutoff is always the tighter one. It also drops the hidden storage where launched rockets sit.
         /// </summary>
-        private const float ReachMeters = 120f;
+        private const float ReachMeters = 220f;
 
         private sealed class Tally
         {
@@ -181,13 +182,31 @@ namespace RRSOS.PCC.Live
 
                 var items = Tallies(LinkedInventory(o), false);
                 var secondary = Tallies(SecondaryInventories(o), true);
-                if (items == null && secondary == null)
+
+                // What the container is set for: a warehouse chest's demand item, or an autocrafter's recipe. Same
+                // linked-group mechanism an ore/gas extractor uses for its chosen product (see ExtractorJson); null
+                // for an unlabelled chest or an autocrafter with no recipe picked.
+                string label = null, labelName = null;
+                var groups = o.GetLinkedGroups();
+                var chosen = groups != null && groups.Count > 0 ? groups[0] : null;
+                if (chosen != null)
+                {
+                    label = chosen.GetId();
+                    labelName = InventoryReader.NameOf(label, chosen);
+                }
+
+                // An empty, unlabelled container has nothing to report; an empty labelled one (a chest sitting there
+                // with nothing in it, waiting to be filled) is exactly what the dashboard needs to see, so it is not
+                // skipped just because "items" and "secondary" both come back null (Tallies' way of saying "nothing").
+                if (items == null && secondary == null && label == null)
                     return;
 
                 _containers.Add(new Json().Begin()
                     .Int("id", o.GetId())
                     .Str("group", o.GetGroup().GetId())
                     .Point("position", position.x, position.y, position.z)
+                    .Str("label", label)
+                    .Str("labelName", labelName)
                     .Raw("items", ItemsJson(items))
                     .Raw("secondary", ItemsJson(secondary))
                     .End().ToString());

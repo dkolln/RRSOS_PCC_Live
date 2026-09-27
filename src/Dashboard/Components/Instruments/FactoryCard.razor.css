@@ -1,0 +1,115 @@
+/* Sized to match the Notes card's rendered height (Home.razor.css splits column 2 into card-planet 7 : card-notes 3 of the
+   viewport, less its fixed header/padding), measured at 197px/720vh and 413px/1440vh: a clean 0.3 * viewport - 19px. */
+.factory {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: calc(30vh - 19px);
+    min-height: 0;
+    padding: 10px 12px;
+    background: #0b0f17;
+    border: 1px solid #1a2a3a;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.factory.is-dim {
+    opacity: 0.6;
+}
+
+.factory-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.factory-title {
+    font-size: 0.8rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #9ac7ff;
+}
+
+.factory-badge {
+    font-size: 0.75rem;
+    padding: 1px 7px;
+    border-radius: 10px;
+}
+
+.factory-badge.is-warn {
+    background: rgba(255, 179, 71, 0.15);
+    color: #ffb347;
+    border: 1px solid rgba(255, 179, 71, 0.4);
+}
+
+.factory-ok {
+    color: #4fd18b;
+    font-size: 0.8rem;
+}
+
+.factory-list {
+    margin: 0;
+    padding: 0 0 0 2px;
+    list-style: none;
+    overflow: auto;
+    min-height: 0;
+    flex: 1 1 0;
+    font-size: 0.8rem;
+    color: #cfe4ff;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.factory-list li {
+    padding: 0;
+}
+
+.factory-item {
+    color: #ffb347;
+    font-weight: 600;
+}
+
+.factory-row {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    width: 100%;
+    padding: 2px 4px;
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: #cfe4ff;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.factory-row:hover {
+    background: rgba(122, 184, 255, 0.08);
+}
+
+.factory-caret {
+    color: #5f7d99;
+    font-size: 0.7rem;
+    width: 0.8em;
+    flex: 0 0 auto;
+}
+
+.factory-count {
+    color: #ffb347;
+    font-weight: 600;
+}
+
+.factory-sublist {
+    margin: 0 0 2px 0;
+    padding: 2px 0 2px 26px;
+    list-style: none;
+}
+
+.factory-sublist .factory-crafter {
+    color: #7ab8ff;
+    font-weight: normal;
+}

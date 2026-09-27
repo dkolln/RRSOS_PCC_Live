@@ -34,6 +34,13 @@ namespace RRSOS.PCC.Dashboard
         private readonly ItemCatalog _catalog;
         private readonly IConfiguration _config;
 
+        // Book() is polled once a second by the Home page (through WorldFileService), so the parsed result is kept
+        // until the file's write time or length changes rather than re-parsing 90-odd KB of JSON every time.
+        private readonly object _bookLock = new();
+        private DateTime _bookWriteUtc;
+        private long _bookLength = -1;
+        private RecipeBook? _book;
+
         public FactoryService(BaseBuildingService building, SaveResupplyService saves, ItemCatalog catalog, IConfiguration config)
         {
             _building = building;
@@ -49,13 +56,22 @@ namespace RRSOS.PCC.Dashboard
         {
             try
             {
-                var path = BookPath(_config);
-                if (!File.Exists(path))
+                var info = new FileInfo(BookPath(_config));
+                if (!info.Exists)
                     return null;
 
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var reader = new StreamReader(stream);
-                return RecipeBook.Parse(reader.ReadToEnd());
+                lock (_bookLock)
+                {
+                    if (_book is not null && info.LastWriteTimeUtc == _bookWriteUtc && info.Length == _bookLength)
+                        return _book;
+
+                    using var stream = new FileStream(info.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    using var reader = new StreamReader(stream);
+                    _book = RecipeBook.Parse(reader.ReadToEnd());
+                    _bookWriteUtc = info.LastWriteTimeUtc;
+                    _bookLength = info.Length;
+                    return _book;
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

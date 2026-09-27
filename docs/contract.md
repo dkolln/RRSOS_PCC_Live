@@ -175,8 +175,12 @@ The plugin (0.3.0 and later) writes them to a second file beside it. The dashboa
   "signs": [ { "id": 202057317, "position": { "x": 800.38, "y": 37.26, "z": 617.63 }, "text": "Main" } ],
   "containers": [
     { "id": 204236051, "group": "VegetableGrower2", "position": { "x": 772.25, "y": 36.04, "z": 579.75 },
+      "label": null, "labelName": null,
       "items":     [ { "id": "Fertilizer1", "name": "Fertilizer", "count": 4 } ],
-      "secondary": [ { "id": "Vegetable3Growable", "name": "Mushroom Plant", "count": 6, "ready": 4 } ] }
+      "secondary": [ { "id": "Vegetable3Growable", "name": "Mushroom Plant", "count": 6, "ready": 4 } ] },
+    { "id": 204780410, "group": "AutoCrafter1", "position": { "x": 716.75, "y": 45.52, "z": 673.25 },
+      "label": "Rod-osmium", "labelName": "Osmium Rod",
+      "items": [], "secondary": [] }
   ],
   "extractors": [
     { "id": 205746819, "kind": "ore", "group": "OreExtractor3", "position": { "x": 932, "y": 23, "z": 551 },
@@ -193,7 +197,7 @@ The plugin (0.3.0 and later) writes them to a second file beside it. The dashboa
 | `scan` | How much work the last pass took: objects looked at, frames it was spread over, total work and the longest single chunk, in milliseconds. A check that reading the world costs the game nothing; the dashboard does not use it |
 | `pods[]` | Every living compartment on this planet (group id starting `pod`, or `EscapePod`). `panels` is what fills each of its sides, in the game's `BuildPanelSubType` numbers: **4 is a door (entrance), 2 a connection (corridor)**, 3 a window, 1 plain wall, 5 to 7 floors. The order is the game's (east, west, north, south, top, bottom). A list, `null` when the game has none for that object |
 | `signs[]` | Every placed sign and what it says (`text`). Base names come from signs |
-| `containers[]` | Placed objects with storage that hold something, within 120 m of some pod. `items` is the main storage, `secondary` any secondary storage (a grower keeps its plants there). Items are counted by kind. `ready` (only when above zero) counts plants in `secondary` that have finished growing (growth 100) |
+| `containers[]` | Placed objects with storage that hold something, within 220 m of some pod (widened from 120 m in plugin 0.10.0, for a large factory's farthest platforms). `items` is the main storage, `secondary` any secondary storage (a grower keeps its plants there). Items are counted by kind. `ready` (only when above zero) counts plants in `secondary` that have finished growing (growth 100). `label`/`labelName` (plugin 0.10.0 and later) are what the container is set for: a warehouse chest's demand item, or an autocrafter's chosen recipe (the same linked-group the game uses for an ore/gas extractor's product); null when nothing is picked |
 | `planetHash` | The game's hash for the planet (0.5.0 and later). Each object in a save carries it as `"planet"`, so the dashboard can keep only this planet's loose items from the save |
 | `loose[]` | **Gone in 0.5.0.** Loose items were read live up to 0.4.1, but the counts were unreliable; the dashboard now reads them from the save (see "The boneyard" below) |
 | `extractors[]` | Ore, gas, water and algae machines. `kind` is `ore`, `gas`, `water` or `algae`. `product` and `productName` are what an ore or gas extractor is set to produce (null for water and algae). `size` is its slot count, `count` how many items it holds, `productCount` how many of those are the product, `ready` (algae) how many have finished growing. `items` is everything in it, by kind |
@@ -239,7 +243,7 @@ they are not also in `containers`.
 
 ### Building pieces (added in plugin 0.4.0), for the floor plans
 
-**In `live-world.json`, `structures`**: every pod (all shapes), foundation, platform, dome, lab and ladder within 120 m of a pod.
+**In `live-world.json`, `structures`**: every pod (all shapes), foundation, platform, dome, lab and ladder within 220 m of a pod.
 
 ```json
 "structures": [
@@ -258,7 +262,7 @@ they are not also in `containers`.
   (the game's `BuildPanelSubType`: 1 wall, 2 corridor, 3 glass, 4 door, 5 floor with light, 6 glass floor, 7 plain floor,
   8 lab floor, 9 lab wall, 10 floor without light, 11 inside wall, 13 aquarium wall). Both are null when the piece has
   no scene object to measure (and always in files made from a save by `tools\save-to-world.ps1`).
-- A piece belongs to the nearest base within 100 m, like a container. The dashboard's `FloorPlan` uses the measured
+- A piece belongs to the nearest base within 200 m, like a container. The dashboard's `FloorPlan` uses the measured
   box when there is one, and a table of sizes otherwise (the plan then says "approximate"). From a save, a plain pod's
   first four `panels` are its sides in the order +Z, -Z, +X, -X (worked out from which sides of neighbouring pods are
   joined by corridors in two saves).
@@ -275,7 +279,7 @@ they are not also in `containers`.
 - A base's name is the text of the nearest sign within 6 m; else the name saved for its pod id; else the next unused
   name from a list (Greek names for bases, NATO letters for outposts), which is then saved. Names are kept in the
   dashboard's own `basedata.json` beside the live files, keyed by the game's id for the pod.
-- A container or a loose item belongs to the nearest base within **100 m** (flat distance). Machines and building parts
+- A container or a loose item belongs to the nearest base within **200 m** (flat distance; widened from 100 m 2026-09-27, for a large factory's farthest platforms). Machines and building parts
   (by RRSOS-PCC's table of item types) are not listed as stored items. The **boneyard** (loose items) is **loose raw material only**: the types Ore, Alloy, Quartz and Rod in that table
   (iron, cobalt, titanium, silicon, magnesium, iridium, aluminium, uranium, sulfur, obsidian, zeolite, osmium, ice, super alloy, the quartzes and the rods).
   Plants, drones, vehicles and the rest that are lying about are not shown.

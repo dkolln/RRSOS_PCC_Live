@@ -16,17 +16,19 @@ namespace RRSOS.PCC.Dashboard
         private readonly BaseNames _names;
         private readonly ItemCatalog _catalog;
         private readonly SaveLooseService _save;
+        private readonly FactoryService _factory;
         private readonly string _path;
         private readonly object _buildLock = new();
         private DateTime _lastWriteUtc = DateTime.MinValue;
         private long _lastLength = -1;
 
-        public WorldFileService(ILogger<WorldFileService> log, IConfiguration config, BaseNames names, ItemCatalog catalog, SaveLooseService save)
+        public WorldFileService(ILogger<WorldFileService> log, IConfiguration config, BaseNames names, ItemCatalog catalog, SaveLooseService save, FactoryService factory)
         {
             _log = log;
             _names = names;
             _catalog = catalog;
             _save = save;
+            _factory = factory;
             _path = LivePaths.WorldFile(config);
             _save.Changed += OnSaveRead;
         }
@@ -44,8 +46,9 @@ namespace RRSOS.PCC.Dashboard
         private void SetBases(WorldData data)
         {
             // On the main menu the plugin says "not in a world" and nothing else: that is no bases, not a failure.
+            // Book() is cached (see FactoryService), so this costs nothing extra beyond a file-time check.
             lock (_buildLock)
-                Bases = data.InWorld ? BaseDirectory.Build(data, _save.Objects, _names, _catalog) : BaseDirectory.Empty;
+                Bases = data.InWorld ? BaseDirectory.Build(data, _save.Objects, _names, _catalog, _factory.Book()) : BaseDirectory.Empty;
         }
 
         /// <summary>The latest world reading, or null when the plugin has not written one.</summary>

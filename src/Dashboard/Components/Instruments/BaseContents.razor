@@ -50,6 +50,11 @@
 
             <BaseFloorPlan Plan="@info.Plan" BaseId="@info.Id" PlayerPosition="@PlayerPosition"
                            PlayerHeading="@PlayerHeading" Dim="@Dim" EmptyText="@PlanEmptyText" />
+
+            @if (info.HasFactory)
+            {
+                <FactoryCard Info="@info" Dim="@Dim" />
+            }
         </div>
     }
 </div>

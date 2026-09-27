@@ -11,6 +11,12 @@ namespace RRSOS.PCC.Dashboard
     /// <summary>A number of items of one kind (a stored or loose item, by the game's group id).</summary>
     public sealed record ItemCount(string Id, string Name, int Count);
 
+    /// <summary>One ingredient a crafter's recipe needs that is nowhere in the base's own storage.</summary>
+    public sealed record MissingIngredient(string Id, string Name);
+
+    /// <summary>An AutoCrafter1 with a recipe set, and which of its ingredients (if any) the base cannot currently supply.</summary>
+    public sealed record CrafterStatus(long Id, string Product, string ProductName, IReadOnlyList<MissingIngredient> Missing);
+
     /// <summary>One base or outpost, with what is stored in it. Where it is relative to the player is worked out at drawing time (see <see cref="BaseView"/>).</summary>
     public sealed class BaseInfo
     {
@@ -32,6 +38,16 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>The base drawn from above, floor by floor. Null when the world file has no building pieces for it.</summary>
         public FloorPlan? Plan { get; init; }
+
+        /// <summary>Every autocrafter here with a recipe set, and what it is short of, if anything. Only the labelled ones: a freshly
+        /// placed crafter with no recipe yet has nothing to report. Empty before plugin 0.10.0.</summary>
+        public IReadOnlyList<CrafterStatus> Crafters { get; init; } = Array.Empty<CrafterStatus>();
+
+        /// <summary>How many AutoCrafter1 stand here, recipe or not: whether a factory has been built at all.</summary>
+        public int CrafterCount { get; init; }
+
+        /// <summary>True once a factory has been built here.</summary>
+        public bool HasFactory => CrafterCount > 0;
     }
 
     /// <summary>
@@ -41,8 +57,11 @@ namespace RRSOS.PCC.Dashboard
     /// </summary>
     public sealed class BaseDirectory
     {
-        /// <summary>Objects belong to the nearest base within this many metres.</summary>
-        public const float OwnershipRadius = 100f;
+        /// <summary>Objects belong to the nearest base within this many metres. Widened from 100m (2026-09-27): a big factory's
+        /// farthest platforms can sit past 100m of the base's own pod, which silently dropped them from every list (Stored,
+        /// EmptyChests, Crafters alike). The plugin's own reach for reporting a container at all (WorldScan.ReachMeters) is
+        /// kept a step ahead of this, so those containers make it to the dashboard in the first place.</summary>
+        public const float OwnershipRadius = 200f;
 
         private const float SignRange = 6f;
         private const int DoorPanel = 4;
@@ -55,7 +74,8 @@ namespace RRSOS.PCC.Dashboard
         private BaseDirectory(List<BaseInfo> bases) => Bases = bases;
 
         /// <param name="saveObjects">What the last save says lies in the world (see <see cref="SaveLooseService"/>): the boneyard's source.</param>
-        public static BaseDirectory Build(WorldData world, IEnumerable<SaveObject> saveObjects, BaseNames names, ItemCatalog catalog)
+        /// <param name="book">The game's recipes (plugin 0.9.0's <c>recipes.json</c>), for working out which crafters are short an ingredient. Null skips that (older plugin, or the file is not there yet).</param>
+        public static BaseDirectory Build(WorldData world, IEnumerable<SaveObject> saveObjects, BaseNames names, ItemCatalog catalog, RecipeBook? book = null)
         {
             // Sorted by id so that the first time names are handed out, the order does not depend on the game's.
             var pods = world.Pods
@@ -90,6 +110,13 @@ namespace RRSOS.PCC.Dashboard
                     foreach (var crop in container.Secondary.Where(c => c.Ready > 0))
                         Add(owner.Ready, crop.Id, crop.Label, crop.Ready);
                 }
+
+                if (IsAutoCrafter(container.Group))
+                {
+                    owner.CrafterCount++;
+                    if (!string.IsNullOrWhiteSpace(container.Label))
+                        owner.Crafters.Add((container.Id, container.Label!, LabelName(container, catalog)));
+                }
             }
 
             foreach (var loose in saveObjects)
@@ -110,8 +137,14 @@ namespace RRSOS.PCC.Dashboard
                     owner.Pieces.Add(structure);
             }
 
-            return new BaseDirectory(found.Select(d => d.ToInfo()).ToList());
+            return new BaseDirectory(found.Select(d => d.ToInfo(book, catalog)).ToList());
         }
+
+        private static bool IsAutoCrafter(string group) => group.Equals("AutoCrafter1", StringComparison.OrdinalIgnoreCase);
+
+        // The plugin already sends a display name; fall back to the catalog (an older plugin, or a group the catalog knows better).
+        private static string LabelName(ContainerData container, ItemCatalog catalog) =>
+            string.IsNullOrWhiteSpace(container.LabelName) ? catalog.NameOf(container.Label!) : container.LabelName!;
 
         /// <summary>A door is what makes a compartment a base. Only single compartments count, as in RRSOS-PCC.</summary>
         private static bool IsBasePod(PodData pod) =>
@@ -188,18 +221,41 @@ namespace RRSOS.PCC.Dashboard
             public Dictionary<string, (string Name, int Count)> Loose { get; } = new();
             public List<StructureData> Pieces { get; } = new();
             public List<Vec3> Spots { get; } = new();
+            public List<(long Id, string Label, string Name)> Crafters { get; } = new();
+            public int CrafterCount { get; set; }
 
-            public BaseInfo ToInfo() => new()
+            public BaseInfo ToInfo(RecipeBook? book, ItemCatalog catalog)
             {
-                Id = Id,
-                Name = Name,
-                Kind = Kind,
-                Flat = Flat,
-                Stored = ToList(Stored),
-                Ready = ToList(Ready),
-                Loose = ToList(Loose),
-                Plan = FloorPlan.Build(Pieces, Spots)
-            };
+                var stored = ToList(Stored);
+                var have = stored.Select(i => i.Id).ToHashSet(StringComparer.Ordinal);
+
+                var crafters = Crafters
+                    .Select(c => new CrafterStatus(c.Id, c.Label, c.Name, Shortage(c.Label, book, have, catalog)))
+                    .OrderBy(c => c.ProductName, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+
+                return new BaseInfo
+                {
+                    Id = Id,
+                    Name = Name,
+                    Kind = Kind,
+                    Flat = Flat,
+                    Stored = stored,
+                    Ready = ToList(Ready),
+                    Loose = ToList(Loose),
+                    Plan = FloorPlan.Build(Pieces, Spots),
+                    Crafters = crafters,
+                    CrafterCount = CrafterCount
+                };
+            }
+
+            // What a crafter's own recipe needs that this base cannot currently supply from anywhere in its storage
+            // (a crafter itself reads any in-range container, not just its own base's total, but that finer-grained
+            // reach is what the Factory tab already plans around; this is the simpler "go get more of this" signal).
+            private static IReadOnlyList<MissingIngredient> Shortage(string product, RecipeBook? book, HashSet<string> have, ItemCatalog catalog) =>
+                book is not null && book.Recipes.TryGetValue(product, out var recipe)
+                    ? recipe.Ingredients.Keys.Where(i => !have.Contains(i)).Select(i => new MissingIngredient(i, catalog.NameOf(i))).ToList()
+                    : Array.Empty<MissingIngredient>();
 
             private static List<ItemCount> ToList(Dictionary<string, (string Name, int Count)> counts) =>
                 counts.Select(p => new ItemCount(p.Key, p.Value.Name, p.Value.Count))
