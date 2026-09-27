@@ -36,6 +36,7 @@ builder.Services.AddScoped<ToastService>();
 // Base Building: platform templates kept beside the plugin's files, and the read-only reader of beacons and row plans.
 builder.Services.AddSingleton<BuildTemplateStore>();
 builder.Services.AddSingleton<BaseBuildingService>();
+builder.Services.AddSingleton<FactoryService>();
 
 var app = builder.Build();
 

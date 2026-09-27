@@ -76,18 +76,35 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   new plugin first (otherwise the chest is filled with plain chips).
 
   **Warehouse:** name a beacon **All** (or Everything, or Warehouse) and pick it to build every group at once: six rows of
-  ten platforms (the first row runs out from the beacon, each next row is beside it on the beacon's right hand), each group
-  on platforms of its own, with bare foundations to finish any short row, plus a blank aisle of bare foundations on the
-  beacon's left and another after the last row (8 rows, 80 platforms). The rows are fixed in the code (butterfly larvae,
+  eleven platforms (the first row runs out from the beacon, each next row is beside it on the beacon's right hand), each
+  group on platforms of its own, with bare foundations to finish any short row or top up the row to 11 deep, plus a blank
+  aisle of bare foundations on the beacon's left and another after the last row (8 rows, 88 platforms, always laid flat).
+  The rows are fixed in the code (butterfly larvae,
   larvae and petri dishes; frog eggs and tree seeds; plant seeds, vegetables and food; ores, rods and fuses; crafting
   materials, quartz, drones and essentials; equipment and tokens, fish eggs, toxic and purification). The first chests of
   each row carry index signs (`Butterfly <>`, `Rods >`, ...: `<>` is a group on both the left and right chests, `<` left
   only, `>` right only). The DNA and Genetics chests are holding tanks: titled, with no filter or demand, so Resupply leaves
-  them alone. It is Container3 only, and needs about 80 platforms of clear, flat ground: only buildings are checked, not
-  the terrain.
+  them alone. It is Container3 only, and needs about 88 platforms of clear, flat ground: only buildings are checked, not
+  the terrain. **REMOVE WAREHOUSE** deletes exactly that 8x11 grid, its chests and everything stocked in them, and nothing else.
   **REMOVE WAREHOUSE** appears when one stands at the beacon: it deletes those platforms, the chests on them, their
   inventories and the items inside, and nothing else. It refuses if anything else (a machine, a wall) stands in the
   footprint, and, like every edit, it backs the save up first and checks the result before writing.
+
+- **Factory**: autocrafters on a floor 10 m above the warehouse, always the full 8x11 floor laid, one crafter per platform
+  for each product you tick (every autocrafter recipe the game knows, all ticked to start with), each set to make its
+  product from the warehouse chests inside its 20 m range (a 3D sphere), with a sign saying what it makes (a crafter has
+  no text label of its own). It plans from the game's own recipes (`recipes.json`, written by plugin 0.9.0 once per
+  session: start the game with that plugin, load a world once). A product whose ingredients are not all in reach of some
+  platform is listed as not built. Each crafter's inventory supplies its product to the drones, so the warehouse chest
+  that demands it is filled, and a crafter stops by itself when its 8 output slots are full. Building also lays the two
+  ways down to the warehouse the owner built by hand: the east ramp along the row nearest the beacon and the back ramp
+  down the far (11th) column, reproduced tile for tile and turned to match the beacon's direction; a "Fix ramp" button
+  re-lays either one on its own if it is ever disturbed. The plan
+  warns how many MW the crafters draw once on (155 kW each). Also **REMOVE FACTORY** (the floor, crafters, signs and both
+  ramps; the warehouse underneath is untouched), **ALL ON** / **ALL OFF**, a switch per crafter, and **Add crafter** /
+  **Remove** for one crafter at a time, ad hoc, without rebuilding everything (removing keeps the platform's foundation).
+  Everything follows the direction the warehouse beacon points. Only autocrafter recipes: nothing made in an incubator,
+  the silk maker or another building.
 
 ## Which starts first, the game or the app?
 

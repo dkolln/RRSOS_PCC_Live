@@ -122,7 +122,7 @@ namespace RRSOS.PCC.Dashboard
         }
 
         // Something a new platform must not be built on top of: any building piece, machine or container.
-        private bool IsBuilding(string gId) => _catalog.CategoryOf(gId) is ItemCategory.Machine or ItemCategory.BasePart or ItemCategory.Container
+        public bool IsBuilding(string gId) => _catalog.CategoryOf(gId) is ItemCategory.Machine or ItemCategory.BasePart or ItemCategory.Container
             or ItemCategory.WorldMarker or ItemCategory.Wreck;
 
         // The warehouse: the groups in the rows the owner chose (2026-09-26), each group on platforms of its own, every row 10 platforms long with today's item table,
@@ -148,6 +148,9 @@ namespace RRSOS.PCC.Dashboard
 
         // The warehouse is built from Container3 only (80 slots).
         private const int WarehouseMinSlots = 80;
+
+        // 11 platforms deep (2026-09-27, the owner): one extra bare platform at the back of every row, beyond whatever the groups need (which was 10).
+        public const int WarehouseDepth = 11;
 
         private static readonly string[] WarehouseWords = { "all", "everything", "warehouse" };
 
@@ -252,7 +255,7 @@ namespace RRSOS.PCC.Dashboard
             return null;
         }
 
-        private static string? ReadText(string path, out string? error)
+        internal static string? ReadText(string path, out string? error)
         {
             error = null;
 
@@ -295,8 +298,8 @@ namespace RRSOS.PCC.Dashboard
             return MakePlan(text, beaconId, template, recipe);
         });
 
-        private BuildPlan WarehousePlan(string text, long beaconId, BuildTemplate template) =>
-            BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding);
+        public BuildPlan WarehousePlan(string text, long beaconId, BuildTemplate template) =>
+            BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding, WarehouseDepth);
 
         /// <summary>What removing the warehouse of this beacon would delete, read-only (null when the save cannot be read).</summary>
         public Task<BaseBuildingEngine.RemovalPlan?> WarehouseScanAsync(string savePath, long beaconId, BuildTemplate template) => Task.Run(() =>
@@ -321,7 +324,7 @@ namespace RRSOS.PCC.Dashboard
             }, "removing the warehouse");
 
         private BuildPlan MakePlan(string text, long beaconId, BuildTemplate template, BuildRecipe recipe) =>
-            recipe.Warehouse ? BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding)
+            recipe.Warehouse ? BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding, WarehouseDepth)
             : recipe.Bundles is not null ? BaseBuildingEngine.Plan(text, beaconId, template, recipe.Bundles, IsBuilding)
             : BaseBuildingEngine.Plan(text, beaconId, template, recipe.Items, IsBuilding);
 
