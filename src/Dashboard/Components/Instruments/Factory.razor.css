@@ -34,5 +34,7 @@
 .fc-cell.is-laid { fill: rgba(122, 184, 255, 0.10); }
 .fc-cell.is-crafter { fill: rgba(255, 179, 71, 0.55); stroke: #ffb347; }
 .fc-cell.is-there { stroke: #2f6b4c; }
+.fc-cell.is-quartered { fill: rgba(180, 120, 255, 0.45); stroke: #b478ff; }
+.fc-cell.has-local-chest { stroke: #ffd23f; stroke-width: 0.3; }
 .fc-cell.is-blocked { stroke: #ff6b6b; stroke-width: 0.35; }
 .fc-beacon { fill: #ffd23f; stroke: #0a1019; stroke-width: 0.1; }

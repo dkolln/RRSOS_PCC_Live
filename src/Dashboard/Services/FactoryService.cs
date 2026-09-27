@@ -168,35 +168,102 @@ namespace RRSOS.PCC.Dashboard
         /// Adds one crafter for <paramref name="product"/>, ad hoc, to the first free platform (nearest, farthest-ingredient-first) that reaches all its ingredients. The floor there
         /// must already stand (build the factory first). Refused when nothing reaches it, or every platform that does already has a crafter.
         /// </summary>
+        /// <summary>
+        /// Adds one crafter for <paramref name="product"/>, ad hoc, without disturbing anything already on the floor: a free platform that reaches everything, else a
+        /// free platform reaching what it can with a local chest for the rest, else a free corner of a platform with no crafter on it at all (with a local chest of
+        /// its own if it still needs one) — the same three fallbacks a full BUILD FACTORY tries, just never a retrofit that would move an existing crafter. Refused
+        /// only when none of the three finds it a spot; a full rebuild can sometimes still place it by moving another crafter to make room.
+        /// </summary>
+        /// <summary>
+        /// Adds one crafter for <paramref name="product"/> back to the exact spot (<paramref name="x"/>, <paramref name="z"/>) a removed one stood at — the platform's
+        /// centre for a whole platform, or that corner if it was sharing one (the owner: "the remove should have a toggle to later add in that same location").
+        /// Refused if that spot already has a crafter.
+        /// </summary>
+        public Task<SaveEdit<BuildOutcome>> AddCrafterAtAsync(string savePath, long beaconId, BuildTemplate template, RecipeBook book, double x, double z, string product, bool on) =>
+            _saves.EditAsync<BuildOutcome>(savePath, text =>
+            {
+                (string?, BuildOutcome, string?) Fail(string message) => (null, new BuildOutcome(null, 0, 0, 0, 0, new[] { message }), message);
+
+                var warehouse = _building.WarehousePlan(text, beaconId, template);
+                if (warehouse.Problems.Count > 0)
+                    return Fail("Nothing was added. " + string.Join(" ", warehouse.Problems));
+
+                var footprint = BaseBuildingEngine.FactoryFootprint(warehouse.Beacon, template, warehouse.Platforms, Height);
+                var half = template.Spacing / 2;
+                var platform = warehouse.Platforms.Where(p => Math.Abs(p.X - x) <= half && Math.Abs(p.Z - z) <= half)
+                    .OrderBy(p => Math.Sqrt(Math.Pow(p.X - x, 2) + Math.Pow(p.Z - z, 2))).FirstOrDefault();
+                if (platform is null)
+                    return Fail("That spot is not on the factory floor.");
+
+                var chests = FactoryPlanner.WarehouseChests(text, warehouse.Platforms.Select(p => (p.X, p.Z)), template.Spacing, warehouse.Beacon.FoundationY);
+                var spot = new FactorySpot(platform.Index, x, z);
+                var reach = FactoryPlanner.Evaluate(book, chests, new[] { spot }, warehouse.Beacon.FoundationY, Height, new[] { product })[0];
+                var label = LabelOf(new[] { product })(product);
+                var missing = reach.Missing.Count > 0 ? reach.Missing : null;
+
+                // The platform's own centre (within 0.3 m) goes back as a whole-platform crafter; anywhere else on the platform means it was sharing a corner.
+                var outcome = Math.Abs(x - platform.X) < 0.3 && Math.Abs(z - platform.Z) < 0.3
+                    ? BaseBuildingEngine.AddCrafter(text, footprint, platform.Index, product, label, on, missing)
+                    : BaseBuildingEngine.AddQuarterCrafter(text, footprint, platform.Index, new FactoryQuarterTenant(product, x, z, label, missing, reach.BestFarthest), on);
+
+                return outcome.Failed ? ((string?)null, outcome, (string?)string.Join(" ", outcome.Problems)) : (outcome.NewText, outcome, (string?)null);
+            }, "adding a crafter back");
+
         public Task<SaveEdit<BuildOutcome>> AddCrafterAsync(string savePath, long beaconId, BuildTemplate template, RecipeBook book, string product, bool on) =>
             _saves.EditAsync<BuildOutcome>(savePath, text =>
             {
+                (string?, BuildOutcome, string?) Fail(string message) => (null, new BuildOutcome(null, 0, 0, 0, 0, new[] { message }), message);
+
                 var warehouse = _building.WarehousePlan(text, beaconId, template);
                 if (warehouse.Problems.Count > 0)
-                    return ((string?)null, new BuildOutcome(null, 0, 0, 0, 0, warehouse.Problems), (string?)("Nothing was added. " + string.Join(" ", warehouse.Problems)));
+                    return Fail("Nothing was added. " + string.Join(" ", warehouse.Problems));
 
                 var footprint = BaseBuildingEngine.FactoryFootprint(warehouse.Beacon, template, warehouse.Platforms, Height);
+                var half = template.Spacing / 2;
+                var existing = BaseBuildingEngine.ListCrafters(text, footprint);
+                var occupied = warehouse.Platforms.Where(p => existing.Any(c => Math.Abs(c.X - p.X) <= half && Math.Abs(c.Z - p.Z) <= half)).Select(p => p.Index).ToHashSet();
+
                 var spots = warehouse.Platforms.Select(p => new FactorySpot(p.Index, p.X, p.Z)).ToList();
+                var freeSpots = spots.Where(s => !occupied.Contains(s.Index)).ToList();
+                if (freeSpots.Count == 0)
+                    return Fail("Every platform already has a crafter on it.");
+
                 var chests = FactoryPlanner.WarehouseChests(text, spots.Select(s => (s.X, s.Z)), template.Spacing, warehouse.Beacon.FoundationY);
-                var reach = FactoryPlanner.Evaluate(book, chests, spots, warehouse.Beacon.FoundationY, Height, new[] { product }).FirstOrDefault();
                 var label = LabelOf(new[] { product })(product);
 
-                if (reach is null || reach.Mode != FactoryMode.InRange || reach.Full.Count == 0)
+                // A whole free platform: fully in reach, or reaching what it can with a local chest for the rest.
+                var reach = FactoryPlanner.Evaluate(book, chests, freeSpots, warehouse.Beacon.FoundationY, Height, new[] { product }).FirstOrDefault();
+                if (reach is { Reached.Count: > 0 })
                 {
-                    var problem = "No platform reaches every ingredient of this product.";
-                    return ((string?)null, new BuildOutcome(null, 0, 0, 0, 0, new[] { problem }), (string?)problem);
+                    var candidates = reach.Full.Count > 0 ? reach.Full.Select(f => f.Spot) : reach.Best is { } b ? new[] { b } : Array.Empty<FactorySpot>();
+                    foreach (var spot in candidates)
+                    {
+                        var outcome = BaseBuildingEngine.AddCrafter(text, footprint, spot.Index, product, label, on, reach.Missing.Count > 0 ? reach.Missing : null);
+                        if (!outcome.Failed)
+                            return (outcome.NewText, outcome, (string?)null);
+                    }
                 }
 
-                BuildOutcome? last = null;
-                foreach (var (spot, _) in reach.Full)
+                // A free corner of a platform with no crafter on it at all.
+                var (rx, rz) = (warehouse.Beacon.DirZ, -warehouse.Beacon.DirX);
+                var corners = new (double Along, double Across)[] { (1.5, 1.5), (1.5, -1.5), (-1.5, 1.5), (-1.5, -1.5) };
+                var pool = freeSpots.SelectMany(s => corners.Select((c, i) =>
+                    new FactorySpot(s.Index * 4 + i, s.X + c.Along * warehouse.Beacon.DirX + c.Across * rx, s.Z + c.Along * warehouse.Beacon.DirZ + c.Across * rz))).ToList();
+                var quarterReach = FactoryPlanner.Evaluate(book, chests, pool, warehouse.Beacon.FoundationY, Height, new[] { product }).FirstOrDefault();
+
+                if (quarterReach is { Reached.Count: > 0 })
                 {
-                    last = BaseBuildingEngine.AddCrafter(text, footprint, spot.Index, product, label, on);
-                    if (!last.Failed)
-                        return (last.NewText, last, (string?)null);
+                    var candidates = quarterReach.Full.Count > 0 ? quarterReach.Full.Select(f => f.Spot) : quarterReach.Best is { } b ? new[] { b } : Array.Empty<FactorySpot>();
+                    foreach (var spot in candidates)
+                    {
+                        var tenant = new FactoryQuarterTenant(product, spot.X, spot.Z, label, quarterReach.Missing.Count > 0 ? quarterReach.Missing : null, quarterReach.BestFarthest);
+                        var outcome = BaseBuildingEngine.AddQuarterCrafter(text, footprint, spot.Index / 4, tenant, on);
+                        if (!outcome.Failed)
+                            return (outcome.NewText, outcome, (string?)null);
+                    }
                 }
 
-                var msg = "Every platform that reaches it already has a crafter.";
-                return ((string?)null, last ?? new BuildOutcome(null, 0, 0, 0, 0, new[] { msg }), (string?)msg);
+                return Fail("No free platform or corner reaches enough of its ingredients. A full BUILD FACTORY rebuild can sometimes still place it, by moving another crafter to make room.");
             }, "adding a crafter");
 
         /// <summary>Removes one crafter and its sign, leaving the platform's foundation and everything else untouched.</summary>

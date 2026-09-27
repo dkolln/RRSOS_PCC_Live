@@ -8,8 +8,10 @@
     <p class="hint">
         Autocrafters on a floor @FactoryService.Height.ToString("0") m above the warehouse, one per platform, each set to make one product from the warehouse chests inside its
         range (the game's autocrafter reaches @RangeText, in a sphere). Each product's finished items are supplied to the drones, so the warehouse chest that demands it is
-        filled; a crafter stops by itself when its 8 output slots are full. A sign on each crafter says what it makes. Everything faces and runs the way the warehouse's
-        beacon points. Building writes into the save (with a backup first), so do it with the game at the main menu.
+        filled; a crafter stops by itself when its 8 output slots are full. A sign on each crafter says what it makes. When no single platform reaches every ingredient, the
+        crafter gets a local <strong>Container1</strong> beside it (outlined in yellow on the plan) demanding the rest at high priority, the same fallback as a hand-built one.
+        A product that still has nowhere to go gets a corner of its own on a platform nothing else claimed (shown in purple), up to 4 sharing one platform this way.
+        Everything faces and runs the way the warehouse's beacon points. Building writes into the save (with a backup first), so do it with the game at the main menu.
     </p>
 
     @if (string.IsNullOrEmpty(SavePath))
@@ -79,7 +81,7 @@
 
             <div class="fc-list">
                 <table class="fc-table">
-                    <thead><tr><th></th><th>Product</th><th>Made at</th><th>Needs</th><th>Reach</th><th></th></tr></thead>
+                    <thead><tr><th></th><th>Product</th><th>Made at</th><th>Needs</th><th>Reach</th></tr></thead>
                     <tbody>
                         @foreach (var r in VisibleReaches())
                         {
@@ -89,12 +91,6 @@
                                 <td class="fc-muted">@PlaceOf(r.Product)</td>
                                 <td class="fc-muted">@Needs(r)</td>
                                 <td>@if (r.Mode == FactoryMode.InRange) { <span class="fc-ok">in reach, @r.BestFarthest.ToString("0.0") m</span> } else { <span class="fc-warn">@r.Note</span> }</td>
-                                <td>
-                                    @if (r.Mode == FactoryMode.InRange)
-                                    {
-                                        <button class="bar-btn" disabled="@(_busy || GameLive)" title="Add one crafter for this product now, wherever it fits" @onclick="() => AddCrafter(r.Product)">Add crafter</button>
-                                    }
-                                </td>
                             </tr>
                         }
                     </tbody>
@@ -166,7 +162,31 @@
                                     <td>@if (c.On) { <span class="fc-ok">on</span> } else { <span class="fc-muted">off</span> }</td>
                                     <td>
                                         <button class="bar-btn" disabled="@(_busy || GameLive || string.IsNullOrEmpty(c.Product))" @onclick="() => SetPower(!c.On, c.Id)">@(c.On ? "Switch off" : "Switch on")</button>
-                                        <button class="bar-btn is-danger-text" disabled="@(_busy || GameLive)" @onclick="() => RemoveCrafter(c.Id)">Remove</button>
+                                        <button class="bar-btn is-danger-text" disabled="@(_busy || GameLive)" @onclick="() => RemoveCrafter(c)">Remove</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (_removed.Count > 0)
+            {
+                <h3>Recently removed</h3>
+                <p class="hint">Add one straight back into the exact spot it stood in (the platform, or the same corner if it was sharing one).</p>
+                <div class="fc-list">
+                    <table class="fc-table">
+                        <thead><tr><th>Product</th><th>Spot</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var r in _removed)
+                            {
+                                <tr @key="@($"{r.Product}-{r.X}-{r.Z}")">
+                                    <td><strong>@Svc.NameOf(r.Product)</strong> <span class="fc-muted">@r.Product</span></td>
+                                    <td class="fc-muted">@r.X.ToString("0"), @((-r.Z).ToString("0"))</td>
+                                    <td>
+                                        <button class="bar-btn" disabled="@(_busy || GameLive)" @onclick="() => AddBack(r)">Add back here</button>
+                                        <button class="bar-btn" disabled="@_busy" @onclick="() => _removed.Remove(r)">Dismiss</button>
                                     </td>
                                 </tr>
                             }
@@ -310,8 +330,10 @@
             return;
 
         var plan = _screen.Plan;
+        var localChests = plan.Floor.Count(c => c.LocalChestItems is { Count: > 0 });
         var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"Have you exited to the Main Menu?\n\nBUILD FACTORY adds {plan.Floor.Count(c => c.Laid && !c.FoundationExists)} foundations, {plan.Crafters} crafters and {plan.Crafters} signs to your save file.\n\n" +
+            $"Have you exited to the Main Menu?\n\nBUILD FACTORY adds {plan.Floor.Count(c => c.Laid && !c.FoundationExists)} foundations, {plan.Crafters} crafters, {plan.Crafters} signs" +
+            (localChests > 0 ? $" and {localChests} local input chests (for products no single platform reaches in full)" : "") + " to your save file.\n\n" +
             $"POWER: once switched on, {plan.Crafters} crafters draw about {(plan.PowerKw / 1000):0.0} MW ({FactoryService.DefaultCrafterKw:0} kW each). " +
             (_on ? "They are being built switched ON." : "They are being built switched OFF.") +
             "\n\nIf a world is still loaded, the game will overwrite the change at its next autosave.");
@@ -326,7 +348,7 @@
                 return (false, edit.Error ?? "The build failed.");
 
             var r = edit.Result;
-            return (true, $"Built {r.Foundations} foundations (including the ramp tiles), {r.Chests} crafters and {r.Signs} signs. Backup: {edit.BackupPath}");
+            return (true, $"Built {r.Foundations} foundations (including the ramp tiles), {r.Chests - r.LocalChests} crafters, {r.LocalChests} local input chests and {r.Signs} signs. Backup: {edit.BackupPath}");
         });
     }
 
@@ -353,33 +375,38 @@
         });
     }
 
-    private async Task AddCrafter(string product)
+    /// <summary>A crafter just removed, kept client-side only, so "Add back here" can put one back in that exact spot without hunting for a platform again.</summary>
+    private readonly List<(string Product, double X, double Z)> _removed = new();
+
+    private async Task RemoveCrafter(FactoryCrafter c)
+    {
+        if (_busy || GameLive || string.IsNullOrEmpty(c.Product))
+            return;
+
+        await Run(async () =>
+        {
+            var edit = await Svc.RemoveCrafterAsync(SavePath, c.Id);
+            if (!edit.Success)
+                return (false, edit.Error ?? "Could not remove that crafter.");
+
+            _removed.Add((c.Product, c.X, c.Z));
+            return (true, "Removed the crafter, its sign and its local chest (if it had one). Backup: " + edit.BackupPath);
+        });
+    }
+
+    private async Task AddBack((string Product, double X, double Z) r)
     {
         if (_book is null || _template is null || _busy || GameLive)
             return;
 
         await Run(async () =>
         {
-            var edit = await Svc.AddCrafterAsync(SavePath, _beaconId, _template, _book, product, _on);
+            var edit = await Svc.AddCrafterAtAsync(SavePath, _beaconId, _template, _book, r.X, r.Z, r.Product, _on);
             if (!edit.Success || edit.Result is null)
-                return (false, edit.Error ?? "Could not add that crafter.");
+                return (false, edit.Error ?? "Could not add that crafter back.");
 
-            return (true, $"Added a crafter for {Svc.NameOf(product)}. Backup: {edit.BackupPath}");
-        });
-    }
-
-    private async Task RemoveCrafter(long id)
-    {
-        if (_busy || GameLive)
-            return;
-
-        await Run(async () =>
-        {
-            var edit = await Svc.RemoveCrafterAsync(SavePath, id);
-            if (!edit.Success)
-                return (false, edit.Error ?? "Could not remove that crafter.");
-
-            return (true, "Removed the crafter and its sign. Backup: " + edit.BackupPath);
+            _removed.Remove(r);
+            return (true, $"Added {Svc.NameOf(r.Product)} back at {r.X:0}, {-r.Z:0}. Backup: {edit.BackupPath}");
         });
     }
 
@@ -496,8 +523,22 @@
     }
 
     private static string CellClass(FactoryFloorCell c) =>
-        (c.Conflicts.Count > 0 ? "is-blocked " : "") + (c.Product is not null ? "is-crafter" : c.Laid ? "is-laid" : "is-empty") + (c.FoundationExists ? " is-there" : "");
+        (c.Conflicts.Count > 0 ? "is-blocked " : "")
+        + (c.Product is not null ? "is-crafter" : c.Quarters is { Count: > 0 } ? "is-quartered" : c.Laid ? "is-laid" : "is-empty")
+        + (c.FoundationExists ? " is-there" : "")
+        + (c.LocalChestItems is { Count: > 0 } || (c.Quarters?.Any(q => q.LocalChestItems is { Count: > 0 }) ?? false) ? " has-local-chest" : "");
 
-    private string CellTitle(FactoryFloorCell c) =>
-        c.Product is not null ? $"{Svc.NameOf(c.Product)} ({c.Product}), farthest chest {c.Farthest:0.0} m" : c.Laid ? "bare foundation" : "not laid";
+    private string CellTitle(FactoryFloorCell c)
+    {
+        if (c.Quarters is { Count: > 0 } tenants)
+            return string.Join("; ", tenants.Select(t => $"{Svc.NameOf(t.Product)} ({t.Product}), farthest chest {t.Farthest:0.0} m"
+                + (t.LocalChestItems is { Count: > 0 } m ? $" + a local chest demanding {string.Join(", ", m.Select(Svc.NameOf))}" : "")));
+
+        if (c.Product is null)
+            return c.Laid ? "bare foundation" : "not laid";
+
+        return c.LocalChestItems is { Count: > 0 } missing
+            ? $"{Svc.NameOf(c.Product)} ({c.Product}), farthest chest {c.Farthest:0.0} m + a local chest demanding {string.Join(", ", missing.Select(Svc.NameOf))}"
+            : $"{Svc.NameOf(c.Product)} ({c.Product}), farthest chest {c.Farthest:0.0} m";
+    }
 }
