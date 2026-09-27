@@ -4,16 +4,16 @@ using System.Text.RegularExpressions;
 namespace RRSOS.PCC.Dashboard
 {
     /// <summary>A family of items a row of chests is labelled with, in order: "Fish" is Fish1Eggs, Fish2Eggs, ...</summary>
-    public sealed record BuildRecipe(string Key, string Name, IReadOnlyList<string> Items, IReadOnlyList<BuildBundle>? Bundles = null)
+    public sealed record BuildRecipe(string Key, string Name, IReadOnlyList<string> Items, IReadOnlyList<BuildBundle>? Bundles = null, bool Warehouse = false, int WarehouseSlots = 0, int WarehouseChests = 0)
     {
         /// <summary>How many chests the group is: one per item, or one per bundle for a "one of each" group.</summary>
-        public int ChestCount => Bundles?.Count ?? Items.Count;
+        public int ChestCount => Warehouse ? WarehouseChests : Bundles?.Count ?? Items.Count;
 
         /// <summary>
         /// The most a stocked chest must hold, so which templates are big enough (0 for an ordinary group). A bundle that can be split over several chests does
         /// not count here (nor one that drops what the save has already unlocked).
         /// </summary>
-        public int MinSlots => Bundles is { Count: > 0 } ? Bundles.Where(b => !b.SkipUnlocked && !b.Split).Select(b => b.Items.Count).DefaultIfEmpty(0).Max() : 0;
+        public int MinSlots => Warehouse ? WarehouseSlots : Bundles is { Count: > 0 } ? Bundles.Where(b => !b.SkipUnlocked && !b.Split).Select(b => b.Items.Count).DefaultIfEmpty(0).Max() : 0;
     }
 
     /// <summary>
@@ -125,7 +125,66 @@ namespace RRSOS.PCC.Dashboard
         private bool IsBuilding(string gId) => _catalog.CategoryOf(gId) is ItemCategory.Machine or ItemCategory.BasePart or ItemCategory.Container
             or ItemCategory.WorldMarker or ItemCategory.Wreck;
 
+        // The warehouse: the groups in the rows the owner chose (2026-09-26), each group on platforms of its own, every row 10 platforms long with today's item table,
+        // with an aisle of blank platforms on each side (2026-09-27). The signs are the owner's own index from Custom-2, in his words, top to bottom on the first
+        // platform of each row: "<>" is a group on both the left and right chests, "<" on the left ones only, ">" on the right ones only.
+        // A recipe that is not named here (a new family) goes in a row of its own after these.
+        private static BaseBuildingEngine.WarehouseSign L(string text) => new(false, text);
+        private static BaseBuildingEngine.WarehouseSign R(string text) => new(true, text);
+
+        private static readonly (string[] Keys, BaseBuildingEngine.WarehouseSign[] Signs)[] WarehouseLayout =
+        {
+            (new[] { "butterfly", "larvae", "petri" }, new[] { L("Butterfly <>"), L("Larvae <>"), L("Petri <>") }),
+            (new[] { "frog", "tree" }, new[] { L("Frog Egg <>"), L("Tree Seed <>") }),
+            (new[] { "seed", "vegetable", "food" }, new[] { L("Plant Seed <>"), L("Vegetable <>"), L("Vegetable Seed <>"), R("Cook <>"), R("Animal Food <>"), R("Honey >") }),
+            (new[] { "ore", "rods", "fuse" }, new[] { L("Ore <>"), L("Fuse <>"), L("Rods >") }),
+            (new[] { "materials", "quartz", "drone", "essentials" }, new[] { L("Nitrogen Methane"), L("BioNugget Plankton"), L("Fertilizer Boom Pwdr"), L("Fabric RocketEngine"),
+                                                                              R("Key Cards Explosives"), R("Bones Quartz"), R("Algae EnergyCell"), R("Circuit Board Flare") }),
+            (new[] { "gear", "fish", "toxic" }, new[] { L("< Space Suit"), L("< Vehicle Gear"), L("< Money"), R("Personal Gear >"), R("Blueprint >"), R("Fish Egg <>") })
+        };
+
+        // Chests of the warehouse that hold nothing yet: labelled with a plain title, no item filter, so Resupply leaves them alone (the owner's holding tanks).
+        private static readonly Dictionary<string, string> HoldingTanks = new(StringComparer.Ordinal) { ["DNASequence"] = "DNA", ["GeneticTrait"] = "Genetics" };
+
+        // The warehouse is built from Container3 only (80 slots).
+        private const int WarehouseMinSlots = 80;
+
+        private static readonly string[] WarehouseWords = { "all", "everything", "warehouse" };
+
+        /// <summary>The recipes of one group each, then the whole warehouse as one more (built from a beacon called "All").</summary>
         public IReadOnlyList<BuildRecipe> Recipes()
+        {
+            var single = SingleRecipes();
+            if (single.Count == 0)
+                return single;
+
+            var gear = single.FirstOrDefault(r => r.Key == "gear");
+            return single.Append(new BuildRecipe("warehouse", "Everything (warehouse)", Array.Empty<string>(), null, true, Math.Max(gear?.MinSlots ?? 0, WarehouseMinSlots), single.Sum(r => r.ChestCount))).ToList();
+        }
+
+        /// <summary>The warehouse's rows, worked out from the single recipes: an aisle of blank platforms, the six rows with their signs, then another aisle.</summary>
+        public IReadOnlyList<BaseBuildingEngine.WarehouseRow> WarehouseRows()
+        {
+            var single = SingleRecipes();
+            BaseBuildingEngine.WarehouseGroup Group(BuildRecipe r) => new(r.Name, r.Items, r.Bundles);
+            var none = Array.Empty<BaseBuildingEngine.WarehouseSign>();
+
+            var content = WarehouseLayout
+                .Select(row => new BaseBuildingEngine.WarehouseRow(
+                    row.Keys.Select(k => single.FirstOrDefault(r => r.Key == k)).Where(r => r is not null).Select(r => Group(r!)).ToList(), row.Signs))
+                .Where(row => row.Groups.Count > 0)
+                .ToList();
+
+            var placed = WarehouseLayout.SelectMany(row => row.Keys).ToHashSet();
+            var rest = single.Where(r => !placed.Contains(r.Key)).Select(Group).ToList();
+            if (rest.Count > 0)
+                content.Add(new BaseBuildingEngine.WarehouseRow(rest, none));
+
+            var aisle = new BaseBuildingEngine.WarehouseRow(Array.Empty<BaseBuildingEngine.WarehouseGroup>(), none, true);
+            return new[] { aisle }.Concat(content).Append(aisle).ToList();
+        }
+
+        private IReadOnlyList<BuildRecipe> SingleRecipes()
         {
             var known = _catalog.AllProducts.Select(p => p.GId).ToHashSet(StringComparer.Ordinal);
 
@@ -137,6 +196,7 @@ namespace RRSOS.PCC.Dashboard
                     .OrderBy(t => t.M.Groups[1].Success ? int.Parse(t.M.Groups[1].Value) : -1) // an id without a number (Tree Bark) comes first
                     .Select(t => t.G)
                     .Concat(f.Extra.Where(known.Contains))
+                    .Select(g => HoldingTanks.TryGetValue(g, out var tank) ? "=" + tank : g)
                     .ToList();
 
                 return new BuildRecipe(f.Key, f.Name, items);
@@ -176,6 +236,9 @@ namespace RRSOS.PCC.Dashboard
         public BuildRecipe? RecipeFor(string beaconText)
         {
             var word = new string(beaconText.Where(char.IsLetter).ToArray()).ToLowerInvariant();
+
+            if (WarehouseWords.Contains(word))
+                return Recipes().FirstOrDefault(r => r.Key == "warehouse");
 
             if (GearWords.Any(w => word == w || word.StartsWith(w, StringComparison.Ordinal)))
                 return Recipes().FirstOrDefault(r => r.Key == "gear");
@@ -229,10 +292,38 @@ namespace RRSOS.PCC.Dashboard
             if (text is null)
                 return (BuildPlan?)null;
 
-            return recipe.Bundles is not null
-                ? BaseBuildingEngine.Plan(text, beaconId, template, recipe.Bundles, IsBuilding)
-                : BaseBuildingEngine.Plan(text, beaconId, template, recipe.Items, IsBuilding);
+            return MakePlan(text, beaconId, template, recipe);
         });
+
+        private BuildPlan WarehousePlan(string text, long beaconId, BuildTemplate template) =>
+            BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding);
+
+        /// <summary>What removing the warehouse of this beacon would delete, read-only (null when the save cannot be read).</summary>
+        public Task<BaseBuildingEngine.RemovalPlan?> WarehouseScanAsync(string savePath, long beaconId, BuildTemplate template) => Task.Run(() =>
+        {
+            var text = ReadText(savePath, out _);
+            if (text is null)
+                return (BaseBuildingEngine.RemovalPlan?)null;
+
+            var plan = WarehousePlan(text, beaconId, template);
+            return plan.Problems.Count > 0 ? null : BaseBuildingEngine.PlanRemoval(text, plan, IsBuilding);
+        });
+
+        /// <summary>
+        /// Removes the warehouse of this beacon from the save: its platforms, chests and the items in them (see <see cref="BaseBuildingEngine.Remove"/>), with a
+        /// backup first. The game must be at its main menu.
+        /// </summary>
+        public Task<SaveEdit<BaseBuildingEngine.RemovalOutcome>> RemoveWarehouseAsync(string savePath, long beaconId, BuildTemplate template) =>
+            _saves.EditAsync<BaseBuildingEngine.RemovalOutcome>(savePath, text =>
+            {
+                var outcome = BaseBuildingEngine.Remove(text, WarehousePlan(text, beaconId, template), IsBuilding);
+                return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was removed. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
+            }, "removing the warehouse");
+
+        private BuildPlan MakePlan(string text, long beaconId, BuildTemplate template, BuildRecipe recipe) =>
+            recipe.Warehouse ? BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding)
+            : recipe.Bundles is not null ? BaseBuildingEngine.Plan(text, beaconId, template, recipe.Bundles, IsBuilding)
+            : BaseBuildingEngine.Plan(text, beaconId, template, recipe.Items, IsBuilding);
 
         /// <summary>
         /// Builds the row into the save: the plan is worked out again from the file as it is right now, then written with a backup
@@ -241,9 +332,7 @@ namespace RRSOS.PCC.Dashboard
         public Task<SaveEdit<BuildOutcome>> BuildAsync(string savePath, long beaconId, BuildTemplate template, BuildRecipe recipe, bool setDemand, bool fill) =>
             _saves.EditAsync<BuildOutcome>(savePath, text =>
             {
-                var plan = recipe.Bundles is not null
-                    ? BaseBuildingEngine.Plan(text, beaconId, template, recipe.Bundles, IsBuilding)
-                    : BaseBuildingEngine.Plan(text, beaconId, template, recipe.Items, IsBuilding);
+                var plan = MakePlan(text, beaconId, template, recipe);
                 var outcome = BaseBuildingEngine.Apply(text, plan, setDemand, fill);
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "building the row");
