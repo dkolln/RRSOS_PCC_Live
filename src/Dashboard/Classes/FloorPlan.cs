@@ -131,6 +131,7 @@ namespace RRSOS.PCC.Dashboard
                 .SelectMany(LaunchPlatformLevels)
                 .SelectMany(VehiclePlatformConsole)
                 .SelectMany(TradePlatformConsole)
+                .SelectMany(DeparturePlatformLevels)
                 .Select(s => new Piece(s))
                 .ToList();
 
@@ -258,6 +259,47 @@ namespace RRSOS.PCC.Dashboard
             yield return Part(s, "Trade console", s.Position!.Y + PlatformDeck, 2.9, 4.1, 2.15, 3.35, 1);
         }
 
+        /// <summary>
+        /// A departure platform has more than its deck. All in its own frame (x runs south, z east; yaw 180), found by standing
+        /// on it and from the coordinates the owner read off in the game (2026-09-28): stairs up from the deck's south side to
+        /// a gangway landing 10.58 m above its position; a ladder off the landing's west side (top at 16, -19) up to two
+        /// platforms at 15.58, a tile each: the ladder's (centre 14.62, -21.71) and the console's (its north edge is the top
+        /// of a short flight of stairs, 17.2 up, the door of the take-off rocket). The rocket stands on the deck, on a circle
+        /// centred on the tile corner (3.04, -21.93); the module that comes back lands on the deck too, on a circle centred
+        /// on the corner (-2.93, -9.99). Both circles are half a tile in radius, like the trade rocket's. Not measured: the
+        /// short stairs' length and width, the ladder's exact place, and where you go in to the landing module.
+        /// </summary>
+        private static IEnumerable<StructureData> DeparturePlatformLevels(StructureData s)
+        {
+            yield return s;
+
+            if (!s.Group.Equals("DeparturePlatform", StringComparison.OrdinalIgnoreCase))
+                yield break;
+
+            const double DeckHeight = 5.58, Landing = 10.58, Launch = 15.58, StairsTop = 17.2, Tile = 5.97, Radius = 3.045;
+            var y = s.Position!.Y;
+
+            yield return Part(s, "DeparturePlatformLanding", y + Landing - PlatformDeck, 11.8, 18.34, -19, -16, Landing);
+
+            // The two platforms at the console level, side by side: the ladder's is the southern one, the console's the northern.
+            // The console stands across their join.
+            yield return Part(s, "DeparturePlatformLadderLevel", y + Launch - PlatformDeck, 11.635, 17.605, -24.695, -18.725, Launch);
+            yield return Part(s, "DeparturePlatformConsoleLevel", y + Launch - PlatformDeck, 11.635 - Tile, 11.635, -24.695, -18.725, Launch);
+            yield return Part(s, "DeparturePlatformSmallStairs", y + 16.4 - PlatformDeck, 5.665, 8.665, -23.2, -20.2, 16.4);
+
+            // Ladder: the plugin does not list the platform's own. Its top is at (16, -19); a ladder stands PodFloorHeight
+            // above the floor it is on (see Build), which is the landing.
+            yield return Part(s, "Ladder", y + Landing + PodFloorHeight, 15.4, 16.6, -19.6, -18.4, 0);
+
+            yield return Part(s, "Departure console", y + Launch, 9, 13, -21.7, -20.3, 1);
+            yield return Part(s, "Take-off point", y + StairsTop, 5.2, 6.4, -23, -21.8, 1);
+
+            // Two circles on the deck (the owner read the rocket's as (3, -22), the landing's as (-3, -10), and stood at
+            // -3.16, -9.93 for that one; the tile corners there are (3.04, -21.93) and (-2.93, -9.99)).
+            yield return Part(s, "Transport rocket", y + DeckHeight, 3.04 - Radius, 3.04 + Radius, -21.93 - Radius, -21.93 + Radius, 1);
+            yield return Part(s, "Landing module", y + DeckHeight, -2.93 - Radius, -2.93 + Radius, -9.99 - Radius, -9.99 + Radius, 1);
+        }
+
         // A made-up piece that stands where the real one does and turns with it; "y" is chosen so it lands on the right floor.
         private static StructureData Part(StructureData s, string group, double y, double minX, double maxX, double minZ, double maxZ, double top) => new()
         {
@@ -328,6 +370,12 @@ namespace RRSOS.PCC.Dashboard
                 {
                     // Its shape is known too (see TradePlatformDeck): the deck only; the stairs are drawn as an extra.
                     (_minX, _maxX, _minZ, _maxZ, top) = (-6.09f, 6.09f, -10.1f, 8.17f, 0f);
+                    Measured = true;
+                }
+                else if (IsDeparturePlatform)
+                {
+                    // Its shape is known too (see DeparturePlatformDeck): the plugin's measured box is exactly the deck's bounds.
+                    (_minX, _maxX, _minZ, _maxZ, top) = (-8.9f, 26.9f, -27.9f, -4.1f, 5.58f);
                     Measured = true;
                 }
                 else if (MeasuredBox(data, Part) is { Min: { } bmin, Max: { } bmax })
@@ -410,6 +458,25 @@ namespace RRSOS.PCC.Dashboard
             private bool IsRoundPod => Data.Group.StartsWith("Pod9x", StringComparison.OrdinalIgnoreCase);
 
             private bool IsTradePlatform => Data.Group.StartsWith("TradePlatform", StringComparison.OrdinalIgnoreCase);
+
+            private bool IsDeparturePlatform => Data.Group.Equals("DeparturePlatform", StringComparison.OrdinalIgnoreCase);
+
+            /// <summary>
+            /// A departure platform's deck, in its own frame (x, z; yaw 180, so x runs south and z east): 6 rows along x
+            /// (-8.9 to +26.9) by 4 along z (-27.9 to -4.1), tiles of about 5.97 m, with the southwest tile (south is +x, west is
+            /// -z: x +20.93 to +26.9, z -27.9 to -21.93) missing. The origin is 4.1 m past the deck's east edge. The measured
+            /// box agrees with the owner's corner readings, which sat 0.7 to 1.2 m inside it.
+            /// </summary>
+            private static readonly Vector2[] DeparturePlatformDeck =
+            {
+                new(-8.9f, -27.9f), new(-8.9f, -4.1f), new(26.9f, -4.1f), new(26.9f, -21.93f), new(20.93f, -21.93f), new(20.93f, -27.9f)
+            };
+
+            /// <summary>Its stairs up to the gangway landing: off the middle of the south end of the landing, 3 m wide.</summary>
+            private static readonly Vector2[] DeparturePlatformStairs =
+            {
+                new(18.34f, -19f), new(24f, -19f), new(24f, -16f), new(18.34f, -16f)
+            };
 
             /// <summary>
             /// A trade platform's deck, in its own frame (x, z; its yaw is 180, so x runs south and z runs east): 3 foundations
@@ -571,6 +638,12 @@ namespace RRSOS.PCC.Dashboard
                     return TradePlatformDeck.Select(p => ToEastNorth(p.X, p.Y)).ToList();
                 }
 
+                if (IsDeparturePlatform)
+                {
+                    Extras.Add(DeparturePlatformStairs.Select(p => ToEastNorth(p.X, p.Y)).ToList());
+                    return DeparturePlatformDeck.Select(p => ToEastNorth(p.X, p.Y)).ToList();
+                }
+
                 if (IsLaunchPlatform)
                 {
                     Extras.Add(LaunchPlatformStairs.Select(p => ToEastNorth(p.X, p.Y)).ToList());
@@ -665,9 +738,11 @@ namespace RRSOS.PCC.Dashboard
                     return PlanPart.Foundation;
                 if (group.Equals("LaunchTower", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.Tower;
-                if (group.Equals("Vehicle console", StringComparison.OrdinalIgnoreCase) || group.Equals("Trade console", StringComparison.OrdinalIgnoreCase))
+                if (group.Equals("Vehicle console", StringComparison.OrdinalIgnoreCase) || group.Equals("Trade console", StringComparison.OrdinalIgnoreCase)
+                    || group.Equals("Departure console", StringComparison.OrdinalIgnoreCase) || group.Equals("Take-off point", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.Console;
-                if (group.Equals("Trade rocket", StringComparison.OrdinalIgnoreCase))
+                if (group.Equals("Trade rocket", StringComparison.OrdinalIgnoreCase) || group.Equals("Landing module", StringComparison.OrdinalIgnoreCase)
+                    || group.Equals("Transport rocket", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.Rocket;
                 if (group.Equals("Trade rocket entrance", StringComparison.OrdinalIgnoreCase))
                     return PlanPart.RocketEntrance;
