@@ -266,6 +266,11 @@ they are not also in `containers`.
   box when there is one, and a table of sizes otherwise (the plan then says "approximate"). From a save, a plain pod's
   first four `panels` are its sides in the order +Z, -Z, +X, -X (worked out from which sides of neighbouring pods are
   joined by corridors in two saves).
+- **The departure platform** (`DeparturePlatform`, plugin 0.10.1): the game keeps it out of its "constructed" set, so the
+  scan also looks through all placed objects for any other group with "Platform" in its id (not `Blueprint...`). Its box is
+  exactly its deck's bounds (35.8 x 23.8 m). `landing` (0.10.1, only on this piece) is where the module that comes back lands:
+  `position` and `forward` in the piece's own frame, from the game's own `GetLandingTransform()`; null for everything else.
+  The floor plan hand-maps the rest (see `FloorPlan.DeparturePlatformLevels`).
 - `deckBox` (plugin 0.4.1) is the piece's largest flat slab of collider plus any slabs level with it; for a platform
   that is its deck, and its top is the deck's height. The full `box` of a launch platform is far bigger than the deck.
 - Floors are found from heights: a foundation counts at its top (2 m above its position when not measured), a launch,

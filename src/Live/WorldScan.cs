@@ -81,6 +81,25 @@ namespace RRSOS.PCC.Live
                 }
             }
 
+            // Pass 1a: platforms the game keeps out of its "constructed" set (the departure platform: placed, with a real id,
+            // but not a constructible), found among all the objects instead.
+            var everything = handler == null ? null : handler.GetAllWorldObjects();
+            var others = Snapshot(everything == null ? null : everything.Values);
+            var known = new HashSet<WorldObject>(_structureObjects);
+
+            _frame.Restart();
+            for (var i = 0; i < others.Length; i++)
+            {
+                VisitMissedPlatform(others[i], known);
+
+                if ((i % CheckEvery) == CheckEvery - 1 && _frame.Elapsed.TotalMilliseconds >= FrameBudgetMs)
+                {
+                    EndChunk();
+                    yield return null;
+                    _frame.Restart();
+                }
+            }
+
             // Pass 1b: the building pieces' shapes, for the floor plans. Reading a piece's colliders and panels is much
             // more work than the other visits, so the frame budget is checked after every one.
             for (var i = 0; i < _structureObjects.Count; i++)
@@ -169,6 +188,27 @@ namespace RRSOS.PCC.Live
             catch (Exception e)
             {
                 Plugin.LogOnce("world:constructed", $"Could not read a placed object: {e.GetType().Name}: {e.Message}");
+            }
+        }
+
+        private void VisitMissedPlatform(WorldObject o, HashSet<WorldObject> known)
+        {
+            try
+            {
+                var group = o?.GetGroup();
+                if (group == null || known.Contains(o) || !o.GetIsPlaced() || !OnThisPlanet(o))
+                    return;
+
+                var id = group.GetId();
+                if (id.IndexOf("Platform", StringComparison.OrdinalIgnoreCase) < 0
+                    || id.StartsWith("Blueprint", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                _structureObjects.Add(o);
+            }
+            catch (Exception e)
+            {
+                Plugin.LogOnce("world:platform", $"Could not read a placed object: {e.GetType().Name}: {e.Message}");
             }
         }
 
@@ -302,7 +342,7 @@ namespace RRSOS.PCC.Live
                 var yaw = o.GetRotation().eulerAngles.y;
                 var go = o.GetGameObject();
 
-                string box = null, deckBox = null, panelBoxes = null;
+                string box = null, deckBox = null, panelBoxes = null, landing = null;
                 if (go != null)
                 {
                     var root = go.transform;
@@ -316,6 +356,7 @@ namespace RRSOS.PCC.Live
                         deckBox = BoxJson(deckMin, deckMax);
 
                     panelBoxes = PanelBoxesJson(root, go);
+                    landing = LandingJson(root, go);
                 }
 
                 _structures.Add(new Json().Begin()
@@ -327,12 +368,29 @@ namespace RRSOS.PCC.Live
                     .Raw("box", box)
                     .Raw("deckBox", deckBox)
                     .Raw("panelBoxes", panelBoxes)
+                    .Raw("landing", landing)
                     .End().ToString());
             }
             catch (Exception e)
             {
                 Plugin.LogOnce("world:structure", $"Could not read a building piece: {e.GetType().Name}: {e.Message}");
             }
+        }
+
+        /// <summary>
+        /// Where a departure platform's rocket appears, from the game's own landing point: its position and the direction it
+        /// faces, in the piece's own frame like "box". Null for every other piece.
+        /// </summary>
+        private static string LandingJson(Transform root, GameObject go)
+        {
+            var platform = go.GetComponentInChildren<MachineDeparturePlatform>(true);
+            var landing = platform == null ? null : platform.GetLandingTransform();
+            if (landing == null)
+                return null;
+
+            var p = root.InverseTransformPoint(landing.position);
+            var f = root.InverseTransformDirection(landing.forward);
+            return new Json().Begin().Point("position", p.x, p.y, p.z).Point("forward", f.x, f.y, f.z).End().ToString();
         }
 
         private static string PanelBoxesJson(Transform root, GameObject go)
