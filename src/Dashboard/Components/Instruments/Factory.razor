@@ -1,6 +1,7 @@
 @inject FactoryService Svc
 @inject BuildTemplateStore Templates
 @inject ToastService Toasts
+@inject PlanetNames Planets
 @inject IJSRuntime JS
 
 <section class="fc">
@@ -40,7 +41,7 @@
                 <select @onchange="OnBeacon">
                     @foreach (var b in _beacons)
                     {
-                        <option value="@b.Id" selected="@(b.Id == _beaconId)">@b.Text (points @Compass(b), at @b.X.ToString("0"), @((-b.Z).ToString("0")))</option>
+                        <option value="@b.Id" selected="@(b.Id == _beaconId)">@b.Text@(Planets.NameOf(b.PlanetHash) is { } p ? $" — {p}" : "") (points @Compass(b), at @b.X.ToString("0"), @((-b.Z).ToString("0")))</option>
                     }
                 </select>
             </label>

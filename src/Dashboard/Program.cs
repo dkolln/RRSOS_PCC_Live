@@ -21,6 +21,7 @@ builder.Services.AddSingleton<SpeechService>();
 // The slower second file (bases, containers, extractors), plus what it needs: an item catalog and the base names.
 builder.Services.AddSingleton<ItemCatalog>();
 builder.Services.AddSingleton<BaseNames>();
+builder.Services.AddSingleton<PlanetNames>();
 // The boneyards come from the newest save, read again whenever the game writes it (checked every 10 seconds).
 builder.Services.AddSingleton<SaveLooseService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<SaveLooseService>());

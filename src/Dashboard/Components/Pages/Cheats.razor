@@ -3,6 +3,7 @@
 @inject SaveResupplyService Resupply
 @inject ResupplyConfigStore ConfigStore
 @inject ItemCatalog Catalog
+@inject PlanetNames Planets
 @inject ToastService Toasts
 @inject LiveFileService Live
 @inject NavigationManager Nav
@@ -69,6 +70,19 @@
                     alike. Mixed containers ("Misc", or unlabelled with a bunch of items) are ignored unless you pick
                     an item. Priorities are kept.
                 </p>
+
+                @if (_planets.Count > 1)
+                {
+                    <label class="planet-pick">
+                        Planet
+                        <select @onchange="OnPlanetChanged">
+                            @foreach (var (hash, count) in _planets)
+                            {
+                                <option value="@hash" selected="@(hash == _selectedPlanet)">@PlanetOption(hash, count)</option>
+                            }
+                        </select>
+                    </label>
+                }
 
                 @if (string.IsNullOrEmpty(_selectedSave))
                 {
@@ -389,6 +403,8 @@
 
     private CheatTab _tab = CheatTab.Resupply;
     private DroneNetworkReport? _droneReport;
+    private IReadOnlyList<(int PlanetHash, int Count)> _planets = Array.Empty<(int, int)>();
+    private int? _selectedPlanet;
 
     // What the user has switched, by inventory id. Anything not here is left exactly as the save has it.
     private readonly Dictionary<long, DroneWish> _changes = new();           // producers
@@ -475,6 +491,8 @@
     }
 
     // What Set Supply Lines would do to the selected save right now: read-only, so it is safe to run whenever asked.
+    // A save with more than one planet's producers and containers pools them by default (same as every plugin version
+    // before 0.10.3 ever did); picking one from _planets scopes everything below to just that planet.
     private async Task RefreshDroneReport()
     {
         _droneReport = null;
@@ -485,11 +503,28 @@
             return;
 
         var save = _selectedSave;
-        var report = await Resupply.DroneNetworkAsync(Path.Combine(_saveFolder, save), write: false);
+        var path = Path.Combine(_saveFolder, save);
+
+        _planets = await Resupply.PlanetsAsync(path);
+        if (save != _selectedSave)
+            return;
+
+        if (_selectedPlanet is not int chosen || _planets.All(p => p.PlanetHash != chosen))
+            _selectedPlanet = _planets.Count > 0 ? _planets[0].PlanetHash : null;
+
+        var report = await Resupply.DroneNetworkAsync(path, write: false, planetHash: _planets.Count > 1 ? _selectedPlanet : null);
 
         if (save == _selectedSave) // the picker may have moved on while this was reading
             _droneReport = report;
     }
+
+    private async Task OnPlanetChanged(ChangeEventArgs e)
+    {
+        _selectedPlanet = int.TryParse(e.Value?.ToString(), out var hash) ? hash : null;
+        await RefreshDroneReport();
+    }
+
+    private string PlanetOption(int hash, int count) => $"{(Planets.NameOf(hash) ?? $"Planet {hash}")} ({count})";
 
     // ---- producers: on = supply what it holds (or the item picked), off = supply nothing
 

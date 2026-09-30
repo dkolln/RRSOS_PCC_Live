@@ -127,16 +127,24 @@ namespace RRSOS.PCC.Dashboard
         private static readonly Regex PriorityValue = new(@"""priority"":-?\d+", RegexOptions.Compiled);
 
         private sealed record Rec(int Start, int Length, string Raw, long Id, string? GId, string? Text, int? LiId, bool IsInventory,
-            string? Demand, string? Supply, int? Priority, string? Pos, string? WoIdsText);
+            string? Demand, string? Supply, int? Priority, string? Pos, string? WoIdsText, int Planet = 0);
 
         private readonly record struct Edit(int Start, int Length, string Old, string New);
 
         /// <param name="resolveItem">The item a label names (a game id or an item's name), or null when the label names none.</param>
         /// <param name="producerWishes">Producers to change, by inventory id.</param>
         /// <param name="containerWishes">Containers to change, by inventory id.</param>
+        /// <param name="planetHash">
+        /// Only producers, containers and machines on this planet are looked at (and count towards <c>Stations</c>); everything
+        /// else in the save is invisible, as if it did not exist. Null looks at the whole save, every planet pooled together
+        /// (the save has always been read this way; a second planet's stations, producers and containers used to show up
+        /// mixed in with the first one's). An object with no "planet" of its own (should not happen for anything this cares
+        /// about) is never excluded, so an odd save still shows everything rather than silently hiding it.
+        /// </param>
         public static DroneNetworkOutcome Apply(
             string text, Func<string, string?> resolveItem,
-            IReadOnlyDictionary<long, DroneWish>? producerWishes = null, IReadOnlyDictionary<long, DroneWish>? containerWishes = null)
+            IReadOnlyDictionary<long, DroneWish>? producerWishes = null, IReadOnlyDictionary<long, DroneWish>? containerWishes = null,
+            int? planetHash = null)
         {
             var records = Scan(text, out var problems);
             if (problems.Count > 0)
@@ -149,8 +157,12 @@ namespace RRSOS.PCC.Dashboard
                     return Failed($"Two inventory records share the id {inventory.Id}; the save looks damaged.");
             }
 
+            bool OnPlanet(Rec o) => planetHash is not int ph || o.Planet == 0 || o.Planet == ph;
+
+            // Every object, for looking up what an inventory holds (byId): those inner item records have no "planet" of
+            // their own, so they must never be filtered out here regardless of which planet is chosen.
             var objects = records.Where(r => !r.IsInventory && r.GId != null).ToList();
-            var stations = objects.Count(o => o.GId!.StartsWith("DroneStation", StringComparison.Ordinal));
+            var stations = objects.Count(o => o.GId!.StartsWith("DroneStation", StringComparison.Ordinal) && OnPlanet(o));
 
             var byId = new Dictionary<long, Rec>();
             foreach (var o in objects)
@@ -167,7 +179,7 @@ namespace RRSOS.PCC.Dashboard
 
             foreach (var obj in objects)
             {
-                if (obj.LiId is null)
+                if (obj.LiId is null || !OnPlanet(obj))
                     continue;
 
                 var isContainer = StorageContainer.IsMatch(obj.GId!);
@@ -288,6 +300,25 @@ namespace RRSOS.PCC.Dashboard
             return check.Count > 0 ? Outcome(null, check) : Outcome(newText, Array.Empty<string>());
         }
 
+        /// <summary>
+        /// Every planet with at least one producer, container or drone-demanding machine in this save, with how many (so the
+        /// Drone Network tab can offer a choice and default to the one most worth looking at). Sorted by count, most first.
+        /// </summary>
+        public static IReadOnlyList<(int PlanetHash, int Count)> PlanetsInSave(string text)
+        {
+            var records = Scan(text, out var problems);
+            if (problems.Count > 0)
+                return Array.Empty<(int, int)>();
+
+            return records
+                .Where(r => !r.IsInventory && r.GId != null && r.LiId != null && r.Planet != 0
+                    && (StorageContainer.IsMatch(r.GId!) || Producer.IsMatch(r.GId!)))
+                .GroupBy(r => r.Planet)
+                .Select(g => (PlanetHash: g.Key, Count: g.Count()))
+                .OrderByDescending(t => t.Count)
+                .ToList();
+        }
+
         // ------------------------------------------------------------------
 
         private static DroneNetworkOutcome Failed(string problem) => Failed(new List<string> { problem });
@@ -400,7 +431,7 @@ namespace RRSOS.PCC.Dashboard
                     int? Int(string name) => root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number && e.TryGetInt32(out var v) ? v : null;
 
                     records.Add(new Rec(match.Index, match.Length, match.Value, id, Str("gId"), Str("text"), Int("liId"),
-                        root.TryGetProperty("woIds", out _), Str("demandGrps"), Str("supplyGrps"), Int("priority"), Str("pos"), Str("woIds")));
+                        root.TryGetProperty("woIds", out _), Str("demandGrps"), Str("supplyGrps"), Int("priority"), Str("pos"), Str("woIds"), Int("planet") ?? 0));
                 }
                 catch (JsonException ex)
                 {

@@ -132,13 +132,20 @@ namespace RRSOS.PCC.Dashboard
             }
         }
 
-        /// <summary>Previews (write: false) or applies the Drone Network settings to the save, changing only the producers and containers named in the wishes; see <see cref="DroneNetworkEngine"/>.</summary>
-        public async Task<DroneNetworkReport> DroneNetworkAsync(string savePath, bool write, IReadOnlyDictionary<long, DroneWish>? producerWishes = null, IReadOnlyDictionary<long, DroneWish>? containerWishes = null)
+        /// <summary>Every planet with drone-eligible objects in this save, most-populated first; see <see cref="DroneNetworkEngine.PlanetsInSave"/>.</summary>
+        public async Task<IReadOnlyList<(int PlanetHash, int Count)>> PlanetsAsync(string savePath)
         {
+            if (string.IsNullOrEmpty(savePath) || !File.Exists(savePath))
+                return Array.Empty<(int, int)>();
+
             await _gate.WaitAsync();
             try
             {
-                return await Task.Run(() => RunDroneNetwork(savePath, write, producerWishes, containerWishes));
+                return await Task.Run(() =>
+                {
+                    var text = BaseBuildingService.ReadText(savePath, out _);
+                    return text is null ? Array.Empty<(int, int)>() : DroneNetworkEngine.PlanetsInSave(text);
+                });
             }
             finally
             {
@@ -146,7 +153,21 @@ namespace RRSOS.PCC.Dashboard
             }
         }
 
-        private DroneNetworkReport RunDroneNetwork(string savePath, bool write, IReadOnlyDictionary<long, DroneWish>? producerWishes, IReadOnlyDictionary<long, DroneWish>? containerWishes)
+        /// <summary>Previews (write: false) or applies the Drone Network settings to the save, changing only the producers and containers named in the wishes; see <see cref="DroneNetworkEngine"/>.</summary>
+        public async Task<DroneNetworkReport> DroneNetworkAsync(string savePath, bool write, IReadOnlyDictionary<long, DroneWish>? producerWishes = null, IReadOnlyDictionary<long, DroneWish>? containerWishes = null, int? planetHash = null)
+        {
+            await _gate.WaitAsync();
+            try
+            {
+                return await Task.Run(() => RunDroneNetwork(savePath, write, producerWishes, containerWishes, planetHash));
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        private DroneNetworkReport RunDroneNetwork(string savePath, bool write, IReadOnlyDictionary<long, DroneWish>? producerWishes, IReadOnlyDictionary<long, DroneWish>? containerWishes, int? planetHash)
         {
             var at = DateTime.Now;
 
@@ -161,7 +182,7 @@ namespace RRSOS.PCC.Dashboard
                 var hasBom = original.Length >= 3 && original[0] == 0xEF && original[1] == 0xBB && original[2] == 0xBF;
                 var text = Encoding.UTF8.GetString(original, hasBom ? 3 : 0, original.Length - (hasBom ? 3 : 0));
 
-                var outcome = DroneNetworkEngine.Apply(text, label => _catalog.ResolveLabel(label), producerWishes, containerWishes);
+                var outcome = DroneNetworkEngine.Apply(text, label => _catalog.ResolveLabel(label), producerWishes, containerWishes, planetHash);
 
                 if (outcome.Failed)
                     return new DroneNetworkReport(false, "Nothing was changed. " + string.Join(" ", outcome.Problems), outcome, null, at);

@@ -27,6 +27,9 @@ namespace RRSOS.PCC.Dashboard
         public static string BaseData(IConfiguration config) =>
             Setting(config, "BaseData") ?? Path.Combine(Folder(config), "basedata.json");
 
+        public static string Planets(IConfiguration config) =>
+            Setting(config, "Planets") ?? Path.Combine(Folder(config), "planets.json");
+
         /// <summary>A setting's value, or null when it is missing or blank.</summary>
         public static string? Setting(IConfiguration config, string key) =>
             string.IsNullOrWhiteSpace(config[key]) ? null : config[key];

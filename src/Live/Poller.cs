@@ -60,6 +60,9 @@ namespace RRSOS.PCC.Live
 
                 _wasInWorld = inWorld;
                 LiveFile.Write(Build(player));
+
+                if (player != null)
+                    PlanetCatalog.Note(player.Planet, PlanetReader.PlanetHash());
             }
             catch (Exception e)
             {

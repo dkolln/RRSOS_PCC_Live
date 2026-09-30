@@ -3,6 +3,7 @@
 @inject ItemCatalog Catalog
 @inject ToastService Toasts
 @inject WorldFileService World
+@inject PlanetNames Planets
 @inject IJSRuntime JS
 
 <section class="bb">
@@ -60,8 +61,8 @@
                 else if (_beacons.GroupBy(b => b.Text, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
                 {
                     <p class="hint">
-                        Some beacons share a name (one for each base, say). Pick the one you mean: a row is only ever built from the one beacon
-                        you pick, near the base shown.
+                        Some beacons share a name (one for each base, say@(_beacons.Select(b => b.PlanetHash).Distinct().Count() > 1 ? ", or one per planet" : "")).
+                        Pick the one you mean: a row is only ever built from the one beacon you pick, near the base shown@(_beacons.Select(b => b.PlanetHash).Distinct().Count() > 1 ? ", on the planet shown" : "").
                     </p>
                 }
 
@@ -72,6 +73,10 @@
                             <label class="bb-pick">
                                 <input type="radio" name="beacon" checked="@(b.Id == _beaconId)" @onchange="() => PickBeacon(b)" />
                                 <strong>@b.Text</strong>
+                                @if (PlanetLabel(b) is { Length: > 0 } planet)
+                                {
+                                    <span class="bb-planet">@planet</span>
+                                }
                             </label>
                             <span class="bb-muted">points @Compass(b) · @NearBase(b) · @(b.FoundationId is null ? "not on a foundation" : "on a foundation")</span>
                             <button class="bar-btn" title="Read the platform this beacon points at and keep it as a template" @onclick="() => Capture(b)">Capture template</button>
@@ -489,8 +494,13 @@
     }
 
     // The base a beacon belongs to, by the dashboard's own rule (the nearest base within 100 m), from the last world file it read.
+    // World.Bases only ever holds the planet currently loaded in the game, so a beacon on any other planet is left out here
+    // (by coordinates alone, a beacon on Humble could sit "near" a base that is really on Prime, purely by chance).
     private string NearBase(BuildBeacon b)
     {
+        if (World.Data is { } data && data.PlanetHash != 0 && b.PlanetHash != 0 && data.PlanetHash != b.PlanetHash)
+            return "on another planet";
+
         var near = World.Bases.Bases
             .Select(x => (Base: x, Distance: Math.Sqrt(Math.Pow(x.Flat.X - b.X, 2) + Math.Pow(x.Flat.Y - b.Z, 2))))
             .Where(t => t.Distance <= BaseDirectory.OwnershipRadius)
@@ -499,6 +509,10 @@
 
         return near.Base is null ? "no known base within 100 m" : $"near {near.Base.Name} ({near.Distance:0} m)";
     }
+
+    // The beacon's planet, when planets.json (plugin 0.10.3+) has learned a name for its hash; blank otherwise (an
+    // older save, or a planet not yet visited with the new plugin).
+    private string PlanetLabel(BuildBeacon b) => Planets.NameOf(b.PlanetHash) ?? "";
 
     // North is +x and east is -z in the save; a beacon or row pointing +x points north.
     private static string Compass(BuildBeacon b) => (b.DirX, b.DirZ) switch
