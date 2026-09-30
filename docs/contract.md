@@ -118,6 +118,34 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
   - `loot`: groups whose deconstruction drops a chip linked to that group (`Group.GetLootRecipeOnDeconstruct`).
 - A chip is `{"id","gId":"BlueprintT1","liGrps":"<group>"}` in the save; `liGrps` names the building it unlocks.
 
+## The planet name catalog (`planets.json`, added in plugin 0.10.3)
+
+- Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\planets.json`. A save (and `live-world.json`'s `planetHash`) only ever carries a planet's
+  hash (the game's own `GetStableHashCode()` of its id: "Prime" → -1140328421, "Humble" → -486276833), never its name, so
+  this is the only place the dashboard can learn one. Written whenever a hash is seen for the first time, or under a
+  different name than before (should not happen); grows one entry per planet the owner actually visits, in whatever
+  session first visits it with 0.10.3 or later. A hash the owner has not visited yet with this plugin version has no entry,
+  and the dashboard just shows the number until it does.
+- Shape: `{ "<hash>": "<planetId>", ... }`, e.g. `{"-1140328421":"Prime","-486276833":"Humble"}`.
+- Read by `PlanetNames` (dashboard), which labels a beacon's or a drone-network planet's hash wherever more than one is in
+  play: the Base Building and Factory beacon pickers, and the Drone Network tab's planet selector (below).
+
+## Planet-scoping (plugin 0.10.2 and 0.10.3)
+
+Two things used to pool every planet in a save together, which only mattered once the owner had more than one:
+
+- **`planet`'s power and rockets** (plugin 0.10.2): `PlanetReader`'s generator list and rocket counts now only count objects
+  whose own `"planet"` matches the current world's (the game does the same for the totals themselves); before, a second
+  planet's fusion generators and rocket multipliers leaked into the first one's numbers.
+- **Beacons and the Drone Network** (plugin 0.10.3 adds `planets.json`; the filtering itself needed no plugin change, since
+  a save's object records already carry `"planet"`): `BuildBeacon.PlanetHash` and `DroneNetworkEngine`'s `Rec.Planet` read
+  that field. The Base Building and Factory beacon lists show the planet name next to a beacon's own name when it is
+  known (`PlanetNames`), and `BaseBuilding.razor`'s "near base" line no longer matches a beacon against a base on another
+  planet by coincidence of raw coordinates. The Drone Network tab offers a **Planet** picker whenever the save has more
+  than one (`DroneNetworkEngine.PlanetsInSave`); picking one scopes every producer, container and demanding machine to
+  it (`DroneNetworkEngine.Apply`'s `planetHash` parameter). An object record with no `"planet"` of its own (should not
+  happen for anything these two look at) is never hidden by either filter, on either planet, rather than guessed at.
+
 ## The recipe list (`recipes.json`, added in plugin 0.9.0)
 
 - Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\recipes.json`. Written **once per game session** (when a world has loaded), not on every tick. Meant as the one

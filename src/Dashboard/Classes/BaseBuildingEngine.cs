@@ -8,9 +8,10 @@ namespace RRSOS.PCC.Dashboard
     /// A beacon the owner placed on a foundation, named for what a row should hold ("Fish"). It points the way the row grows.
     /// <paramref name="DirX"/> and <paramref name="DirZ"/> are that direction snapped to the foundation grid (one of them is 0).
     /// </summary>
+    /// <param name="PlanetHash">The planet the beacon stands on (the save's own "planet" field on its record); 0 when the record had none.</param>
     public sealed record BuildBeacon(
         long Id, string Text, double X, double Y, double Z, double YawDegrees, int DirX, int DirZ,
-        long? FoundationId, double FoundationX, double FoundationY, double FoundationZ);
+        long? FoundationId, double FoundationX, double FoundationY, double FoundationZ, int PlanetHash = 0);
 
     /// <summary>One chest of a template: where it stands on its platform (from the platform's centre, in world axes as captured) and how it is turned.</summary>
     public sealed record TemplateChest(double Dx, double Dz, double Dy, string Rot);
@@ -84,7 +85,7 @@ namespace RRSOS.PCC.Dashboard
         private static readonly Regex RecordPattern = new(@"\{(?:[^{}""]|""(?:[^""\\]|\\.)*"")*\}", RegexOptions.Compiled);
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-        private sealed record Obj(long Id, string GId, double X, double Y, double Z, string Rot, string? Text, int? LiId);
+        private sealed record Obj(long Id, string GId, double X, double Y, double Z, string Rot, string? Text, int? LiId, int Planet = 0);
 
         private sealed class World
         {
@@ -123,7 +124,8 @@ namespace RRSOS.PCC.Dashboard
                         continue;
 
                     int? liId = root.TryGetProperty("liId", out var li) && li.TryGetInt32(out var l) ? l : null;
-                    world.Objects.Add(new Obj(id, gId, x, y, z, Str("rot") ?? "0,0,0,1", Str("text"), liId));
+                    int planet = root.TryGetProperty("planet", out var pl) && pl.TryGetInt32(out var p) ? p : 0;
+                    world.Objects.Add(new Obj(id, gId, x, y, z, Str("rot") ?? "0,0,0,1", Str("text"), liId, planet));
                 }
                 catch (JsonException)
                 {
@@ -201,7 +203,7 @@ namespace RRSOS.PCC.Dashboard
                 var yaw = YawOf(b.Rot);
                 var (dx, dz) = Snap(yaw);
                 result.Add(new BuildBeacon(b.Id, b.Text!.Trim(), b.X, b.Y, b.Z, yaw, dx, dz,
-                    under?.Id, under?.X ?? b.X, under?.Y ?? b.Y - OnFoundation, under?.Z ?? b.Z));
+                    under?.Id, under?.X ?? b.X, under?.Y ?? b.Y - OnFoundation, under?.Z ?? b.Z, b.Planet));
             }
 
             return result.OrderBy(b => b.Text, StringComparer.OrdinalIgnoreCase).ToList();

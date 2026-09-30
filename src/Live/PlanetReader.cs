@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SpaceCraft;
 
@@ -71,6 +72,28 @@ namespace RRSOS.PCC.Live
             return json.End().ToString();
         }
 
+        // The game counts only what stands on the planet being played (WorldUnit and the energy groups compare each
+        // object's planet hash with the current planet's), so a second planet starts with none of the first one's
+        // generators or rockets. 0 means the planet is not known, and then nothing is left out.
+        private static bool OnThisPlanet(WorldObject worldObject, int planetHash) =>
+            planetHash == 0 || worldObject.GetPlanetHash() == planetHash;
+
+        /// <summary>The current world's planet hash (the game's own <c>GetStableHashCode()</c> of its id), or 0 when none is loaded.</summary>
+        public static int PlanetHash()
+        {
+            try
+            {
+                var loader = Managers.GetManager<PlanetLoader>();
+                var data = loader == null ? null : loader.GetCurrentPlanetData();
+                return data == null ? 0 : data.GetPlanetHash();
+            }
+            catch (Exception e)
+            {
+                Plugin.LogOnce("planet:hash", $"Could not read the planet's hash: {e.GetType().Name}: {e.Message}");
+                return 0;
+            }
+        }
+
         private sealed class Generator
         {
             public int Count;
@@ -85,12 +108,13 @@ namespace RRSOS.PCC.Live
 
             var constructed = WorldObjectsHandler.Instance == null ? null : WorldObjectsHandler.Instance.GetConstructedWorldObjects();
             var byId = new Dictionary<string, Generator>();
+            var planetHash = PlanetHash();
 
             if (constructed != null)
             {
                 foreach (var worldObject in constructed)
                 {
-                    if (worldObject == null)
+                    if (worldObject == null || !OnThisPlanet(worldObject, planetHash))
                         continue;
 
                     var kw = worldObject.GetUnitGeneration(DataConfig.WorldUnitType.Energy);
@@ -126,10 +150,11 @@ namespace RRSOS.PCC.Live
                 return null;
 
             var byStat = new Dictionary<string, Rocket>();
+            var planetHash = PlanetHash();
 
             foreach (var worldObject in constructed)
             {
-                if (worldObject == null || !(worldObject.GetGroup() is GroupConstructible group))
+                if (worldObject == null || !OnThisPlanet(worldObject, planetHash) || !(worldObject.GetGroup() is GroupConstructible group))
                     continue;
 
                 var type = group.GetWorldUnitMultiplied();

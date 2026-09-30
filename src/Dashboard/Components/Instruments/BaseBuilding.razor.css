@@ -12,6 +12,7 @@
 .bb-pick { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .bb-pick input { accent-color: #7ab8ff; }
 .bb-muted { color: #5f7d99; font-size: 0.78rem; }
+.bb-planet { color: #9fd6a8; font-size: 0.72rem; border: 1px solid #2a4a35; border-radius: 4px; padding: 1px 6px; }
 
 .bb-controls { display: flex; gap: 16px; flex-wrap: wrap; color: #7f9db9; font-size: 0.8rem; }
 .bb-controls select { margin-left: 6px; padding: 4px 8px; background: #0b0f17; border: 1px solid #24384d; border-radius: 4px; color: #cfe4ff; font: inherit; }
