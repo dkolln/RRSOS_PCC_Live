@@ -1,0 +1,40 @@
+@* The current planet's own named terraformation milestones (the game's "progress" screen: "Lakes", "Animals",
+   "Complete Transformation", ... — not every one lines up with a gauge), as a row of status buttons: unlit for one not
+   reached yet, flashing for the one in progress now, solid once it is done. Planet-specific: Data is already read from
+   whichever planet live.json is reporting. *@
+<div class="phases @(Dim ? "is-dim" : "")">
+    <div class="phases-title">Phases</div>
+
+    @if (Data is not { Count: > 0 } phases)
+    {
+        <div class="phases-empty">no data</div>
+    }
+    else
+    {
+        <div class="phases-row">
+            @foreach (var p in phases)
+            {
+                <div class="phase-pill @StateClass(p, phases)" title="@Tooltip(p)">@p.Name</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<PhaseData>? Data { get; set; }
+
+    [Parameter]
+    public bool Dim { get; set; }
+
+    private static string StateClass(PhaseData p, IReadOnlyList<PhaseData> all)
+    {
+        if (p.Complete)
+            return "is-complete";
+
+        return ReferenceEquals(p, all.FirstOrDefault(x => !x.Complete)) ? "is-progress" : "";
+    }
+
+    private static string Tooltip(PhaseData p) =>
+        p.Name + (p.Complete ? " — complete" : "") + $" (starts at {p.StartValue:N0} TI)";
+}

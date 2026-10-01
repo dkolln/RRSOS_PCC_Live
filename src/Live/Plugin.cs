@@ -12,7 +12,7 @@ namespace RRSOS.PCC.Live
     {
         public const string Guid = "com.rrsos.pcc.live";
         public const string Name = "RRSOS PCC Live";
-        public const string Version = "0.10.3";
+        public const string Version = "0.10.5";
 
         private const int MaxRepeats = 3;
 

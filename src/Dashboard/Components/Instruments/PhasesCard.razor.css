@@ -1,0 +1,53 @@
+.phases.is-dim {
+    opacity: 0.5;
+}
+
+.phases-title {
+    padding: 0 2px 3px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #1a2a3a;
+    color: #7ab8ff;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.phases-empty {
+    color: #5f7d99;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.phases-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.phase-pill {
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: 1px solid #253851;
+    color: #5f7d99;
+    font-size: 0.68rem;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.phase-pill.is-complete {
+    border-color: #2a5a3f;
+    background: #163626;
+    color: #4fd18b;
+}
+
+.phase-pill.is-progress {
+    border-color: #4fd18b;
+    color: #bdf3d4;
+    animation: phase-flash 1.6s ease-in-out infinite;
+}
+
+@keyframes phase-flash {
+    0%, 100% { background: transparent; }
+    50% { background: #1d4430; }
+}

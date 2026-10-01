@@ -41,7 +41,7 @@ namespace RRSOS.PCC.Live
 
             var json = new Json().Begin().Begin("units");
 
-            double produced = 0, used = 0;
+            double produced = 0, used = 0, terraformation = 0;
 
             foreach (var pair in Units)
             {
@@ -63,11 +63,16 @@ namespace RRSOS.PCC.Live
                     produced = increase;
                     used = -decrease;
                 }
+                else if (pair.Value == DataConfig.WorldUnitType.Terraformation)
+                {
+                    terraformation = unit.GetValue();
+                }
             }
 
             json.End()
                 .Raw("power", PowerFragment(produced, used))
-                .Raw("rockets", RocketsFragment());
+                .Raw("rockets", RocketsFragment())
+                .Raw("phases", PhasesFragment(terraformation));
 
             return json.End().ToString();
         }
@@ -92,6 +97,42 @@ namespace RRSOS.PCC.Live
                 Plugin.LogOnce("planet:hash", $"Could not read the planet's hash: {e.GetType().Name}: {e.Message}");
                 return 0;
             }
+        }
+
+        /// <summary>
+        /// The current planet's own named terraformation milestones (the game's "Lakes", "Animals", "Complete
+        /// Transformation", ... screen; not every one lines up with a planet gauge), in the order they unlock, each with
+        /// whether the planet has reached it yet. Each planet keeps its own list and its own thresholds (<c>PlanetData</c>'s
+        /// own <c>allTerraStages</c>), gated by the total Terraformation value the way the game's own
+        /// <c>TerraformStagesHandler</c> does it. Null while the planet's stage list is not ready.
+        /// </summary>
+        private static string PhasesFragment(double terraformationValue)
+        {
+            var loader = Managers.GetManager<PlanetLoader>();
+            var data = loader == null ? null : loader.GetCurrentPlanetData();
+            var stages = data == null ? null : data.GetPlanetTerraformationStages();
+            if (stages == null || stages.Count == 0)
+                return null;
+
+            var ordered = new List<TerraformStage>(stages);
+            ordered.Sort((a, b) => a.GetStageStartValue().CompareTo(b.GetStageStartValue()));
+
+            var parts = new List<string>(ordered.Count);
+            foreach (var stage in ordered)
+            {
+                if (stage == null)
+                    continue;
+
+                parts.Add(new Json().Begin()
+                    .Str("id", stage.GetTerraId())
+                    .Str("name", Readable.GetTerraformStageName(stage))
+                    .Str("unit", stage.GetWorldUnitType().ToString())
+                    .Num("startValue", stage.GetStageStartValue())
+                    .Bool("complete", terraformationValue >= stage.GetStageStartValue())
+                    .End().ToString());
+            }
+
+            return "[" + string.Join(",", parts) + "]";
         }
 
         private sealed class Generator

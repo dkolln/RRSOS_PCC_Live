@@ -75,6 +75,25 @@ namespace RRSOS.PCC.Dashboard
         public Dictionary<string, UnitData> Units { get; set; } = new();
         public PowerData? Power { get; set; }
         public Dictionary<string, RocketData> Rockets { get; set; } = new();
+
+        /// <summary>The current planet's own named terraformation milestones, in the order they unlock (plugin 0.10.5 and later).</summary>
+        public List<PhaseData>? Phases { get; set; }
+    }
+
+    /// <summary>
+    /// One of the game's own named terraformation milestones ("Lakes", "Animals", "Complete Transformation", ...; the
+    /// game's "progress" screen). Not every one lines up with a planet gauge. Each planet has its own list and its own
+    /// thresholds; <see cref="Complete"/> is the game's own read of whether the current total Terraformation has reached it.
+    /// </summary>
+    public sealed class PhaseData
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+
+        /// <summary>The gauge this milestone is thematically closest to (Oxygen, Heat, ... or Terraformation for one with none, like "Lakes").</summary>
+        public string Unit { get; set; } = "";
+        public double StartValue { get; set; }
+        public bool Complete { get; set; }
     }
 
     public sealed class UnitData
