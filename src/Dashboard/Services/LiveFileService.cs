@@ -27,16 +27,29 @@ namespace RRSOS.PCC.Dashboard
         private static readonly TimeSpan StaleAfter = TimeSpan.FromSeconds(6);
         private static readonly TimeSpan PollEvery = TimeSpan.FromMilliseconds(500);
 
+        /// <summary>How loud a phase announcement speaks, independent of the Home page's own volume slider: this fires from
+        /// the background, whether or not a browser tab is even open (see <see cref="WorldFileService"/>'s rocket alerts,
+        /// the same idea).</summary>
+        private const double PhaseAlertVolume = 0.9;
+        private static readonly TimeSpan PhaseAlertCooldown = TimeSpan.FromSeconds(20);
+
         private readonly ILogger<LiveFileService> _log;
         private readonly PCLauncherService _launcher;
+        private readonly SpeechService _speech;
         private readonly string _path;
         private DateTime _lastWriteUtc = DateTime.MinValue;
         private long _lastLength = -1;
 
-        public LiveFileService(ILogger<LiveFileService> log, IConfiguration config, PCLauncherService launcher)
+        // Whether a planet's phase (keyed "<planetId>:<phaseId>") was complete last time this was read, and which phase
+        // (by id) was the in-progress one for a planet, so a change can be told apart from "first time we've looked".
+        private readonly Dictionary<string, bool> _phaseComplete = new();
+        private readonly Dictionary<string, string?> _phaseInProgress = new();
+
+        public LiveFileService(ILogger<LiveFileService> log, IConfiguration config, PCLauncherService launcher, SpeechService speech)
         {
             _log = log;
             _launcher = launcher;
+            _speech = speech;
             _path = LivePaths.LiveFile(config);
         }
 
@@ -86,6 +99,7 @@ namespace RRSOS.PCC.Dashboard
                     var parsed = Read();
                     if (parsed is not null)
                     {
+                        AnnouncePhases(parsed);
                         Data = parsed;
                         _lastWriteUtc = info.LastWriteTimeUtc;
                         _lastLength = info.Length;
@@ -98,6 +112,61 @@ namespace RRSOS.PCC.Dashboard
 
             if (changed)
                 Changed?.Invoke();
+        }
+
+        /// <summary>
+        /// Speaks as the current planet's terraformation phases complete, and as the next one becomes the one in progress
+        /// (see <see cref="PhaseData"/>): "Phase X is complete", "Phase Y now in progress". When the very last phase
+        /// finishes, that is the one exception: just "Terraformation is complete congratulations planet crafter", not
+        /// also that phase's own "is complete" (the owner asked for one sentence there, not two). Each planet's phases are
+        /// kept apart by planet id, so switching planets never looks like a phase un-completing. Known only once this has
+        /// read a planet's phases twice; the first reading just remembers where things stand, and a planet whose phases
+        /// are not (yet) in the file is simply left alone.
+        /// </summary>
+        private void AnnouncePhases(LiveData data)
+        {
+            if (!data.InWorld || data.Planet?.Phases is not { Count: > 0 } phases)
+                return;
+
+            var planetId = data.PlanetId ?? "";
+            string? firstIncomplete = null;
+            var newlyDone = new List<PhaseData>();
+
+            foreach (var phase in phases)
+            {
+                if (string.IsNullOrEmpty(phase.Id))
+                    continue;
+
+                var key = planetId + ":" + phase.Id;
+                if (_phaseComplete.TryGetValue(key, out var was) && !was && phase.Complete)
+                    newlyDone.Add(phase);
+
+                _phaseComplete[key] = phase.Complete;
+
+                if (firstIncomplete is null && !phase.Complete)
+                    firstIncomplete = phase.Id;
+            }
+
+            var hasPrior = _phaseInProgress.TryGetValue(planetId, out var wasInProgress);
+            var allDone = hasPrior && wasInProgress is not null && firstIncomplete is null;
+
+            if (allDone)
+            {
+                _speech.Alert("phase-all-done:" + planetId, "Terraformation is complete congratulations planet crafter.", PhaseAlertVolume, PhaseAlertCooldown);
+            }
+            else
+            {
+                foreach (var phase in newlyDone)
+                    _speech.Alert("phase-done:" + planetId + ":" + phase.Id, $"Phase {phase.Name} is complete.", PhaseAlertVolume, PhaseAlertCooldown);
+
+                if (hasPrior && wasInProgress != firstIncomplete && firstIncomplete is not null)
+                {
+                    var name = phases.FirstOrDefault(p => p.Id == firstIncomplete)?.Name ?? firstIncomplete;
+                    _speech.Alert("phase-next:" + planetId + ":" + firstIncomplete, $"Phase {name} now in progress.", PhaseAlertVolume, PhaseAlertCooldown);
+                }
+            }
+
+            _phaseInProgress[planetId] = firstIncomplete;
         }
 
         private LiveData? Read()

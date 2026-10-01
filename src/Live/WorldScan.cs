@@ -342,7 +342,7 @@ namespace RRSOS.PCC.Live
                 var yaw = o.GetRotation().eulerAngles.y;
                 var go = o.GetGameObject();
 
-                string box = null, deckBox = null, panelBoxes = null, landing = null;
+                string box = null, deckBox = null, panelBoxes = null, landing = null, rocket = null;
                 if (go != null)
                 {
                     var root = go.transform;
@@ -357,6 +357,7 @@ namespace RRSOS.PCC.Live
 
                     panelBoxes = PanelBoxesJson(root, go);
                     landing = LandingJson(root, go);
+                    rocket = RocketJson(go);
                 }
 
                 _structures.Add(new Json().Begin()
@@ -369,6 +370,7 @@ namespace RRSOS.PCC.Live
                     .Raw("deckBox", deckBox)
                     .Raw("panelBoxes", panelBoxes)
                     .Raw("landing", landing)
+                    .Raw("rocket", rocket)
                     .End().ToString());
             }
             catch (Exception e)
@@ -391,6 +393,31 @@ namespace RRSOS.PCC.Live
             var p = root.InverseTransformPoint(landing.position);
             var f = root.InverseTransformDirection(landing.forward);
             return new Json().Begin().Point("position", p.x, p.y, p.z).Point("forward", f.x, f.y, f.z).End().ToString();
+        }
+
+        /// <summary>
+        /// The unmanned round-trip rocket a trade platform or an interplanetary exchange platform carries: whether it is
+        /// docked and, while away, how long before it is back, from the game's own timer (<c>MachineRocketBackAndForth</c>,
+        /// shared by both kinds). Null for every piece without one. Kind is told apart by which subclass the game attached,
+        /// not by the piece's own group id (which the dashboard never otherwise needs to name correctly here).
+        /// </summary>
+        private static string RocketJson(GameObject go)
+        {
+            var machine = go.GetComponentInChildren<MachineRocketBackAndForth>(true);
+            if (machine == null)
+                return null;
+
+            var kind = machine is MachineRocketBackAndForthTrade ? "trade"
+                : machine is MachineRocketBackAndForthInterplanetaryExchange ? "interplanetary"
+                : null;
+            if (kind == null)
+                return null;
+
+            return new Json().Begin()
+                .Str("kind", kind)
+                .Bool("onSite", machine.IsRocketOnSite())
+                .Num("returnsInSec", Math.Round(machine.RocketReturnsIn(), 1))
+                .End().ToString();
         }
 
         private static string PanelBoxesJson(Transform root, GameObject go)

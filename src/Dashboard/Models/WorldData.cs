@@ -133,6 +133,32 @@ namespace RRSOS.PCC.Dashboard
         public BoxData? DeckBox { get; set; }
 
         public List<PanelBoxData>? PanelBoxes { get; set; }
+
+        /// <summary>Where the module that comes back lands, in the piece's own frame (plugin 0.10.1 and later, the departure platform only). Null for everything else.</summary>
+        public RocketLandingData? Landing { get; set; }
+
+        /// <summary>The unmanned round-trip rocket this piece carries — a trade platform or an interplanetary exchange platform (plugin 0.10.4 and later). Null for everything else.</summary>
+        public RocketStateData? Rocket { get; set; }
+    }
+
+    /// <summary>Where a departure platform's returning module lands and which way it faces, in the piece's own frame.</summary>
+    public sealed class RocketLandingData
+    {
+        public Vec3? Position { get; set; }
+        public Vec3? Forward { get; set; }
+    }
+
+    /// <summary>
+    /// A trade or interplanetary-exchange platform's own rocket: whether it is docked, and (while away) how long before it is
+    /// back, from the game's own round-trip timer (<c>MachineRocketBackAndForth</c>). "OnSite" false to true is an arrival;
+    /// true to false is a departure.
+    /// </summary>
+    public sealed class RocketStateData
+    {
+        /// <summary>"trade" or "interplanetary".</summary>
+        public string Kind { get; set; } = "";
+        public bool OnSite { get; set; }
+        public double ReturnsInSec { get; set; }
     }
 
     public sealed class BoxData

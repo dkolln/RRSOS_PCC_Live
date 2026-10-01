@@ -12,23 +12,43 @@ namespace RRSOS.PCC.Dashboard
     {
         private static readonly TimeSpan PollEvery = TimeSpan.FromMilliseconds(1000);
 
+        /// <summary>How loud a rocket announcement speaks, independent of whatever the Home page's own slider is set to right
+        /// now: this fires from the background, whether or not a browser tab is even open.</summary>
+        private const double RocketAlertVolume = 0.9;
+
+        /// <summary>Guards against saying the same rocket's state twice from one blip (the file is read every second, but a
+        /// departure or arrival is a one-off edge, so this is just insurance, not the usual repeat-suppression.</summary>
+        private static readonly TimeSpan RocketAlertCooldown = TimeSpan.FromSeconds(20);
+
+        private static readonly IReadOnlyDictionary<string, string> RocketNames = new Dictionary<string, string>
+        {
+            ["trade"] = "Trade Rocket",
+            ["interplanetary"] = "Interplanetary Rocket"
+        };
+
         private readonly ILogger<WorldFileService> _log;
         private readonly BaseNames _names;
         private readonly ItemCatalog _catalog;
         private readonly SaveLooseService _save;
         private readonly FactoryService _factory;
+        private readonly SpeechService _speech;
         private readonly string _path;
         private readonly object _buildLock = new();
         private DateTime _lastWriteUtc = DateTime.MinValue;
         private long _lastLength = -1;
 
-        public WorldFileService(ILogger<WorldFileService> log, IConfiguration config, BaseNames names, ItemCatalog catalog, SaveLooseService save, FactoryService factory)
+        // Whether each rocket (by its platform's id) was docked last time this was read, so a change can be told apart
+        // from "this is the first time we've looked". Cleared of ids the current reading no longer has.
+        private readonly Dictionary<int, bool> _rocketOnSite = new();
+
+        public WorldFileService(ILogger<WorldFileService> log, IConfiguration config, BaseNames names, ItemCatalog catalog, SaveLooseService save, FactoryService factory, SpeechService speech)
         {
             _log = log;
             _names = names;
             _catalog = catalog;
             _save = save;
             _factory = factory;
+            _speech = speech;
             _path = LivePaths.WorldFile(config);
             _save.Changed += OnSaveRead;
         }
@@ -89,6 +109,7 @@ namespace RRSOS.PCC.Dashboard
                     Bases = BaseDirectory.Empty;
                     _lastWriteUtc = DateTime.MinValue;
                     _lastLength = -1;
+                    _rocketOnSite.Clear();
                     Changed?.Invoke();
                 }
 
@@ -105,9 +126,41 @@ namespace RRSOS.PCC.Dashboard
             _lastWriteUtc = info.LastWriteTimeUtc;
             _lastLength = info.Length;
 
+            AnnounceRockets(parsed);
             SetBases(parsed);
             Data = parsed;
             Changed?.Invoke();
+        }
+
+        /// <summary>
+        /// Speaks when a trade or interplanetary-exchange rocket leaves or comes back (see <see cref="RocketStateData"/>): a
+        /// trip the owner has to wait out, so it is worth hearing about even with the dashboard out of sight. Known only
+        /// once this has read the world twice with the rocket still there; the very first reading just remembers where it
+        /// stood, and an id the reading no longer has (the piece removed, or the save changed planet) is forgotten rather
+        /// than treated as "it left".
+        /// </summary>
+        private void AnnounceRockets(WorldData data)
+        {
+            var seen = new HashSet<int>();
+
+            foreach (var s in data.Structures)
+            {
+                if (s.Rocket is not { } rocket || !RocketNames.TryGetValue(rocket.Kind, out var name))
+                    continue;
+
+                seen.Add(s.Id);
+
+                if (_rocketOnSite.TryGetValue(s.Id, out var wasOnSite) && wasOnSite != rocket.OnSite)
+                {
+                    var text = $"{name} {(rocket.OnSite ? "Arriving" : "Departing")}";
+                    _speech.Alert("rocket:" + s.Id, text, RocketAlertVolume, RocketAlertCooldown);
+                }
+
+                _rocketOnSite[s.Id] = rocket.OnSite;
+            }
+
+            foreach (var gone in _rocketOnSite.Keys.Where(id => !seen.Contains(id)).ToList())
+                _rocketOnSite.Remove(gone);
         }
 
         private WorldData? Read()

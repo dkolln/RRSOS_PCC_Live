@@ -45,7 +45,11 @@ dashboard in this repo reads exactly this.
       "usedKw": 0,
       "generators": [ { "id": "EnergyGenerator2", "count": 24, "kw": 1720 } ]
     },
-    "rockets": { "heat": { "count": 3, "multiplier": 30 } }
+    "rockets": { "heat": { "count": 3, "multiplier": 30 } },
+    "phases": [
+      { "id": "Oxygen1", "name": "Lakes", "unit": "Terraformation", "startValue": 8000, "complete": true },
+      { "id": "Plants1", "name": "Plants", "unit": "Plants", "startValue": 12000, "complete": false }
+    ]
   },
   "vehicle": {
     "position": { "x": 0, "y": 0, "z": 0 },
@@ -129,6 +133,23 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
 - Shape: `{ "<hash>": "<planetId>", ... }`, e.g. `{"-1140328421":"Prime","-486276833":"Humble"}`.
 - Read by `PlanetNames` (dashboard), which labels a beacon's or a drone-network planet's hash wherever more than one is in
   play: the Base Building and Factory beacon pickers, and the Drone Network tab's planet selector (below).
+
+## Terraformation phases (`planet.phases`, added in plugin 0.10.5)
+
+- Every planet has its own named terraformation milestones — the game's own "progress" screen ("Lakes", "Animals",
+  "Complete Transformation", ...; not every one lines up with a planet gauge) — read straight from `PlanetData`'s own
+  `allTerraStages` (`TerraformStage`), the same list the game's own `TerraformStagesHandler` uses. `name` is the game's own
+  localized text (`Readable.GetTerraformStageName`); `unit` is the gauge the milestone is thematically closest to (or
+  `Terraformation` for one with none, like Lakes); `startValue` is the total Terraformation (TI) it unlocks at; `complete`
+  is `startValue <= the current Terraformation value`, the game's own test. Written every tick, in order of `startValue`,
+  **for whichever planet the player is on** — each planet keeps its own list and thresholds.
+- The dashboard's **Phases** card (`PhasesCard.razor`, between Planet and Power on the Home page) draws one pill per
+  phase: solid green once `complete`, flashing for the single next one still incomplete (the "in progress" one), plain
+  for the rest. `LiveFileService` also speaks through `SpeechService` as these change, independent of any
+  browser tab being open: "Phase *name* is complete" the moment one finishes, "Phase *name* now in progress" as the next
+  one starts, and once, when the very last one finishes, "Terraformation is complete congratulations planet crafter."
+  Keeps score per planet (by `planetId`) so switching planets never looks like an un-completion, and the first reading of
+  a planet's phases is never itself announced (just the baseline to compare the next one against).
 
 ## Planet-scoping (plugin 0.10.2 and 0.10.3)
 
@@ -299,6 +320,12 @@ they are not also in `containers`.
   exactly its deck's bounds (35.8 x 23.8 m). `landing` (0.10.1, only on this piece) is where the module that comes back lands:
   `position` and `forward` in the piece's own frame, from the game's own `GetLandingTransform()`; null for everything else.
   The floor plan hand-maps the rest (see `FloorPlan.DeparturePlatformLevels`).
+- **`rocket` (plugin 0.10.4)**, on a trade platform or an interplanetary exchange platform only: the unmanned round-trip
+  rocket it carries, read from the game's own `MachineRocketBackAndForth` (the base class both share): `{ "kind": "trade" |
+  "interplanetary", "onSite": bool, "returnsInSec": number }`. `onSite` false to true is an arrival, true to false a
+  departure; `returnsInSec` is 0 while docked. Null for every other piece. The dashboard's `WorldFileService` watches this
+  across readings and speaks "Trade Rocket Departing"/"Arriving" (or "Interplanetary Rocket ...") through `SpeechService`
+  when it changes, from the background, whether or not a browser tab is open.
 - `deckBox` (plugin 0.4.1) is the piece's largest flat slab of collider plus any slabs level with it; for a platform
   that is its deck, and its top is the deck's height. The full `box` of a launch platform is far bigger than the deck.
 - Floors are found from heights: a foundation counts at its top (2 m above its position when not measured), a launch,
