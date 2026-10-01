@@ -302,6 +302,24 @@
                 labelled with an item's own id (see the option below the list) is filled with that item too.
             </p>
 
+            @if (_resupplyPlanets.Count > 1)
+            {
+                <label class="planet-pick">
+                    Planet
+                    <select @onchange="OnResupplyPlanetChanged">
+                        @foreach (var (hash, count) in _resupplyPlanets)
+                        {
+                            <option value="@hash" selected="@(hash == _selectedResupplyPlanet)">@PlanetOption(hash, count)</option>
+                        }
+                    </select>
+                </label>
+                <p class="hint">
+                    This save has labelled containers on more than one planet. RESUPPLY only fills the ones on the planet
+                    picked above — a warehouse beacon named <code>All</code> is not needed for this (it may or may not
+                    exist on a given planet; Resupply works straight off container labels either way).
+                </p>
+            }
+
             @if (_rows.Count > 0)
             {
                 <div class="replace-all-bar">
@@ -405,6 +423,8 @@
     private DroneNetworkReport? _droneReport;
     private IReadOnlyList<(int PlanetHash, int Count)> _planets = Array.Empty<(int, int)>();
     private int? _selectedPlanet;
+    private IReadOnlyList<(int PlanetHash, int Count)> _resupplyPlanets = Array.Empty<(int, int)>();
+    private int? _selectedResupplyPlanet;
 
     // What the user has switched, by inventory id. Anything not here is left exactly as the save has it.
     private readonly Dictionary<long, DroneWish> _changes = new();           // producers
@@ -445,6 +465,8 @@
             ReplaceAll = c.ReplaceAll
         }).ToList();
 
+        await RefreshResupplyPlanets();
+
         // Reached by a direct URL while the game happens to already be live.
         if (Live.Status == LiveStatus.Live)
             Nav.NavigateTo("/");
@@ -480,6 +502,7 @@
         _selectedSave = e.Value?.ToString() ?? "";
         await Persist();
         await RefreshDroneReport();
+        await RefreshResupplyPlanets();
     }
 
     private async Task SelectTab(CheatTab tab)
@@ -488,7 +511,33 @@
 
         if (tab == CheatTab.DroneNetwork)
             await RefreshDroneReport();
+        else if (tab == CheatTab.Resupply)
+            await RefreshResupplyPlanets();
     }
+
+    // Which planets have labelled containers in the selected save, for the Resupply picker; defaults to the most
+    // populated one. A warehouse beacon named "All" is not involved here at all (Resupply matches container labels
+    // directly, see SaveResupplyEngine), so a planet with no such beacon still shows up fine.
+    private async Task RefreshResupplyPlanets()
+    {
+        if (string.IsNullOrEmpty(_selectedSave))
+        {
+            _resupplyPlanets = Array.Empty<(int, int)>();
+            return;
+        }
+
+        var save = _selectedSave;
+        var planets = await Resupply.ResupplyPlanetsAsync(Path.Combine(_saveFolder, save));
+        if (save != _selectedSave)
+            return;
+
+        _resupplyPlanets = planets;
+        if (_selectedResupplyPlanet is not int chosen || planets.All(p => p.PlanetHash != chosen))
+            _selectedResupplyPlanet = planets.Count > 0 ? planets[0].PlanetHash : null;
+    }
+
+    private void OnResupplyPlanetChanged(ChangeEventArgs e) =>
+        _selectedResupplyPlanet = int.TryParse(e.Value?.ToString(), out var hash) ? hash : null;
 
     // What Set Supply Lines would do to the selected save right now: read-only, so it is safe to run whenever asked.
     // A save with more than one planet's producers and containers pools them by default (same as every plugin version
@@ -803,7 +852,8 @@
                 .Select(r => r.ToConfig())
                 .ToList();
 
-            ShowToasts(await Resupply.ResupplyAsync(path, configs, new ResupplyOptions(_autoFill, _autoReplace)));
+            var planetHash = _resupplyPlanets.Count > 1 ? _selectedResupplyPlanet : null;
+            ShowToasts(await Resupply.ResupplyAsync(path, configs, new ResupplyOptions(_autoFill, _autoReplace), planetHash));
         }
         finally
         {
