@@ -163,6 +163,30 @@
     text-transform: none;
 }
 
+/* Auto margin claims the header's free space ahead of itself, so it sits at the far right regardless of the h2's
+   own space-between (and "Drones"/.who stay together at the left, same as a plain two-item header). */
+.drone-pin {
+    margin-left: auto;
+    padding: 0 2px;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.35;
+    filter: grayscale(1);
+    transition: opacity 0.15s, filter 0.15s;
+}
+
+.drone-pin:hover {
+    opacity: 0.7;
+}
+
+.drone-pin.is-pinned {
+    opacity: 1;
+    filter: none;
+}
+
 .empty {
     color: #5f7d99;
     font-style: italic;

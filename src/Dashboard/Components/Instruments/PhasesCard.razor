@@ -1,7 +1,9 @@
 @* The current planet's own named terraformation milestones (the game's "progress" screen: "Lakes", "Animals",
    "Complete Transformation", ... — not every one lines up with a gauge), as a row of status buttons: unlit for one not
    reached yet, flashing for the one in progress now, solid once it is done. Planet-specific: Data is already read from
-   whichever planet live.json is reporting. *@
+   whichever planet live.json is reporting. The percentage is how far the current (total Terraformation) value sits
+   between the last completed phase and the one in progress — the same figure the game's own progress screen shows,
+   worked out live from TerraformationValue, no extra plugin field needed. *@
 <div class="phases @(Dim ? "is-dim" : "")">
     <div class="phases-title">Phases</div>
 
@@ -11,10 +13,17 @@
     }
     else
     {
-        <div class="phases-row">
-            @foreach (var p in phases)
+        <div class="phases-body">
+            <div class="phases-row">
+                @foreach (var p in phases)
+                {
+                    <div class="phase-pill @StateClass(p, phases)" title="@Tooltip(p)">@p.Name</div>
+                }
+            </div>
+
+            @if (ProgressPercent(phases) is { } percent)
             {
-                <div class="phase-pill @StateClass(p, phases)" title="@Tooltip(p)">@p.Name</div>
+                <div class="phases-percent" title="How far toward the phase in progress">@percent.ToString("0.00")%</div>
             }
         </div>
     }
@@ -23,6 +32,11 @@
 @code {
     [Parameter]
     public IReadOnlyList<PhaseData>? Data { get; set; }
+
+    /// <summary>The current planet's total Terraformation (TI) right now, live — the same unit the phase thresholds are in
+    /// (<c>planet.Units["terraformation"].Value</c>). 0 when not known.</summary>
+    [Parameter]
+    public double TerraformationValue { get; set; }
 
     [Parameter]
     public bool Dim { get; set; }
@@ -37,4 +51,20 @@
 
     private static string Tooltip(PhaseData p) =>
         p.Name + (p.Complete ? " — complete" : "") + $" (starts at {p.StartValue:N0} TI)";
+
+    /// <summary>Null once every phase is done (nothing left to progress toward); otherwise 0-100, clamped in case a
+    /// stale reading briefly has the value outside the two thresholds.</summary>
+    private double? ProgressPercent(IReadOnlyList<PhaseData> phases)
+    {
+        var next = phases.FirstOrDefault(p => !p.Complete);
+        if (next is null)
+            return null;
+
+        // The last completed phase's own threshold is where "0%" toward the next one starts; before the very first
+        // phase (should not happen - the first one's threshold is normally 0) that baseline is 0 instead.
+        var baseline = phases.LastOrDefault(p => p.Complete)?.StartValue ?? 0;
+        var span = next.StartValue - baseline;
+
+        return span <= 0 ? 100 : Math.Clamp((TerraformationValue - baseline) / span * 100, 0, 100);
+    }
 }
