@@ -48,7 +48,7 @@ namespace RRSOS.PCC.Dashboard
         private const int NewIdMin = 200_000_000;
         private const int NewIdMax = 210_000_000;
 
-        private sealed record Rec(int Start, int Length, string Raw, long Id, string? GId, string? Text, int? LiId, string? WoIds, int? Size)
+        private sealed record Rec(int Start, int Length, string Raw, long Id, string? GId, string? Text, int? LiId, string? WoIds, int? Size, int Planet = 0)
         {
             public bool IsInventory => WoIds != null;
         }
@@ -72,15 +72,23 @@ namespace RRSOS.PCC.Dashboard
         /// as well, after the configured ones, and never one a config already handled. It says what item a label names,
         /// or null. Such containers are only topped up (their empty slots filled) unless <paramref name="autoReplaceAll"/>.
         /// </param>
+        /// <param name="planetHash">
+        /// Only containers on this planet are filled, by label or by auto-item; everything else in the save is invisible,
+        /// as if it did not exist. Null looks at the whole save, every planet pooled together — the same behaviour as
+        /// before a save could have more than one planet's worth of same-named containers. A container record with no
+        /// "planet" of its own (should not happen) is never excluded, on either planet, rather than guessed at.
+        /// </param>
         public static ResupplyOutcome Apply(
             string text, IReadOnlyList<ResupplyConfig> configs, Random? random = null,
-            Func<string, (string GId, string Name)?>? autoItem = null, bool autoReplaceAll = false)
+            Func<string, (string GId, string Name)?>? autoItem = null, bool autoReplaceAll = false, int? planetHash = null)
         {
             random ??= Random.Shared;
 
             var records = Scan(text, out var problems);
             if (problems.Count > 0)
                 return Failed(problems);
+
+            bool OnPlanet(Rec r) => planetHash is not int ph || r.Planet == 0 || r.Planet == ph;
 
             var inventories = new Dictionary<long, Rec>();
             foreach (var inventory in records.Where(r => r.IsInventory))
@@ -116,7 +124,7 @@ namespace RRSOS.PCC.Dashboard
                     StringComparer.OrdinalIgnoreCase);
 
                 foreach (var label in records
-                    .Where(r => !r.IsInventory && r.LiId is not null && !string.IsNullOrWhiteSpace(r.Text))
+                    .Where(r => !r.IsInventory && r.LiId is not null && !string.IsNullOrWhiteSpace(r.Text) && OnPlanet(r))
                     .Select(r => r.Text!.Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(l => l, StringComparer.OrdinalIgnoreCase))
@@ -137,7 +145,7 @@ namespace RRSOS.PCC.Dashboard
                 }
 
                 var containers = records
-                    .Where(r => !r.IsInventory && r.LiId is not null
+                    .Where(r => !r.IsInventory && r.LiId is not null && OnPlanet(r)
                                 && string.Equals(r.Text?.Trim(), label, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
@@ -216,6 +224,24 @@ namespace RRSOS.PCC.Dashboard
             return check.Count > 0 ? new ResupplyOutcome(null, lines, check) : new ResupplyOutcome(newText, lines, Array.Empty<string>());
         }
 
+        /// <summary>
+        /// Every planet with at least one labelled container in this save, with how many (so the Resupply tab can offer a
+        /// choice and default to the one most worth looking at). Sorted by count, most first.
+        /// </summary>
+        public static IReadOnlyList<(int PlanetHash, int Count)> PlanetsInSave(string text)
+        {
+            var records = Scan(text, out var problems);
+            if (problems.Count > 0)
+                return Array.Empty<(int, int)>();
+
+            return records
+                .Where(r => !r.IsInventory && r.LiId is not null && !string.IsNullOrWhiteSpace(r.Text) && r.Planet != 0)
+                .GroupBy(r => r.Planet)
+                .Select(g => (PlanetHash: g.Key, Count: g.Count()))
+                .OrderByDescending(t => t.Count)
+                .ToList();
+        }
+
         // ------------------------------------------------------------------
 
         private static ResupplyOutcome Failed(string problem) => new(null, Array.Empty<ResupplyLine>(), new[] { problem });
@@ -257,7 +283,7 @@ namespace RRSOS.PCC.Dashboard
                     string? Str(string name) => root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
                     int? Int(string name) => root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number && e.TryGetInt32(out var v) ? v : null;
 
-                    records.Add(new Rec(match.Index, match.Length, match.Value, id, Str("gId"), Str("text"), Int("liId"), Str("woIds"), Int("size")));
+                    records.Add(new Rec(match.Index, match.Length, match.Value, id, Str("gId"), Str("text"), Int("liId"), Str("woIds"), Int("size"), Int("planet") ?? 0));
                 }
                 catch (JsonException ex)
                 {

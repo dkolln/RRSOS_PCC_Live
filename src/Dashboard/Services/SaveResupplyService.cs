@@ -39,12 +39,12 @@ namespace RRSOS.PCC.Dashboard
             _catalog = catalog;
         }
 
-        public async Task<ResupplyReport> ResupplyAsync(string savePath, IReadOnlyList<ResupplyConfig> configs, ResupplyOptions? options = null)
+        public async Task<ResupplyReport> ResupplyAsync(string savePath, IReadOnlyList<ResupplyConfig> configs, ResupplyOptions? options = null, int? planetHash = null)
         {
             await _gate.WaitAsync();
             try
             {
-                return await Task.Run(() => Run(savePath, configs, options));
+                return await Task.Run(() => Run(savePath, configs, options, planetHash));
             }
             finally
             {
@@ -52,7 +52,28 @@ namespace RRSOS.PCC.Dashboard
             }
         }
 
-        private ResupplyReport Run(string savePath, IReadOnlyList<ResupplyConfig> configs, ResupplyOptions? options)
+        /// <summary>Every planet with at least one labelled container in this save, most-populated first; see <see cref="SaveResupplyEngine.PlanetsInSave"/>.</summary>
+        public async Task<IReadOnlyList<(int PlanetHash, int Count)>> ResupplyPlanetsAsync(string savePath)
+        {
+            if (string.IsNullOrEmpty(savePath) || !File.Exists(savePath))
+                return Array.Empty<(int, int)>();
+
+            await _gate.WaitAsync();
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    var text = BaseBuildingService.ReadText(savePath, out _);
+                    return text is null ? Array.Empty<(int, int)>() : SaveResupplyEngine.PlanetsInSave(text);
+                });
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        private ResupplyReport Run(string savePath, IReadOnlyList<ResupplyConfig> configs, ResupplyOptions? options, int? planetHash)
         {
             var at = DateTime.Now;
 
@@ -68,8 +89,8 @@ namespace RRSOS.PCC.Dashboard
                 var text = Encoding.UTF8.GetString(original, hasBom ? 3 : 0, original.Length - (hasBom ? 3 : 0));
 
                 var outcome = options is { AutoFillByGId: true }
-                    ? SaveResupplyEngine.Apply(text, configs, autoItem: _catalog.ResolveItemLabel, autoReplaceAll: options.AutoFillReplaceAll)
-                    : SaveResupplyEngine.Apply(text, configs);
+                    ? SaveResupplyEngine.Apply(text, configs, autoItem: _catalog.ResolveItemLabel, autoReplaceAll: options.AutoFillReplaceAll, planetHash: planetHash)
+                    : SaveResupplyEngine.Apply(text, configs, planetHash: planetHash);
 
                 if (outcome.Failed)
                     return new ResupplyReport(false, "Nothing was changed. " + string.Join(" ", outcome.Problems), outcome.Lines, null, at);
