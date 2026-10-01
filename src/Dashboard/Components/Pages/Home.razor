@@ -156,7 +156,7 @@
                 else
                 {
                     <PlanetDials Data="@planet" Dim="@dim" />
-                    <PhasesCard Data="@planet.Phases" Dim="@dim" />
+                    <PhasesCard Data="@planet.Phases" TerraformationValue="@(planet.Units.TryGetValue("terraformation", out var terra) ? terra.Value : 0)" Dim="@dim" />
                     <PowerCard Data="@planet.Power" Dim="@dim" />
                 }
             </section>
@@ -191,7 +191,11 @@
             else if (_activeMap == "drone")
             {
                 <section class="card card-detail">
-                    <h2>Drones <span class="who">@flying.Count flying, @stations.Sum(s => s.Docked) docked</span></h2>
+                    <h2>
+                        Drones <span class="who">@flying.Count flying, @stations.Sum(s => s.Docked) docked</span>
+                        <button type="button" class="drone-pin @(_droneMapPinned ? "is-pinned" : "")" @onclick="ToggleDronePin"
+                                title="@(_droneMapPinned ? "Pinned: won't switch away on its own. Click to unpin." : "Pin: stop switching to this view when drones take off, and back to Base when they all land")">📌</button>
+                    </h2>
                     <div class="scroll">
                         <DroneList Flying="@flying" RecentlyDocked="@recentlyDocked" Stations="@stations"
                                    PlayerFlat="@(player?.Position is not null ? _playerFlat : null)" Dim="@dim" />
@@ -256,6 +260,12 @@
     // Which map's detail panel is open in column 3: "base", "drone", "vehicle" or "extractor".
     private string _activeMap = "base";
 
+    // Auto-switches to the drone map the moment any drone takes off, and back to the base map once every drone it
+    // started watching has landed, unless pinned. _wasAnyFlying is kept current every Refresh() regardless of the pin,
+    // so unpinning can settle on the right view at once instead of waiting for the next change.
+    private bool _droneMapPinned;
+    private bool _wasAnyFlying;
+
     // Recently-docked drones: held for 5 seconds after they leave the flying list
     private Dictionary<int, DroneData> _prevFlyingData = new();
     private Dictionary<int, (DroneData Drone, DateTime HidAt)> _recentlyDocked = new();
@@ -275,6 +285,11 @@
         if (_activeMap != "base") { _pinnedBaseId = null; UpdateSelection(); }
         if (_activeMap != "extractor") { _selectedExtractorId = null; }
         if (_activeMap != "vehicle") { _selectedVehicleId = null; }
+
+        // Picking the drone view by hand pins it (the auto-switch would otherwise be free to pull it away again at
+        // the next landing); picking anything else by hand un-pins it (same as unchecking the box, but without also
+        // snapping back to drone if one is still flying — they just chose to look at something else).
+        _droneMapPinned = _activeMap == "drone";
     }
 
     // A truck's pip (or a truck in the list): show that truck; the same one again goes back to the list.
@@ -283,9 +298,20 @@
         _activeMap = "vehicle";
         _selectedVehicleId = _selectedVehicleId == id ? null : id;
         _selectedExtractorId = null;
+        _droneMapPinned = false;
     }
 
     private void UnselectVehicle() => _selectedVehicleId = null;
+
+    private void ToggleDronePin()
+    {
+        _droneMapPinned = !_droneMapPinned;
+
+        // Unpinning: settle on the right view right away, from however things stand now, rather than waiting for the
+        // next takeoff or landing.
+        if (!_droneMapPinned)
+            _activeMap = _wasAnyFlying ? "drone" : "base";
+    }
 
     private void OnBaseMapClick()
     {
@@ -298,6 +324,7 @@
         _activeMap = "base";
         _pinnedBaseId = _pinnedBaseId == id ? null : id;
         _selectedExtractorId = null;
+        _droneMapPinned = false;
         UpdateSelection();
     }
 
@@ -312,6 +339,7 @@
         _activeMap = "extractor";
         _selectedExtractorId = _selectedExtractorId == id ? null : id;
         _selectedVehicleId = null;
+        _droneMapPinned = false;
     }
 
     private void UnselectExtractor() => _selectedExtractorId = null;
@@ -475,6 +503,14 @@
         // Track recently-docked drones
         var nowFlying = data?.Drones?.Flying ?? new List<DroneData>();
         var nowFlyingIds = nowFlying.Select(d => d.Id).ToHashSet();
+
+        // Auto-switch to the drone map the moment the first drone takes off, and back to base once the last one
+        // lands, unless pinned. _wasAnyFlying tracks the truth regardless of the pin, so unpinning (the 📌, or
+        // picking another view by hand) can settle on the right view at once rather than waiting for the next change.
+        var isAnyFlying = nowFlying.Count > 0;
+        if (!_droneMapPinned && isAnyFlying != _wasAnyFlying)
+            _activeMap = isAnyFlying ? "drone" : "base";
+        _wasAnyFlying = isAnyFlying;
 
         foreach (var (id, drone) in _prevFlyingData)
             if (!nowFlyingIds.Contains(id))
