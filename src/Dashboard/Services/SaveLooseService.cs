@@ -84,7 +84,9 @@ namespace RRSOS.PCC.Dashboard
             SaveName = Path.GetFileNameWithoutExtension(newest.Name);
             SavedAtUtc = newest.LastWriteTimeUtc;
 
-            _log.LogInformation("Loose items read from {Save}, saved {At:HH:mm:ss}: {Count} objects with a position", SaveName, SavedAtUtc.Value.ToLocalTime(), objects.Count);
+            // Debug, not Information: this fires on every autosave (every few minutes at most, but some saves are far
+            // more often), and the dashboard's own console log level defaults to showing Information.
+            _log.LogDebug("Loose items read from {Save}, saved {At:HH:mm:ss}: {Count} objects with a position", SaveName, SavedAtUtc.Value.ToLocalTime(), objects.Count);
             Changed?.Invoke();
         }
 
