@@ -28,23 +28,38 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
 
 **Planet (middle)**
 - Six terraformation dials (oxygen, heat, pressure, plants, insects, animals) with live per-second rates and the rocket
-  count and multiplier under each, the total TI, the power dial and one icon per generator. Under it, a notes card.
+  count and multiplier under each, the total TI, a **Phases** row and the power dial with one icon per generator. Under
+  it, a notes card.
+- **Phases**: the current planet's own named terraformation milestones (the game's "progress" screen — Lakes, Animals,
+  Complete Transformation, ...; not every one lines up with a gauge), each planet with its own list: solid once
+  complete, flashing for the one in progress, plain for the rest, with a live percentage toward the next one.
 
 **Detail card (right)**: shows whichever map you last clicked.
-- **Base**: what the base you are at (or picked on the map) holds: stored items, crops ready to harvest, and the
-  **boneyard** (loose ore, alloy, quartz and rods lying around, read from the last save), plus the **floor plan**.
+- **Base**: what the base you are at (or picked on the map) holds: stored items, crops ready to harvest, the
+  **boneyard** (loose ore, alloy, quartz and rods lying around, read from the last save), the **floor plan**, and, once
+  that base has a factory, a **Factory card**: which products its autocrafters are short of ingredients for, click a
+  line to see which crafters.
 - **Floor plan**: the base drawn from above, one floor at a time (▲/▼, or it follows the floor you stand on): pods, walls,
-  windows and doors, foundations, platforms (launch, vehicle), domes, labs, ladders, containers and you.
-- **Drones**: flying drones with their tasks and cargo, and every drone station with what is docked in it.
+  windows and doors, foundations, platforms (launch, vehicle, trade, **the departure platform**), domes, labs, ladders,
+  containers and you.
+- **Drones**: flying drones with their tasks and cargo, and every drone station with what is docked in it. The map opens
+  itself the moment a drone takes off and closes back to Base once every one has landed; a 📌 pin stops that when you
+  want to stay put (picking the drone view by hand pins it, picking anything else un-pins it).
 - **Vehicles**: every truck (Truck 1, 2, ...), where it is or that it is stowed, its trunk and modules.
 - **Extractors**: every ore, gas, water and algae machine, grouped, with fill level, position, and distance and
   direction from you.
 
 **Also**
-- **Spoken alerts** for low oxygen, health and thirst, in your Windows default voice (Settings > Time & language >
-  Speech), with a volume slider.
+- **Spoken alerts**, through a Windows voice (a picker next to the volume slider lists every one installed; your pick
+  and the volume are both remembered): low oxygen, health and thirst; a trade or interplanetary-exchange rocket
+  departing or arriving; a terraformation phase completing or the next one starting, and once per planet,
+  "Terraformation is complete". Two landing close together are both heard in full (they queue, with a short pause,
+  rather than a newer one cutting an older one off).
+- **Multiple planets**: beacons, the Drone Network picker and Resupply all show which planet is which (a `planets.json`
+  cache learns each one's own name as you visit it) and scope to the one picked, so a beacon or a container label
+  shared by two planets is never pooled or mixed up with the other's.
 - **LAUNCH PC** starts the game through Steam. It is disabled while the game runs.
-- **CHEATS** (only while the game is not in a world): three tabs that edit a save file on disk, see the principles
+- **CHEATS** (only while the game is not in a world): four tabs that edit a save file on disk, see the principles
   below and the next section.
 
 Lists (backpack, gear, trunks, stored items) can be folded by clicking their titles.
@@ -54,16 +69,20 @@ Lists (backpack, gear, trunks, stored items) can be folded by clicking their tit
 Every Cheats tab works on a save file, only while the game is at the main menu or closed. Each edit makes a byte-exact
 backup first, writes atomically, and is refused unless undoing it would give back the original file exactly.
 
-- **Resupply**: a configurable list of items to top up in your inventories.
+- **Resupply**: a configurable list of items to top up in your inventories. With a save that has labelled containers
+  on more than one planet, a **Planet** picker scopes RESUPPLY to the one chosen (does not depend on a warehouse beacon
+  — a planet with none named "All" still works).
 - **Drone Network**: sets which containers supply and which demand, so drones move things without hand setup. A
   container is either a demand sink or a supply source; producers supply what they hold, extractors and ecosystems
-  supply everything. Pick which producers and consumers to switch on, and choose the item a container demands.
+  supply everything. Pick which producers and consumers to switch on, and choose the item a container demands. Same
+  **Planet** picker as Resupply when more than one planet has producers or containers.
 - **Base Building**: builds a whole row of storage.
   1. Place a foundation with a **beacon** whose text names the job (for example "Fish"); the way the beacon faces is
      the way the row grows.
   2. Build one platform of chests (Container1, 2 or 3) as a sample and **capture** it as a template.
   3. Pick the beacon, a **group** and a template. The tab shows the plan (an SVG preview, the labels, anything in the
-     way) and, on **BUILD ROW**, writes the platforms and chests into the save.
+     way) and, on **BUILD ROW**, writes the platforms and chests into the save. A beacon's card shows which planet it
+     is on (once `planets.json` has learned its name) — handy when two planets each have a beacon with the same name.
 
   Each chest is labelled and filtered with the next item of the group, nearest platform first and left chest before
   right. Options: set every chest to demand its item, and fill it. There are 18 groups: fish eggs, frog eggs,
@@ -116,10 +135,11 @@ page keeps the last reading, dimmed, and says so.
 
 - **Read-only toward the running game.** The plugin observes; it never changes game state, saves, items or settings.
 - **One deliberate exception, and it never touches the running game.** The Cheats page (Resupply, Drone Network, Base
-  Building) edits a save file on disk, only while the game is at the main menu or closed. It backs the save up first, and refuses to write unless
+  Building, Factory) edits a save file on disk, only while the game is at the main menu or closed. It backs the save up first, and refuses to write unless
   undoing its edit would give back the original file exactly.
 - **Awareness, not shortcuts.** It shows what the game already knows; it does not help anyone bypass how the game is played.
-- **One small contract.** Everything leaves the game through a few versioned JSON files (`live.json`, `live-world.json`, `blueprints.json`) ([docs/contract.md](docs/contract.md)).
+- **One small contract.** Everything leaves the game through a few versioned JSON files (`live.json`, `live-world.json`,
+  `blueprints.json`, `recipes.json`, `planets.json`) ([docs/contract.md](docs/contract.md)).
 - **Nothing of the game is redistributed.** The project references the game's assemblies in place. Game files, and the
   game's decompiled source, are never copied into this repo.
 - **Nothing is trusted blindly.** Every section of the files is read on its own; if one fails it becomes `null` and the
@@ -172,6 +192,13 @@ files (it only reads the save).
 | Cheats / Resupply, Windows-voice alerts, setup script and install guide | done |
 | Cheats / Drone Network and Base Building (18 groups, stocked equipment and blueprint chests) | done, run in the game |
 | Blueprint list from the game (plugin 0.8.0, `blueprints.json`) | done |
+| Cheats / Factory: autocrafters above the warehouse, planned from the game's own recipes (plugin 0.9.0, `recipes.json`), two ramps built automatically, local-chest and quarter-corner fallbacks for hard-to-reach products | done, run in the game |
+| Home page Factory card: which products a base's autocrafters are short of | done |
+| The departure platform found and drawn (plugin 0.10.1, hand-mapped from measurements in the game) | done |
+| Multi-planet: power/rockets scoped per planet (plugin 0.10.2), a planet-name cache (plugin 0.10.3, `planets.json`), beacons/Drone Network/Resupply all planet-aware | done, run in the game |
+| Rocket departure/arrival alerts (plugin 0.10.4) and terraformation phases, a Phases card and spoken milestones (plugin 0.10.5, `phases`) | done, run in the game |
+| Spoken alerts: queued (not interrupted), a voice picker, volume and voice remembered | done |
+| Drone map auto-opens on takeoff / closes on landing, with a pin | done |
 | Optional: local HTTP feed, in-game overlay | later |
 
 ## License
