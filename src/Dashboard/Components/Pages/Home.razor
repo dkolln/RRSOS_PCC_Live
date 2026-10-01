@@ -36,10 +36,21 @@
         <div class="spacer"></div>
 
         <div class="vol-control">
-            <label class="vol-label">Vol</label>
-            <input type="range" class="vol-slider" min="0" max="1" step="0.05"
-                   value="@_volume.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
-                   @onchange="OnVolumeChanged" />
+            @if (_voices.Count > 0)
+            {
+                <select class="voice-pick" @onchange="OnVoiceChanged" title="Which Windows voice speaks the alerts">
+                    @foreach (var v in _voices)
+                    {
+                        <option value="@v" selected="@(v == _voice)">@v</option>
+                    }
+                </select>
+            }
+            <div class="vol-row">
+                <label class="vol-label">Vol</label>
+                <input type="range" class="vol-slider" min="0" max="1" step="0.05"
+                       value="@_volume.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
+                       @onchange="OnVolumeChanged" />
+            </div>
         </div>
 
         <button class="launch" disabled="@running" @onclick="LaunchGame"
@@ -274,6 +285,8 @@
 
     // Alerts
     private double _volume = 0.8;
+    private IReadOnlyList<string> _voices = Array.Empty<string>();
+    private string? _voice;
     private static readonly TimeSpan AlertCooldown = TimeSpan.FromSeconds(40);
 
     private BaseView? SelectedBase => _views.FirstOrDefault(b => b.Id == _selectedBaseId);
@@ -358,6 +371,10 @@
         Live.Changed += OnChanged;
         World.Changed += OnChanged;
         Refresh();
+
+        _volume = Speech.Volume;
+        _voices = Speech.AvailableVoices();
+        _voice = Speech.CurrentVoice();
 
         var wasRunning = Launcher.IsRunning();
         _timer = new Timer(_ =>
@@ -463,7 +480,17 @@
         if (double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var v))
             _volume = v;
+        Speech.SetVolume(_volume);
         Speech.Speak("Volume check", _volume);
+    }
+
+    private void OnVoiceChanged(ChangeEventArgs e)
+    {
+        if (e.Value?.ToString() is not { Length: > 0 } name)
+            return;
+
+        _voice = name;
+        Speech.SetVoice(name, _volume);
     }
 
     // Spoken through Windows' default voice (see SpeechService), each at most once every AlertCooldown.

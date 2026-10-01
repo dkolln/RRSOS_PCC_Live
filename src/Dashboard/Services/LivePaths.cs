@@ -30,6 +30,9 @@ namespace RRSOS.PCC.Dashboard
         public static string Planets(IConfiguration config) =>
             Setting(config, "Planets") ?? Path.Combine(Folder(config), "planets.json");
 
+        public static string SpeechSettings(IConfiguration config) =>
+            Setting(config, "SpeechSettings") ?? Path.Combine(Folder(config), "speech-settings.json");
+
         /// <summary>A setting's value, or null when it is missing or blank.</summary>
         public static string? Setting(IConfiguration config, string key) =>
             string.IsNullOrWhiteSpace(config[key]) ? null : config[key];
