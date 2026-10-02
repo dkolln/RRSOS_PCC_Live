@@ -48,13 +48,6 @@
                 @foreach (var spot in floor.Containers)
                 {
                     <rect class="plan-box" x="@N(spot.Position.X - 0.45f)" y="@N(-spot.Position.Y - 0.45f)" width="0.9" height="0.9"><title>@ContainerTitle(spot)</title></rect>
-                    @if (spot.Item is { } item)
-                    {
-                        @* What the container is set for, drawn on it. Nothing shows when the plugin has not written that icon. *@
-                        var half = IconSize / 2;
-                        <rect class="plan-icon-back" x="@N(spot.Position.X - half - 0.1f)" y="@N(-spot.Position.Y - half - 0.1f)" width="@N(IconSize + 0.2f)" height="@N(IconSize + 0.2f)" rx="0.3" />
-                        <image class="plan-icon" href="@IconUrl(item)" x="@N(spot.Position.X - half)" y="@N(-spot.Position.Y - half)" width="@N(IconSize)" height="@N(IconSize)" preserveAspectRatio="xMidYMid meet" />
-                    }
                 }
 
                 @if (PlayerFloor == index && PlayerPosition is { } p)
@@ -167,11 +160,6 @@
         string.Join(" ", points.Select(p => $"{N(p.X)},{N(-p.Y)}"));
 
     private static string Css(PlanPart part) => part.ToString().ToLowerInvariant();
-
-    // A container is under a metre across, which on a whole base is a few pixels: the icon grows with the plan so it stays readable, and never gets smaller than the box.
-    private float IconSize => Plan is null ? 0.9f : Math.Max(0.9f, 0.07f * Math.Max(Plan.Max.X - Plan.Min.X, Plan.Max.Y - Plan.Min.Y));
-
-    private static string IconUrl(string id) => "icons/" + Uri.EscapeDataString(id) + ".png";
 
     private string ContainerTitle(PlanContainer spot) => spot.Item is { } item ? "Container: " + Catalog.NameOf(item) : "Container";
 
