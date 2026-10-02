@@ -30,6 +30,13 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>Everything stored in containers here, except machines and building parts.</summary>
         public IReadOnlyList<ItemCount> Stored { get; init; } = Array.Empty<ItemCount>();
 
+        /// <summary>The same, leaving out every Container3 that is full of one item (80 of it): a warehouse is hundreds of those, and they bury what else is stored.
+        /// <see cref="FullSingleContainers"/> says how many were left out.</summary>
+        public IReadOnlyList<ItemCount> StoredWithoutFull { get; init; } = Array.Empty<ItemCount>();
+
+        /// <summary>How many Container3 here are full of one kind of item (see <see cref="BaseDirectory.FullSingleSlots"/>).</summary>
+        public int FullSingleContainers { get; init; }
+
         /// <summary>Crops in growers that have finished growing.</summary>
         public IReadOnlyList<ItemCount> Ready { get; init; } = Array.Empty<ItemCount>();
 
@@ -103,6 +110,17 @@ namespace RRSOS.PCC.Dashboard
                 AddStored(owner.Stored, container.Items, catalog);
                 AddStored(owner.Stored, container.Secondary, catalog);
 
+                // The second list leaves out a Container3 that is full of one item.
+                if (IsFullSingleChest(container))
+                {
+                    owner.FullSingle++;
+                }
+                else
+                {
+                    AddStored(owner.StoredPlain, container.Items, catalog);
+                    AddStored(owner.StoredPlain, container.Secondary, catalog);
+                }
+
                 // Crops are ready to harvest only in growers, and only the ones in their planting tray (the secondary storage).
                 if (container.Group.Contains("VegetableGrower", StringComparison.OrdinalIgnoreCase)
                     || container.Group.Contains("Farm1", StringComparison.OrdinalIgnoreCase))
@@ -139,6 +157,15 @@ namespace RRSOS.PCC.Dashboard
 
             return new BaseDirectory(found.Select(d => d.ToInfo(book, catalog)).ToList());
         }
+
+        /// <summary>A Container3 (80 slots) holding 80 of one kind of item is "full of the same item": what a warehouse chest looks like once stocked.</summary>
+        public const int FullSingleSlots = 80;
+
+        private static bool IsFullSingleChest(ContainerData container) =>
+            container.Group.Equals("Container3", StringComparison.OrdinalIgnoreCase)
+            && container.Secondary.Count == 0
+            && container.Items.Count == 1
+            && container.Items[0].Count >= FullSingleSlots;
 
         private static bool IsAutoCrafter(string group) => group.Equals("AutoCrafter1", StringComparison.OrdinalIgnoreCase);
 
@@ -217,6 +244,8 @@ namespace RRSOS.PCC.Dashboard
             public BaseKind Kind { get; }
             public string Name { get; }
             public Dictionary<string, (string Name, int Count)> Stored { get; } = new();
+            public Dictionary<string, (string Name, int Count)> StoredPlain { get; } = new(); // Stored without the Container3 full of one item
+            public int FullSingle { get; set; }
             public Dictionary<string, (string Name, int Count)> Ready { get; } = new();
             public Dictionary<string, (string Name, int Count)> Loose { get; } = new();
             public List<StructureData> Pieces { get; } = new();
@@ -241,6 +270,8 @@ namespace RRSOS.PCC.Dashboard
                     Kind = Kind,
                     Flat = Flat,
                     Stored = stored,
+                    StoredWithoutFull = ToList(StoredPlain),
+                    FullSingleContainers = FullSingle,
                     Ready = ToList(Ready),
                     Loose = ToList(Loose),
                     Plan = FloorPlan.Build(Pieces, Spots),
