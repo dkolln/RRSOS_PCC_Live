@@ -25,7 +25,19 @@
                     <span class="veh-fill-text">trunk @have / @size</span>
                 </div>
 
-                <div class="veh-gear">@Gear(v)</div>
+                <div class="veh-gear">
+                    @if (v.Gear is { Items.Count: > 0 } gear)
+                    {
+                        @foreach (var module in gear.Items)
+                        {
+                            <span class="veh-module" title="@module.Id"><Icon Id="@module.Id" />@module.Label</span>
+                        }
+                    }
+                    else
+                    {
+                        @:no modules
+                    }
+                </div>
             </div>
         }
     </div>
@@ -58,11 +70,6 @@
         var there = new Vector2((float)p.X, (float)p.Z);
         return PlayerFlat is { } here ? $"{(int)Vector2.Distance(here, there)} m {Compass.GetCompassDirection(here, there)}" : "";
     }
-
-    private static string Gear(VehicleData v) =>
-        v.Gear is { Items.Count: > 0 } gear
-            ? string.Join(" · ", gear.Items.Select(i => i.Label))
-            : "no modules";
 
     private static string Inv(FormattableString s) => FormattableString.Invariant(s);
 }

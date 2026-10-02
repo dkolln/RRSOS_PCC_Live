@@ -196,7 +196,7 @@ namespace RRSOS.PCC.Dashboard
 
                 var liId = obj.LiId.Value;
                 if (!inventories.TryGetValue(liId, out var inv))
-                    return Failed($"\"{obj.GId}\" {obj.Id} points at inventory {liId}, which is not in the save.");
+                    continue; // orphaned (seen in a real save: a container whose own id and liId matched, no inventory record at all — a build ghost caught by autosave, going by its unsnapped rotation); skip it like the "anything else" branch above already does, rather than failing every other drone in the save over it
 
                 if (!handled.Add(liId))
                     continue; // one inventory, one setting

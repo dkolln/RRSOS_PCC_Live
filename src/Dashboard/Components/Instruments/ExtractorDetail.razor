@@ -26,6 +26,7 @@
             @foreach (var item in Data.Items.OrderBy(i => i.Label, StringComparer.CurrentCultureIgnoreCase))
             {
                 <div class="ext-detail-line">
+                    <Icon Id="@item.Id" />
                     <span class="ext-detail-line-name">@item.Label</span>
                     <span class="ext-detail-line-count">@item.Count@(Data.Kind == "algae" && item.Ready > 0 ? $" ({item.Ready} ready)" : "")</span>
                 </div>

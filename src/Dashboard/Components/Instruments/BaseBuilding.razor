@@ -178,6 +178,11 @@
                             <rect x="@Sx(c.Z + 0.5)" y="@Sy(c.X + 0.5)" width="1" height="1" class="bb-chest @(c.Label is null && c.Title is null ? "is-spare" : "")">
                                 <title>@(c.Label is not null ? c.Label + " (" + Catalog.NameOf(c.Label) + ")" : c.Title is not null ? c.Title + " (" + (c.Stock?.Count ?? 0) + " items" + (c.FillWith is null ? "" : " + " + c.FillWith + " to capacity") + ")" : "spare chest")</title>
                             </rect>
+                            @if (c.Label is not null)
+                            {
+                                @* The item the chest will hold, drawn on it (left off the hover so the chest's own tooltip still shows). *@
+                                <image class="bb-chest-icon" href="@IconUrl(c.Label)" x="@Sx(c.Z + 0.45)" y="@Sy(c.X + 0.45)" width="0.9" height="0.9" preserveAspectRatio="xMidYMid meet" />
+                            }
                         }
                     }
                 </svg>
@@ -525,6 +530,8 @@
 
     // Plan drawing: north up, east right, in metres. x (north) runs up and z (east is -z) runs across.
     private static string Num(double v) => v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+    private static string IconUrl(string id) => "icons/" + Uri.EscapeDataString(id) + ".png";
+
     private static string Sx(double z) => Num(-z);
     private static string Sy(double x) => Num(-x);
 

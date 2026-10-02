@@ -185,8 +185,29 @@ Two things used to pool every planet in a save together, which only mattered onc
   that finish a recipe by growth (the incubator).
 - Read by the game's own groups (`GroupsHandler.GetAllGroups()`, each `GetRecipe()`), so it covers every planet's items the running game has.
 
+## The pinned recipes (`pins.json`, added in plugin 0.11.0)
+
+- Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\pins.json`. The recipes pinned to the top right of the screen with the Blueprint pinning microchip. Written when the pins
+  change (the plugin looks twice a second), so it is not on a timer. It is not written on the main menu, where there is no pin list: the last pins stay.
+- Shape: `{ "schema": 1, "pins": [ { "id": "OreExtractor3", "name": "T3 Ore Extractor", "ingredients": [ { "id": "Rod-iridium", "name": "Iridium Rod", "count": 1 } ] } ] }`.
+  `name`s are the game's own display names, so a reader needs no table; the same ingredient listed twice by the game is one entry with a `count` of 2.
+- The game keeps the pins in a private list of its pin canvas (`CanvasPinedRecipes._groupsAdded`), which the plugin reads by reflection; it only reads. The game
+  allows only a few pins at a time and drops the oldest, so the dashboard keeps its own list of everything that was ever pinned (`shopping-list.json`, the Shopping
+  list card). A pin already showing when the dashboard starts is not added, so a restart adds nothing twice.
+
+## The item icons (`icons\`, added in plugin 0.12.0)
+
+- Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\icons\<group id>.png`, one file for every item and building that has an icon in the game (about 670).
+- Written **once per install** (when a world has loaded, a few at a time so the game does not stutter); a file already there is left alone, so a group a game update
+  adds is picked up and nothing is written twice. The game holds an icon as a sprite cut out of a shared texture atlas that code may not be allowed to read, so each is
+  copied through a render texture into a PNG of the sprite's own size (at most 256 px).
+- The dashboard serves them at `/icons/<group id>.png` (a missing file is a 404) and shows each beside its name; nothing breaks without them. File names are the group
+  id, with any character a file name cannot hold replaced by `_`.
+
 ## Changes
 
+- **Plugin 0.12.0**: the item icons, as PNG files (see above). Nothing in `live.json` or `live-world.json` changes.
+- **Plugin 0.11.0**: new file `pins.json` (see above).
 - **Plugin 0.9.0**: new file `recipes.json` (see above).
 - **Plugin 0.8.0**: new file `blueprints.json` (see above).
 - **Plugin 0.7.0**: `live.json` gains `vehicles`: every truck (group `VehicleTruck`), oldest first, each shaped like

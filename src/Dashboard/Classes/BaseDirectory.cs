@@ -99,7 +99,7 @@ namespace RRSOS.PCC.Dashboard
                 if (Nearest(found, container.Position) is not { } owner)
                     continue;
 
-                owner.Spots.Add(container.Position!);
+                owner.Spots.Add((container.Position!, container.Label));
                 AddStored(owner.Stored, container.Items, catalog);
                 AddStored(owner.Stored, container.Secondary, catalog);
 
@@ -220,7 +220,7 @@ namespace RRSOS.PCC.Dashboard
             public Dictionary<string, (string Name, int Count)> Ready { get; } = new();
             public Dictionary<string, (string Name, int Count)> Loose { get; } = new();
             public List<StructureData> Pieces { get; } = new();
-            public List<Vec3> Spots { get; } = new();
+            public List<(Vec3 Position, string? Item)> Spots { get; } = new();
             public List<(long Id, string Label, string Name)> Crafters { get; } = new();
             public int CrafterCount { get; set; }
 

@@ -1,0 +1,129 @@
+.shop {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+}
+
+.shop-toolbar {
+    display: flex;
+    gap: 6px;
+}
+
+.shop-btn {
+    background: none;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+    color: #7f9db9;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    cursor: pointer;
+}
+
+.shop-btn:hover { color: #cfe4ff; border-color: #4a7fa5; }
+.shop-btn.is-on { color: #7ab8ff; border-color: #4a7fa5; }
+.shop-clear:hover { color: #ff6b6b; border-color: #ff6b6b; }
+
+.shop-section {
+    margin-top: 4px;
+    padding: 0 2px 2px;
+    border-bottom: 1px solid #1a2a3a;
+    color: #7ab8ff;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.shop-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 6px;
+    background: #0e1520;
+    border: 1px solid #1a2a3a;
+    border-radius: 4px;
+    font-size: 0.82rem;
+}
+
+.shop-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #cfe4ff;
+}
+
+.shop-qty {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.shop-num {
+    min-width: 1.6em;
+    text-align: center;
+    color: #e6f2ff;
+    font-variant-numeric: tabular-nums;
+}
+
+.shop-step,
+.shop-del {
+    background: none;
+    border: none;
+    color: #5f7d99;
+    font-size: 0.8rem;
+    padding: 0 4px;
+    cursor: pointer;
+}
+
+.shop-step:hover:not(:disabled) { color: #7ab8ff; }
+.shop-step:disabled { opacity: 0.35; cursor: default; }
+.shop-del { margin-left: 4px; font-size: 0.7rem; }
+.shop-del:hover { color: #ff6b6b; }
+
+/* The totals use the same two-column tiles as the item lists (ItemList.razor.css, which is scoped to that component, so they are repeated here). */
+.shop-totals {
+    column-count: 2;
+    column-gap: 18px;
+    column-rule: 1px solid #14202e;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.shop-totals ::deep .item {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    break-inside: avoid;
+}
+
+.shop-totals ::deep .item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #b7d3f2;
+}
+
+.shop-totals ::deep .item-count {
+    color: #e6f2ff;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Have all of it: green. Have some: yellow. */
+.shop-totals ::deep .item.is-full .item-name,
+.shop-totals ::deep .item.is-full .item-count { color: #4fd18b; }
+
+.shop-totals ::deep .item.is-part .item-name,
+.shop-totals ::deep .item.is-part .item-count { color: #e8c547; }
+
+.shop-empty {
+    color: #5f7d99;
+    font-style: italic;
+    font-size: 0.82rem;
+}

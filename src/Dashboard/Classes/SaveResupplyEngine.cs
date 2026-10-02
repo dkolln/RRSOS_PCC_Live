@@ -156,8 +156,11 @@ namespace RRSOS.PCC.Dashboard
                 {
                     var liId = container.LiId!.Value;
 
+                    // Orphaned (seen in a real save: a container whose own id and liId matched, no inventory record at
+                    // all — a build ghost caught by autosave, going by its unsnapped rotation). Skip it rather than
+                    // failing every other configured container over one broken reference.
                     if (!inventories.TryGetValue(liId, out var inventory))
-                        return Failed($"Container \"{label}\" points at inventory {liId}, which is not in the save.");
+                        continue;
 
                     if (!handledInventories.Add(liId))
                         continue; // this inventory was already handled under another config's container

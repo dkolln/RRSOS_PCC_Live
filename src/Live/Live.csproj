@@ -29,6 +29,11 @@
       <HintPath>$(GameManaged)UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- Writes the items' icons out as PNG files (see IconExporter). -->
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(GameManaged)UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- Colliders, measured for the floor plans' building shapes. -->
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>$(GameManaged)UnityEngine.PhysicsModule.dll</HintPath>

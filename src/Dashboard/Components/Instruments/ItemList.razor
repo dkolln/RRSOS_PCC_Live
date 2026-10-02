@@ -33,6 +33,7 @@
             @foreach (var item in Sorted)
             {
                 <div class="item" title="@item.Id">
+                    <Icon Id="@item.Id" />
                     <span class="item-name">@item.Label</span>
                     <span class="item-count">@item.Count</span>
                 </div>

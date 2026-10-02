@@ -253,6 +253,13 @@
                     </div>
                 </section>
             }
+
+            <section class="card card-shopping">
+                <h2>Shopping list</h2>
+                <div class="scroll">
+                    <ShoppingList Have="@player?.Backpack" />
+                </div>
+            </section>
         </div>
 
     </main>
@@ -472,6 +479,11 @@
         catch (JSDisconnectedException)
         {
             // The page is closing.
+        }
+        catch (OperationCanceledException)
+        {
+            // A JS call that was still in flight got cancelled from under it — a page reload, a circuit reconnect, or
+            // (seen in the debugger) the app itself restarting mid-call. Not a real failure: the next tick tries again.
         }
     }
 
