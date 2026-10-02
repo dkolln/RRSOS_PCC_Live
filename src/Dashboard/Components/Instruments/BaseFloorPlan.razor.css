@@ -95,18 +95,6 @@
 .plan-box {
     fill: #c9a66b;
 }
-
-/* What the container is set for, drawn on it; the container's own tooltip stays reachable. */
-.plan-icon,
-.plan-icon-back {
-    pointer-events: none;
-}
-
-.plan-icon-back {
-    fill: #0a1019;
-    fill-opacity: 0.75;
-}
-
 .plan-you path {
     fill: #4fd18b;
     stroke: #0a1019;

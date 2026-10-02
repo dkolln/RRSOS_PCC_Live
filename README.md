@@ -45,8 +45,9 @@ instead of names where space is tight. Pinning something already on the list doe
 
 **Icons**: the game's own icon for every item and building sits beside its name in the backpack, gear, trunk, base and
 extractor lists, the shopping list, the truck tiles, and on the power card (the machine itself, in place of the little
-drawn windmill, atom and so on; the drawing is still used when an icon is missing). On the floor plan a container shows
-the icon of the product it is set for, and the warehouse preview on the Cheats page draws the item on each chest. The
+drawn windmill, atom and so on; the drawing is still used when an icon is missing). The warehouse preview on the Cheats
+page draws the item on each chest; the floor plan stays plain (too many icons together), and hovering a container there
+names its product. The
 plugin writes them out of the running game once (`icons\<group id>.png`, plugin 0.12.0), so nothing is bundled or copied
 from anywhere else.
 
