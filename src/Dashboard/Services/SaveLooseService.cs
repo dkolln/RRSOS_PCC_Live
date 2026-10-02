@@ -23,14 +23,31 @@ namespace RRSOS.PCC.Dashboard
 
         private readonly ILogger<SaveLooseService> _log;
         private readonly IConfiguration _config;
+        private readonly DashboardSettings _settings;
         private string? _lastPath;
         private DateTime _lastWriteUtc;
         private long _lastLength = -1;
 
-        public SaveLooseService(ILogger<SaveLooseService> log, IConfiguration config)
+        public SaveLooseService(ILogger<SaveLooseService> log, IConfiguration config, DashboardSettings settings)
         {
             _log = log;
             _config = config;
+            _settings = settings;
+            _settings.Changed += OnSettingsChanged;
+        }
+
+        // Live only on: forget what was read (so the boneyard goes) and stop reading. Off again: the next look reads the newest save afresh.
+        private void OnSettingsChanged()
+        {
+            _lastPath = null;
+
+            if (_settings.LiveOnly && Objects.Count > 0)
+            {
+                Objects = Array.Empty<SaveObject>();
+                SaveName = null;
+                SavedAtUtc = null;
+                Changed?.Invoke();
+            }
         }
 
         /// <summary>Everything with a position in the last save read. Empty until one has been read.</summary>
@@ -62,6 +79,9 @@ namespace RRSOS.PCC.Dashboard
 
         private void Poll()
         {
+            if (_settings.LiveOnly)
+                return;
+
             var newest = NewestSave(SaveFolderResolver.DetectFolder(_config));
             if (newest is null)
                 return;
@@ -72,9 +92,12 @@ namespace RRSOS.PCC.Dashboard
             if (DateTime.UtcNow - newest.LastWriteTimeUtc < Settle)
                 return;
 
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             var objects = Read(newest.FullName);
             if (objects is null)
                 return; // being written or not readable right now; the next look tries again
+
+            watch.Stop();
 
             _lastPath = newest.FullName;
             _lastWriteUtc = newest.LastWriteTimeUtc;
@@ -86,7 +109,7 @@ namespace RRSOS.PCC.Dashboard
 
             // Debug, not Information: this fires on every autosave (every few minutes at most, but some saves are far
             // more often), and the dashboard's own console log level defaults to showing Information.
-            _log.LogDebug("Loose items read from {Save}, saved {At:HH:mm:ss}: {Count} objects with a position", SaveName, SavedAtUtc.Value.ToLocalTime(), objects.Count);
+            _log.LogDebug("Loose items read from {Save}, saved {At:HH:mm:ss}: {Count} objects with a position, read in {Ms} ms", SaveName, SavedAtUtc.Value.ToLocalTime(), objects.Count, watch.ElapsedMilliseconds);
             Changed?.Invoke();
         }
 

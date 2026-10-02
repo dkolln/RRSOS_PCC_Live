@@ -30,6 +30,7 @@
         <button class="cheat-tab @(_tab == CheatTab.BaseBuilding ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.BaseBuilding)">Base Building</button>
         <button class="cheat-tab @(_tab == CheatTab.Factory ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.Factory)">Factory</button>
         <button class="cheat-tab @(_tab == CheatTab.Travel ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.Travel)">Travel</button>
+        <button class="cheat-tab @(_tab == CheatTab.Storage ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.Storage)">Storage</button>
     </nav>
 
     <main class="cheats-body @(_tab != CheatTab.Resupply ? "wide" : "")">
@@ -52,6 +53,10 @@
         @if (_tab == CheatTab.Factory)
         {
             <Factory SavePath="@(string.IsNullOrEmpty(_selectedSave) ? "" : Path.Combine(_saveFolder, _selectedSave))" GameLive="@(Live.Status == LiveStatus.Live)" />
+        }
+        else if (_tab == CheatTab.Storage)
+        {
+            <Storage SavePath="@(string.IsNullOrEmpty(_selectedSave) ? "" : Path.Combine(_saveFolder, _selectedSave))" GameLive="@(Live.Status == LiveStatus.Live)" />
         }
         else if (_tab == CheatTab.Travel)
         {
@@ -485,7 +490,7 @@
         public ResupplyConfig ToConfig() => new(Id, ContainerLabel.Trim(), ProductGId, ProductName, ReplaceAll);
     }
 
-    private enum CheatTab { Resupply, DroneNetwork, BaseBuilding, Factory, Travel }
+    private enum CheatTab { Resupply, DroneNetwork, BaseBuilding, Factory, Travel, Storage }
 
     private CheatTab _tab = CheatTab.Resupply;
     private DroneNetworkReport? _droneReport;

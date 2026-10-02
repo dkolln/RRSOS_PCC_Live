@@ -953,7 +953,7 @@ namespace RRSOS.PCC.Dashboard
         /// a section), and checks the result before returning it: the records that remain are the original ones minus these, in order, and only separators were lost from the
         /// text between them. Used by every "remove" (a whole warehouse or factory, or one crafter).
         /// </summary>
-        private static (string? NewText, List<string> Problems) RemoveByIds(string text, IReadOnlyList<long> objectIds, IReadOnlyList<long> inventoryIds)
+        internal static (string? NewText, List<string> Problems) RemoveByIds(string text, IReadOnlyList<long> objectIds, IReadOnlyList<long> inventoryIds)
         {
             var objectSet = objectIds.ToHashSet();
             var inventorySet = inventoryIds.ToHashSet();

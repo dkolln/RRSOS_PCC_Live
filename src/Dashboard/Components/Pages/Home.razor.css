@@ -126,6 +126,28 @@
     cursor: default;
 }
 
+.live-only {
+    padding: 8px 14px;
+    background: none;
+    border: 1px solid #2c4a68;
+    border-radius: 4px;
+    color: #7f9db9;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.live-only:hover {
+    border-color: #7ab8ff;
+    color: #cfe4ff;
+}
+
+.live-only.is-on {
+    background: rgba(79, 209, 139, 0.12);
+    border-color: #4fd18b;
+    color: #4fd18b;
+}
+
 .cheats {
     padding: 8px 18px;
     background: rgba(255, 216, 107, 0.1);

@@ -19,6 +19,7 @@ builder.Services.AddSingleton<PCLauncherService>();
 builder.Services.AddSingleton<SpeechService>();
 
 // The slower second file (bases, containers, extractors), plus what it needs: an item catalog and the base names.
+builder.Services.AddSingleton<DashboardSettings>();
 builder.Services.AddSingleton<ItemCatalog>();
 builder.Services.AddSingleton<IconCatalog>();
 builder.Services.AddSingleton<ProducerDefaults>();
@@ -44,6 +45,9 @@ builder.Services.AddSingleton<BuildTemplateStore>();
 builder.Services.AddSingleton<BaseBuildingService>();
 builder.Services.AddSingleton<FactoryService>();
 builder.Services.AddSingleton<PlayerTravelService>();
+builder.Services.AddSingleton<StorageService>();
+// Reads the newest saves ahead of the Storage tab whenever the game is not in a world.
+builder.Services.AddHostedService<StorageWarmupService>();
 
 var app = builder.Build();
 

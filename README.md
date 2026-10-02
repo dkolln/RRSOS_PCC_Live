@@ -15,7 +15,7 @@ Planet Crafter  --(plugin, every second)----> live.json        --(watches)-->  D
                 --(plugin, when you pin)-----> pins.json        --(watches)-->
                 --(plugin, once per session)-> recipes.json, blueprints.json, icons\*.png
                                               %LOCALAPPDATA%\RRSOS-PCC-Live
-newest save file (every 10 s, when it changes) ------------------------------> Dashboard (boneyard only)
+newest save file (every 10 s, when it changes; not at all with LIVE ONLY) ---> Dashboard (boneyard only)
 ```
 
 ## What the dashboard shows
@@ -75,8 +75,12 @@ from anywhere else.
 - **Multiple planets**: beacons, the Drone Network picker and Resupply all show which planet is which (a `planets.json`
   cache learns each one's own name as you visit it) and scope to the one picked, so a beacon or a container label
   shared by two planets is never pooled or mixed up with the other's.
+- **LIVE ONLY** (top bar): a switch that stops the dashboard reading save files while you play: no boneyard, and no
+  save read ahead for the Storage tab. The page then works only from what the plugin reports live. It is off by
+  default, remembered between runs (`dashboard-settings.json`), and the boneyard picks up again at the next autosave
+  once it is switched off. Meant for anyone whose page hitches when the game autosaves.
 - **LAUNCH PC** starts the game through Steam. It is disabled while the game runs.
-- **CHEATS** (only while the game is not in a world): five tabs that edit a save file on disk, see the principles
+- **CHEATS** (only while the game is not in a world): six tabs that edit a save file on disk, see the principles
   below and the next section.
 
 Lists (backpack, gear, trunks, stored items) can be folded by clicking their titles.
@@ -102,6 +106,25 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   edit; a kind with no entry gets everything it is seen holding.
 - **Travel**: moves the player to a spot on any planet the save knows about (a `x,y,z` you type, or that planet's own
   warehouse beacon when you leave it empty). Same backup-first write as the others.
+- **Storage**: moves items between storage units, or deletes them, one planet at a time: the planet the player is
+  registered on in the save to begin with, then any other from a **Planet** picker (switching with changes pending
+  warns that they will be lost, and cancelling keeps them). The save is read once and kept, so switching planets is
+  instant, and the newest saves are read ahead of time whenever the game is not in a world (unless LIVE ONLY); a save
+  that has changed on disk is read again. The units are containers (1 to 3), lockers, vaults, refrigerators, each player's backpack, vehicle trunks, the escape
+  storage, and the interplanetary, trade and travel rockets' storage. Pick a unit on the left and one on the right (the
+  one picked on the other side is greyed out), see what each holds, and move items across, **either by dragging them or
+  by ticking them and using the buttons** (a switch at the top: use whichever works in your browser). A unit never holds
+  more than its slots; dropping onto an item in a full unit swaps the two, so two full units can trade. A trash bin
+  deletes items from the game (drag one back out, or tick it and Restore, to keep it). Labels show the item's friendly
+  name ("Tree Bark") unless you tick **Show gIds** for the label exactly as typed; a unit with none says "No Label". A
+  container, locker, vault or refrigerator within 200 m of the planet's warehouse beacon (the one named All) has its
+  label in **green**, so the warehouse stands out from the rest. An
+  empty container, locker, vault or refrigerator (empty counting what you have moved out of it here) gets a small 🗑 box:
+  it puts the crate in the trash (↩ keeps it), and TRANSFER deletes the building and its inventory from the save, the
+  way a warehouse removal does. Backpacks, trunks, rockets and the escape storage are never deleted. Nothing is
+  written until **TRANSFER**, which applies everything as one edit, backed up first, and refuses to write unless the
+  result is exactly the original save with only those units' item lists changed and the trashed items' and crates'
+  records gone.
 - **Base Building**: builds a whole row of storage.
   1. Place a foundation with a **beacon** whose text names the job (for example "Fish"); the way the beacon faces is
      the way the row grows.
@@ -161,7 +184,7 @@ page keeps the last reading, dimmed, and says so.
 
 - **Read-only toward the running game.** The plugin observes; it never changes game state, saves, items or settings.
 - **One deliberate exception, and it never touches the running game.** The Cheats page (Resupply, Drone Network, Base
-  Building, Factory, Travel) edits a save file on disk, only while the game is at the main menu or closed. It backs the save up first, and refuses to write unless
+  Building, Factory, Travel, Storage) edits a save file on disk, only while the game is at the main menu or closed. It backs the save up first, and refuses to write unless
   undoing its edit would give back the original file exactly.
 - **Awareness, not shortcuts.** It shows what the game already knows; it does not help anyone bypass how the game is played.
 - **One small contract.** Everything leaves the game through a few versioned JSON files (`live.json`, `live-world.json`,
@@ -229,6 +252,7 @@ files (it only reads the save).
 | The game's own icons (plugin 0.12.0, `icons\`) beside items and buildings, on the power card, floor-plan containers and warehouse chests | done, run in the game |
 | Drone Network: shows what a producer supplies now, **Fix** to the usual items, **Choose…**, `producer-supply-defaults.json`, and icons on its lines | done |
 | Cheats / Travel: move the player to a spot on any planet in the save | done |
+| Cheats / Storage: move items between storage units (drag and drop, or checkboxes) and a trash bin, scoped to the player's planet, one verified edit | built, tested on a scratch copy of a save; not yet run in the game |
 | Optional: local HTTP feed, in-game overlay | later |
 
 ## License
