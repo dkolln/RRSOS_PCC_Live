@@ -1,0 +1,7 @@
+.icon {
+    width: var(--icon-size, 1.15rem);
+    height: var(--icon-size, 1.15rem);
+    flex-shrink: 0;
+    object-fit: contain;
+    align-self: center;
+}

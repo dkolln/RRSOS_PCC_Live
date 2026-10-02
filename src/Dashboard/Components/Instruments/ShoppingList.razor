@@ -1,0 +1,93 @@
+@implements IDisposable
+@inject ShoppingListService Shopping
+
+@* What the player pinned in the game, kept after the pin is cleared: the things wanted (with a quantity each), and below them what they all take. The
+   "ids" switch shows game ids instead of names, for when the names are too long to fit. *@
+<div class="shop">
+    <div class="shop-toolbar">
+        <button class="shop-btn @(_ids ? "is-on" : "")" @onclick="() => _ids = !_ids" title="Show the game's ids instead of names">ids</button>
+        @if (_items.Count > 0)
+        {
+            <button class="shop-btn shop-clear" @onclick="Shopping.Clear" title="Empty the list">clear all</button>
+        }
+    </div>
+
+    @if (_items.Count == 0)
+    {
+        <div class="shop-empty">Nothing yet. Pin a recipe in the game and it lands here.</div>
+    }
+    else
+    {
+        <div class="shop-section">Wanted</div>
+        @foreach (var item in _items)
+        {
+            <div class="shop-row">
+                <Icon Id="@item.Id" />
+                <span class="shop-name" title="@item.Id">@(_ids ? item.Id : item.Name)</span>
+                <span class="shop-qty">
+                    <button class="shop-step" @onclick="() => Shopping.SetQty(item.Id, item.Qty - 1)" disabled="@(item.Qty <= 1)" title="One fewer">−</button>
+                    <span class="shop-num">@item.Qty</span>
+                    <button class="shop-step" @onclick="() => Shopping.SetQty(item.Id, item.Qty + 1)" title="One more">+</button>
+                    <button class="shop-del" @onclick="() => Shopping.Remove(item.Id)" title="Take it off the list">✕</button>
+                </span>
+            </div>
+        }
+
+        <div class="shop-section">Totals</div>
+        <div class="shop-totals">
+            @foreach (var t in _totals)
+            {
+                <div class="item @StateClass(t)" title="@TotalTitle(t)">
+                    <Icon Id="@t.Id" />
+                    <span class="item-name">@(_ids ? t.Id : t.Name)</span>
+                    <span class="item-count">@t.Count</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<ShoppingEntry> _items = Array.Empty<ShoppingEntry>();
+    private IReadOnlyList<ShoppingIngredient> _totals = Array.Empty<ShoppingIngredient>();
+    private bool _ids;
+
+    /// <summary>What the player carries, to colour the totals: green when the backpack holds all of an ingredient, yellow when it holds some.</summary>
+    [Parameter]
+    public InventoryData? Have { get; set; }
+
+    private int HaveOf(string id) => Have?.Items.Where(i => i.Id == id).Sum(i => i.Count) ?? 0;
+
+    private string StateClass(ShoppingIngredient t)
+    {
+        var have = HaveOf(t.Id);
+        return have >= t.Count ? "is-full" : have > 0 ? "is-part" : "";
+    }
+
+    // The other form of the name (the id when names are shown, and the reverse), and what the backpack holds.
+    private string TotalTitle(ShoppingIngredient t)
+    {
+        var have = HaveOf(t.Id);
+        return (_ids ? t.Name : t.Id) + (have > 0 ? $" ({have} in your backpack)" : "");
+    }
+
+    protected override void OnInitialized()
+    {
+        Refresh();
+        Shopping.Changed += OnChanged;
+    }
+
+    private void Refresh()
+    {
+        _items = Shopping.Items();
+        _totals = ShoppingListService.Totals(_items);
+    }
+
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        Refresh();
+        StateHasChanged();
+    });
+
+    public void Dispose() => Shopping.Changed -= OnChanged;
+}

@@ -294,10 +294,15 @@
     min-height: 120px;
 }
 
-/* Column 3: detail card fills all remaining space below the ext-bar */
+/* Column 3: the detail card (base, drones, vehicles, extractors) takes the larger share; the shopping list under it takes the rest and scrolls by itself. */
 .col > .card-detail {
-    flex: 1 1 0;
+    flex: 3 1 0;
     min-height: 0;
+}
+
+.col > .card-shopping {
+    flex: 2 1 0;
+    min-height: 140px;
 }
 
 /* A card body that scrolls by itself, so a long list never pushes the page. */

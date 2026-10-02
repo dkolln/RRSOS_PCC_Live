@@ -3,7 +3,9 @@
 @inject SaveResupplyService Resupply
 @inject ResupplyConfigStore ConfigStore
 @inject ItemCatalog Catalog
+@inject ProducerDefaults Defaults
 @inject PlanetNames Planets
+@inject PlayerTravelService Travel
 @inject ToastService Toasts
 @inject LiveFileService Live
 @inject NavigationManager Nav
@@ -27,6 +29,7 @@
         <button class="cheat-tab @(_tab == CheatTab.DroneNetwork ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.DroneNetwork)">Drone Network</button>
         <button class="cheat-tab @(_tab == CheatTab.BaseBuilding ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.BaseBuilding)">Base Building</button>
         <button class="cheat-tab @(_tab == CheatTab.Factory ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.Factory)">Factory</button>
+        <button class="cheat-tab @(_tab == CheatTab.Travel ? "is-active" : "")" @onclick="() => SelectTab(CheatTab.Travel)">Travel</button>
     </nav>
 
     <main class="cheats-body @(_tab != CheatTab.Resupply ? "wide" : "")">
@@ -49,6 +52,56 @@
         @if (_tab == CheatTab.Factory)
         {
             <Factory SavePath="@(string.IsNullOrEmpty(_selectedSave) ? "" : Path.Combine(_saveFolder, _selectedSave))" GameLive="@(Live.Status == LiveStatus.Live)" />
+        }
+        else if (_tab == CheatTab.Travel)
+        {
+            <section class="config-section">
+                <h2>Travel</h2>
+                <p class="hint">
+                    Moves the player to a planet already in this save — a shortcut between planets, or just back to
+                    the warehouse, without flying a rocket there. Pick a planet, then either leave Location blank to
+                    land just off its warehouse beacon (named <code>All</code>, <code>Everything</code> or
+                    <code>Warehouse</code>), or type an exact spot (<code>x,y,z</code>, the same numbers the floor
+                    plan and object search use) to land there instead.
+                </p>
+
+                @if (string.IsNullOrEmpty(_selectedSave))
+                {
+                    <p class="hint">Choose a save above.</p>
+                }
+                else if (_travelPlanets.Count == 0)
+                {
+                    <p class="hint">No planet found in this save yet.</p>
+                }
+                else
+                {
+                    <div class="travel-controls">
+                        <label class="travel-field">
+                            Planet
+                            <select @onchange="OnTravelPlanetChanged">
+                                @foreach (var p in _travelPlanets)
+                                {
+                                    <option value="@p.PlanetHash" selected="@(p.PlanetHash == _selectedTravelPlanet)">@p.PlanetId</option>
+                                }
+                            </select>
+                        </label>
+
+                        <label class="travel-field">
+                            Location <span class="hint">(blank: that planet's warehouse beacon)</span>
+                            <input class="travel-location" placeholder="x,y,z" @bind="_travelLocation" @bind:event="oninput" />
+                        </label>
+                    </div>
+
+                    @if (_travelBeaconHint is not null)
+                    {
+                        <p class="hint">@_travelBeaconHint</p>
+                    }
+
+                    <button class="resupply-btn" disabled="@(!CanTravel)" @onclick="RunTravel">
+                        @(_busy ? "MOVING..." : "MOVE PLAYER")
+                    </button>
+                }
+            </section>
         }
         else if (_tab == CheatTab.BaseBuilding)
         {
@@ -141,7 +194,7 @@
                             {
                                 <div class="producer-group" @key="group.Key">
                                     <div class="producer-group-head">
-                                        <span class="producer-type">@Catalog.NameOf(group.Key) <span class="product-gid">@group.Key</span> × @group.Count()</span>
+                                        <span class="producer-type"><Icon Id="@group.Key" Size="1.4rem" /> @Catalog.NameOf(group.Key) <span class="product-gid">@group.Key</span> × @group.Count()</span>
                                         <button class="bar-btn" @onclick="() => SetGroup(group, true)">All on</button>
                                         <button class="bar-btn" @onclick="() => SetGroup(group, false)">All off</button>
                                     </div>
@@ -166,17 +219,32 @@
                                                     @(p.State switch
                                                     {
                                                         DroneSupplyState.All => "Supplies it",
-                                                        DroneSupplyState.Partial => "Supplies something else",
+                                                        DroneSupplyState.Partial => SupplyText(p),
                                                         _ => "Not supplying"
                                                     })
                                                 </span>
                                                 @if (p.State == DroneSupplyState.Partial && change?.On != true && item.Length > 0)
                                                 {
-                                                    <button class="bar-btn" title="Set it to supply just the item in the box" @onclick="() => FixProducer(p)">Fix</button>
+                                                    <button class="bar-btn" title="@FixTitle(p)" @onclick="() => FixProducer(p)">Fix</button>
+                                                    <button class="bar-btn" title="Choose which of its items it supplies" @onclick="() => ToggleChoices(p)">Choose…</button>
+                                                    @if (_choicesOpen.Contains(p.InventoryId))
+                                                    {
+                                                        var candidates = Candidates(p);
+                                                        <span class="choice-options">
+                                                            @foreach (var candidate in candidates)
+                                                            {
+                                                                <button class="bar-btn" title="Supply just this" @onclick="() => ChooseSupply(p, candidate)"><ItemTags Ids="@candidate" /></button>
+                                                            }
+                                                            @if (candidates.Count > 1)
+                                                            {
+                                                                <button class="bar-btn" title="Supply all of these" @onclick="() => ChooseSupply(p, string.Join(',', candidates))">Both / all @candidates.Count</button>
+                                                            }
+                                                        </span>
+                                                    }
                                                 }
                                                 @if (change is not null)
                                                 {
-                                                    <span class="producer-will">→ @(change.On ? "will supply " + (item == DroneNetworkEngine.Everything ? "everything" : item) : "will stop supplying")</span>
+                                                    <span class="producer-will">→ @(change.On ? "will supply " : "will stop supplying")@if (change.On) { <ItemTags Ids="@item" /> }</span>
                                                 }
                                             </div>
                                         </div>
@@ -214,7 +282,7 @@
 
                                 <div class="producer-group" @key="group.Key">
                                     <div class="producer-group-head">
-                                        <span class="producer-type">@Catalog.NameOf(group.Key) <span class="product-gid">@group.Key</span> × @group.Count()@(shown.Count < group.Count() ? $" ({shown.Count} shown)" : "")</span>
+                                        <span class="producer-type"><Icon Id="@group.Key" Size="1.4rem" /> @Catalog.NameOf(group.Key) <span class="product-gid">@group.Key</span> × @group.Count()@(shown.Count < group.Count() ? $" ({shown.Count} shown)" : "")</span>
                                         <button class="bar-btn" title="Skips containers with their own settings and mixed ones" @onclick="() => SetContainers(shown, true)">All on</button>
                                         <button class="bar-btn" @onclick="() => SetContainers(shown, false)">All off</button>
                                     </div>
@@ -257,7 +325,7 @@
                                                 }
                                                 @if (change is not null)
                                                 {
-                                                    <span class="producer-will">→ @(change.On ? (change.Mode == ContainerMode.Demand ? "will demand " + item : change.Item == DroneNetworkEngine.Everything ? "will supply everything" : "will supply " + item) : "will stop")</span>
+                                                    <span class="producer-will">→ @(change.On ? (change.Mode == ContainerMode.Demand ? "will demand " : "will supply ") : "will stop")@if (change.On) { <ItemTags Ids="@item" /> }</span>
                                                 }
                                             </div>
                                         </div>
@@ -275,7 +343,7 @@
                                     @foreach (var m in machines.OrderBy(m => m.GId, StringComparer.Ordinal).ThenBy(m => m.Position, StringComparer.Ordinal))
                                     {
                                         <div class="consumer-row" @key="m.InventoryId">
-                                            <span class="producer-where">@Catalog.NameOf(m.GId)@(m.Position.Length > 0 ? " · " + m.Position : "")</span>
+                                            <span class="producer-where"><Icon Id="@m.GId" /> @Catalog.NameOf(m.GId)@(m.Position.Length > 0 ? " · " + m.Position : "")</span>
                                             <span class="producer-contents">demands @m.Demands</span>
                                         </div>
                                     }
@@ -417,7 +485,7 @@
         public ResupplyConfig ToConfig() => new(Id, ContainerLabel.Trim(), ProductGId, ProductName, ReplaceAll);
     }
 
-    private enum CheatTab { Resupply, DroneNetwork, BaseBuilding, Factory }
+    private enum CheatTab { Resupply, DroneNetwork, BaseBuilding, Factory, Travel }
 
     private CheatTab _tab = CheatTab.Resupply;
     private DroneNetworkReport? _droneReport;
@@ -425,6 +493,11 @@
     private int? _selectedPlanet;
     private IReadOnlyList<(int PlanetHash, int Count)> _resupplyPlanets = Array.Empty<(int, int)>();
     private int? _selectedResupplyPlanet;
+    private IReadOnlyList<TravelPlanet> _travelPlanets = Array.Empty<TravelPlanet>();
+    private int? _selectedTravelPlanet;
+    private string _travelLocation = "";
+    private string? _travelBeaconHint;
+    private bool _travelPlanetHasBeacon;
 
     // What the user has switched, by inventory id. Anything not here is left exactly as the save has it.
     private readonly Dictionary<long, DroneWish> _changes = new();           // producers
@@ -503,6 +576,7 @@
         await Persist();
         await RefreshDroneReport();
         await RefreshResupplyPlanets();
+        await RefreshTravelPlanets();
     }
 
     private async Task SelectTab(CheatTab tab)
@@ -513,6 +587,125 @@
             await RefreshDroneReport();
         else if (tab == CheatTab.Resupply)
             await RefreshResupplyPlanets();
+        else if (tab == CheatTab.Travel)
+            await RefreshTravelPlanets();
+    }
+
+    // The planets this save knows about, for the Travel tab's picker; keeps the picked one selected across a refresh
+    // when it is still there.
+    private async Task RefreshTravelPlanets()
+    {
+        if (string.IsNullOrEmpty(_selectedSave))
+        {
+            _travelPlanets = Array.Empty<TravelPlanet>();
+            return;
+        }
+
+        var save = _selectedSave;
+        var planets = await Travel.PlanetsAsync(Path.Combine(_saveFolder, save));
+        if (save != _selectedSave)
+            return;
+
+        _travelPlanets = planets;
+        if (_selectedTravelPlanet is not int chosen || planets.All(p => p.PlanetHash != chosen))
+            _selectedTravelPlanet = planets.Count > 0 ? planets[0].PlanetHash : null;
+
+        await RefreshTravelBeaconHint();
+    }
+
+    private async Task OnTravelPlanetChanged(ChangeEventArgs e)
+    {
+        _selectedTravelPlanet = int.TryParse(e.Value?.ToString(), out var hash) ? hash : null;
+        await RefreshTravelBeaconHint();
+    }
+
+    // What "leave Location blank" would use for the planet picked right now, shown so there is no guessing before
+    // pressing MOVE PLAYER.
+    private async Task RefreshTravelBeaconHint()
+    {
+        if (_selectedTravelPlanet is not int planetHash || string.IsNullOrEmpty(_selectedSave))
+        {
+            _travelBeaconHint = null;
+            _travelPlanetHasBeacon = false;
+            return;
+        }
+
+        var planetHashAtCall = planetHash;
+        var beacon = await Travel.BeaconOnAsync(Path.Combine(_saveFolder, _selectedSave), planetHash);
+        if (planetHashAtCall != _selectedTravelPlanet)
+            return;
+
+        _travelPlanetHasBeacon = beacon is not null;
+        _travelBeaconHint = beacon is null
+            ? "That planet has no warehouse beacon — type a location instead."
+            : $"Blank location lands at its \"{beacon.BeaconText}\" beacon ({beacon.X:0} north, {(-beacon.Z):0} east).";
+    }
+
+    private bool CanTravel =>
+        !_busy && Live.Status != LiveStatus.Live && !string.IsNullOrEmpty(_selectedSave) && _selectedTravelPlanet is not null
+        && (_travelLocation.Trim().Length == 0 ? _travelPlanetHasBeacon : TryParseTravelLocation(out _, out _, out _));
+
+    private static bool TryParseTravelLocation(string text, out double x, out double y, out double z)
+    {
+        x = y = z = 0;
+        var parts = text.Split(',', StringSplitOptions.TrimEntries);
+        return parts.Length == 3
+            && double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out x)
+            && double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out y)
+            && double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out z);
+    }
+
+    private bool TryParseTravelLocation(out double x, out double y, out double z) => TryParseTravelLocation(_travelLocation, out x, out y, out z);
+
+    private async Task RunTravel()
+    {
+        if (!CanTravel || _selectedTravelPlanet is not int planetHash)
+            return;
+
+        var planet = _travelPlanets.FirstOrDefault(p => p.PlanetHash == planetHash);
+        if (planet is null)
+            return;
+
+        double x, y, z;
+        if (_travelLocation.Trim().Length == 0)
+        {
+            var beacon = await Travel.BeaconOnAsync(Path.Combine(_saveFolder, _selectedSave), planetHash);
+            if (beacon is null)
+            {
+                Toasts.Show("That planet has no warehouse beacon — type a location instead.", ToastKind.Error, TimeSpan.FromSeconds(9));
+                return;
+            }
+
+            (x, y, z) = (beacon.X + 2, beacon.Y + 1, beacon.Z + 2);
+        }
+        else if (!TryParseTravelLocation(out x, out y, out z))
+        {
+            Toasts.Show("Location should be \"x,y,z\" (three numbers).", ToastKind.Error, TimeSpan.FromSeconds(9));
+            return;
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Have you exited to the Main Menu?\n\nTravel edits your save file. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        StateHasChanged();
+
+        try
+        {
+            var path = Path.Combine(_saveFolder, _selectedSave);
+            var edit = await Travel.TravelToPositionAsync(path, x, y, z, planet.PlanetId);
+
+            Toasts.Show(edit.Success ? "Player moved." : "Travel failed. " + edit.Error,
+                edit.Success ? ToastKind.Success : ToastKind.Error, TimeSpan.FromSeconds(9));
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     // Which planets have labelled containers in the selected save, for the Resupply picker; defaults to the most
@@ -595,7 +788,54 @@
             _changes[p.InventoryId] = new DroneWish(on, picked);
     }
 
-    private void FixProducer(DroneProducer p) => _changes[p.InventoryId] = new DroneWish(true, null);
+    // What Fix sets: the configured items for this kind of producer (producer-supply-defaults.json), else everything its kind is seen making.
+    private List<string> FixItems(DroneProducer p) => Defaults.For(p.GId)?.ToList() ?? Candidates(p);
+
+    private string FixTitle(DroneProducer p) =>
+        "Set it to supply " + string.Join(", ", FixItems(p).Select(Catalog.NameOf)) + (Defaults.For(p.GId) is null ? "" : " (the default in producer-supply-defaults.json)");
+
+    private void FixProducer(DroneProducer p)
+    {
+        var items = FixItems(p);
+        if (items.Count > 0)
+            _changes[p.InventoryId] = new DroneWish(true, string.Join(',', items));
+    }
+
+    // Producers whose "Choose…" list is open.
+    private readonly HashSet<long> _choicesOpen = new();
+
+    private void ToggleChoices(DroneProducer p)
+    {
+        if (!_choicesOpen.Remove(p.InventoryId))
+            _choicesOpen.Add(p.InventoryId);
+    }
+
+    private void ChooseSupply(DroneProducer p, string items)
+    {
+        _changes[p.InventoryId] = new DroneWish(true, items);
+        _choicesOpen.Remove(p.InventoryId);
+    }
+
+    // What a producer of this kind makes: what this one holds now, then what the others of its kind hold (a hive holding only honey today still makes larvae, as another hive shows).
+    private List<string> Candidates(DroneProducer p) =>
+        p.Products.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Concat((_droneReport?.Outcome?.Producers ?? Enumerable.Empty<DroneProducer>()).Where(x => x.GId == p.GId)
+                .SelectMany(x => x.Products.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+            .Where(i => i != DroneNetworkEngine.Everything)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    // What it is set to supply now, in words: a long list is "everything", not an error.
+    private string SupplyText(DroneProducer p)
+    {
+        var supplied = p.Supplies.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (supplied.Length > 30)
+            return $"Supplies everything ({supplied.Length} items)";
+
+        var names = supplied.Take(4).Select(Catalog.NameOf);
+        return "Supplies " + string.Join(", ", names) + (supplied.Length > 4 ? $" +{supplied.Length - 4} more" : "");
+    }
 
     private void PickProducerItem(DroneProducer p, string text)
     {
@@ -605,8 +845,10 @@
             return;
         }
 
-        if (ResolveChoice(text) is { } gId)
-            _changes[p.InventoryId] = new DroneWish(true, gId);
+        // One item, or several separated by commas ("honey,Bee1Larvae"): each is a game id or a name, and one that is not known drops the whole entry.
+        var parts = text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(ResolveChoice).ToList();
+        if (parts.Count > 0 && parts.All(g => g is not null))
+            _changes[p.InventoryId] = new DroneWish(true, string.Join(',', parts.Distinct(StringComparer.Ordinal)));
     }
 
     private void SetGroup(IEnumerable<DroneProducer> group, bool on)

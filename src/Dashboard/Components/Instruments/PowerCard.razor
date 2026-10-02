@@ -1,3 +1,5 @@
+@inject IconCatalog Icons
+
 @* Power straight from the game: what is produced and used, with a picture per generator. *@
 <div class="power @(Dim ? "is-dim" : "")">
     <div class="power-title">Power</div>
@@ -31,9 +33,17 @@
             </div>
 
             <div class="power-icons" title="@IconsTitle">
-                @foreach (var (icon, idx) in SortedIcons)
+                @foreach (var (icon, id, idx) in SortedIcons)
                 {
-                    <PowerIcon Kind="@icon" Index="@idx" />
+                    @* The machine's own icon from the game when the plugin has written it; the drawn picture otherwise. *@
+                    @if (Icons.Has(id))
+                    {
+                        <Icon Id="@id" Size="1.9rem" />
+                    }
+                    else
+                    {
+                        <PowerIcon Kind="@icon" Index="@idx" />
+                    }
                 }
             </div>
         </div>
@@ -68,28 +78,25 @@
     private string FigureClass => Short ? "deficit" : Load >= 0.75f ? "reserve" : "surplus";
     private string FigureLabel => Short ? "Deficit" : Load >= 0.75f ? "Reserve" : "Surplus";
 
-    private sealed record Group(string Icon, int Count, string Title);
+    private sealed record Group(string Id, string Icon, int Count, string Title);
 
     private IEnumerable<Group> Groups => Data is null
         ? Enumerable.Empty<Group>()
         : Data.Generators.Select(g =>
         {
             var known = Known.TryGetValue(g.Id, out var k);
-            return new Group(known ? k.Icon : "bolt", g.Count, $"{(known ? k.Name : g.Id)} ×{g.Count}: {Kw(g.Kw)}");
+            return new Group(g.Id, known ? k.Icon : "bolt", g.Count, $"{(known ? k.Name : g.Id)} ×{g.Count}: {Kw(g.Kw)}");
         });
 
-    private IEnumerable<(string Icon, int Index)> SortedIcons
+    // Weakest generator first, as before; a kind the table does not know goes last.
+    private IEnumerable<(string Icon, string Id, int Index)> SortedIcons
     {
         get
         {
             var idx = 0;
-            foreach (var type in TypeOrder)
-            {
-                var group = Groups.FirstOrDefault(g => g.Icon == type);
-                if (group is null) continue;
+            foreach (var group in Groups.OrderBy(g => Array.IndexOf(TypeOrder, g.Icon)).ThenBy(g => g.Id, StringComparer.Ordinal))
                 for (var i = 0; i < Math.Min(group.Count, MaxIconsPerGroup); i++)
-                    yield return (type, idx++);
-            }
+                    yield return (group.Icon, group.Id, idx++);
         }
     }
 

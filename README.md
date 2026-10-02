@@ -12,6 +12,8 @@ loose items on the ground). Neither project depends on the other to build.
 ```
 Planet Crafter  --(plugin, every second)----> live.json        --(watches)-->  Dashboard (browser)
                 --(plugin, every 5 seconds)-> live-world.json  --(watches)-->
+                --(plugin, when you pin)-----> pins.json        --(watches)-->
+                --(plugin, once per session)-> recipes.json, blueprints.json, icons\*.png
                                               %LOCALAPPDATA%\RRSOS-PCC-Live
 newest save file (every 10 s, when it changes) ------------------------------> Dashboard (boneyard only)
 ```
@@ -33,6 +35,20 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
 - **Phases**: the current planet's own named terraformation milestones (the game's "progress" screen — Lakes, Animals,
   Complete Transformation, ...; not every one lines up with a gauge), each planet with its own list: solid once
   complete, flashing for the one in progress, plain for the rest, with a live percentage toward the next one.
+
+**Shopping list (right, under the detail card)**: every recipe you pin in the game (the Blueprint pinning microchip, top
+right of the screen) lands here and **stays after the pin is cleared**, so the game's few pin slots are no limit. Each
+entry has a quantity (− / +) and a ✕; below them, the **totals** of every ingredient across the whole list. A total turns
+**yellow** when your backpack holds some of it and **green** when it holds all of it. An **ids** switch shows game ids
+instead of names where space is tight. Pinning something already on the list does not add it twice. The list is kept in
+`shopping-list.json`; the dashboard has to be running while you pin.
+
+**Icons**: the game's own icon for every item and building sits beside its name in the backpack, gear, trunk, base and
+extractor lists, the shopping list, the truck tiles, and on the power card (the machine itself, in place of the little
+drawn windmill, atom and so on; the drawing is still used when an icon is missing). On the floor plan a container shows
+the icon of the product it is set for, and the warehouse preview on the Cheats page draws the item on each chest. The
+plugin writes them out of the running game once (`icons\<group id>.png`, plugin 0.12.0), so nothing is bundled or copied
+from anywhere else.
 
 **Detail card (right)**: shows whichever map you last clicked.
 - **Base**: what the base you are at (or picked on the map) holds: stored items, crops ready to harvest, the
@@ -59,7 +75,7 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
   cache learns each one's own name as you visit it) and scope to the one picked, so a beacon or a container label
   shared by two planets is never pooled or mixed up with the other's.
 - **LAUNCH PC** starts the game through Steam. It is disabled while the game runs.
-- **CHEATS** (only while the game is not in a world): four tabs that edit a save file on disk, see the principles
+- **CHEATS** (only while the game is not in a world): five tabs that edit a save file on disk, see the principles
   below and the next section.
 
 Lists (backpack, gear, trunks, stored items) can be folded by clicking their titles.
@@ -75,7 +91,16 @@ backup first, writes atomically, and is refused unless undoing it would give bac
 - **Drone Network**: sets which containers supply and which demand, so drones move things without hand setup. A
   container is either a demand sink or a supply source; producers supply what they hold, extractors and ecosystems
   supply everything. Pick which producers and consumers to switch on, and choose the item a container demands. Same
-  **Planet** picker as Resupply when more than one planet has producers or containers.
+  **Planet** picker as Resupply when more than one planet has producers or containers. Each producer says what it is
+  set to supply now ("Supplies everything (206 items)", or the names), and where a pending change names items it shows
+  each one's icon and name ("→ will supply 🍯 Honey"). A producer set to something other than what it makes has **Fix**,
+  which sets it to the usual items for its kind, and **Choose…**, which offers each item that kind makes, one at a time or
+  all together; the item box also takes several ids separated by commas (`honey,Bee1Larvae`). The usual items come from
+  `producer-supply-defaults.json` beside the dashboard's other files, written once with `Beehive2` = honey and
+  Bee1Larvae (a hive holds only what it has made so far, so what it holds is no guide to what it makes) and yours to
+  edit; a kind with no entry gets everything it is seen holding.
+- **Travel**: moves the player to a spot on any planet the save knows about (a `x,y,z` you type, or that planet's own
+  warehouse beacon when you leave it empty). Same backup-first write as the others.
 - **Base Building**: builds a whole row of storage.
   1. Place a foundation with a **beacon** whose text names the job (for example "Fish"); the way the beacon faces is
      the way the row grows.
@@ -135,11 +160,11 @@ page keeps the last reading, dimmed, and says so.
 
 - **Read-only toward the running game.** The plugin observes; it never changes game state, saves, items or settings.
 - **One deliberate exception, and it never touches the running game.** The Cheats page (Resupply, Drone Network, Base
-  Building, Factory) edits a save file on disk, only while the game is at the main menu or closed. It backs the save up first, and refuses to write unless
+  Building, Factory, Travel) edits a save file on disk, only while the game is at the main menu or closed. It backs the save up first, and refuses to write unless
   undoing its edit would give back the original file exactly.
 - **Awareness, not shortcuts.** It shows what the game already knows; it does not help anyone bypass how the game is played.
 - **One small contract.** Everything leaves the game through a few versioned JSON files (`live.json`, `live-world.json`,
-  `blueprints.json`, `recipes.json`, `planets.json`) ([docs/contract.md](docs/contract.md)).
+  `blueprints.json`, `recipes.json`, `planets.json`, `pins.json`, and the `icons\` folder) ([docs/contract.md](docs/contract.md)).
 - **Nothing of the game is redistributed.** The project references the game's assemblies in place. Game files, and the
   game's decompiled source, are never copied into this repo.
 - **Nothing is trusted blindly.** Every section of the files is read on its own; if one fails it becomes `null` and the
@@ -199,6 +224,10 @@ files (it only reads the save).
 | Rocket departure/arrival alerts (plugin 0.10.4) and terraformation phases, a Phases card and spoken milestones (plugin 0.10.5, `phases`) | done, run in the game |
 | Spoken alerts: queued (not interrupted), a voice picker, volume and voice remembered | done |
 | Drone map auto-opens on takeoff / closes on landing, with a pin | done |
+| Pinned recipes (plugin 0.11.0, `pins.json`) kept in a shopping list with quantities and totals, coloured by what your backpack holds | done, run in the game |
+| The game's own icons (plugin 0.12.0, `icons\`) beside items and buildings, on the power card, floor-plan containers and warehouse chests | done, run in the game |
+| Drone Network: shows what a producer supplies now, **Fix** to the usual items, **Choose…**, `producer-supply-defaults.json`, and icons on its lines | done |
+| Cheats / Travel: move the player to a spot on any planet in the save | done |
 | Optional: local HTTP feed, in-game overlay | later |
 
 ## License

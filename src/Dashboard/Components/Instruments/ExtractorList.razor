@@ -110,6 +110,7 @@
             @foreach (var item in row.Data.Items.OrderBy(i => i.Label, StringComparer.CurrentCultureIgnoreCase))
             {
                 <div class="ex-line">
+                    <Icon Id="@item.Id" />
                     <span class="ex-line-name">@item.Label</span>
                     <span class="ex-line-count">@item.Count@(row.Data.Kind == "algae" && item.Ready > 0 ? $" ({item.Ready} ready)" : "")</span>
                 </div>

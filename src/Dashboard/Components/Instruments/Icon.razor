@@ -1,0 +1,16 @@
+@* The game's own icon for a group id, written out by the plugin (plugin 0.12.0, see IconExporter) and served from /icons. The space stays when there is no
+   file (an older plugin, or a group with no icon), so the names in a list still line up. *@
+<img class="icon" src="@Source" alt="" loading="lazy" style="@SizeStyle" onerror="this.style.visibility='hidden'" />
+
+@code {
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = "";
+
+    /// <summary>A CSS length to draw it at, such as "1.7rem". Without it, the size of a line of text.</summary>
+    [Parameter]
+    public string? Size { get; set; }
+
+    private string? SizeStyle => Size is null ? null : $"--icon-size: {Size}";
+
+    private string Source => "icons/" + Uri.EscapeDataString(Id) + ".png";
+}

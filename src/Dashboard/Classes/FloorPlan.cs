@@ -34,6 +34,9 @@ namespace RRSOS.PCC.Dashboard
     /// <summary>A shape on a floor plan in (east, north) metres. Walls are two points (a line); everything else is a closed outline.</summary>
     public sealed record PlanShape(PlanPart Part, IReadOnlyList<Vector2> Points, string Label);
 
+    /// <summary>A container on a floor plan, in (east, north) metres, with the group id of what it is set for (a warehouse chest's item, an autocrafter's recipe), or null when nothing is picked.</summary>
+    public sealed record PlanContainer(Vector2 Position, string? Item);
+
     /// <summary>One storey of a base: the pieces standing on it, their walls, ladder holes, and where its containers are.</summary>
     public sealed class PlanFloor
     {
@@ -46,7 +49,7 @@ namespace RRSOS.PCC.Dashboard
         public List<PlanShape> Pieces { get; } = new();
         public List<PlanShape> Walls { get; } = new();
         public List<PlanShape> Hatches { get; } = new();
-        public List<Vector2> Containers { get; } = new();
+        public List<PlanContainer> Containers { get; } = new();
     }
 
     /// <summary>
@@ -124,7 +127,7 @@ namespace RRSOS.PCC.Dashboard
             eastNorth.Y >= Min.Y - margin && eastNorth.Y <= Max.Y + margin;
 
         /// <summary>The plan for one base's pieces and container positions. Null when it has no pieces.</summary>
-        public static FloorPlan? Build(IEnumerable<StructureData> structures, IEnumerable<Vec3> containers)
+        public static FloorPlan? Build(IEnumerable<StructureData> structures, IEnumerable<(Vec3 Position, string? Item)> containers)
         {
             var pieces = structures
                 .Where(s => s.Position is not null)
@@ -196,11 +199,11 @@ namespace RRSOS.PCC.Dashboard
             var max = new Vector2(all.Max(p => p.X), all.Max(p => p.Y));
             var plan = new FloorPlan(floors, min, max, pieces.All(p => p.Measured));
 
-            foreach (var spot in containers)
+            foreach (var (spot, item) in containers)
             {
                 var en = Compass.ToEastNorth(new Vector2((float)spot.X, (float)spot.Z));
                 if (plan.Contains(en, 1f))
-                    floors[plan.FloorIndexFor((float)spot.Y)].Containers.Add(en);
+                    floors[plan.FloorIndexFor((float)spot.Y)].Containers.Add(new PlanContainer(en, string.IsNullOrWhiteSpace(item) ? null : item));
             }
 
             return plan;

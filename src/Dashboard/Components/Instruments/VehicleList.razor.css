@@ -70,6 +70,16 @@
 }
 
 .veh-gear {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
     color: #7f9db9;
     font-size: 0.75rem;
+}
+
+/* One module: its icon, then its name */
+.veh-module {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
 }

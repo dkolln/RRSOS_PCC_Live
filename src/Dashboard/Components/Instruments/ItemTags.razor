@@ -1,0 +1,32 @@
+@inject ItemCatalog Catalog
+
+@* Items by their group ids (one id, or several separated by commas; "*" is everything), each as its icon then its name: "Honey". More than Max shows the
+   first few and "+ N more", since a producer of "everything" can list hundreds. *@
+@{
+    var ids = Ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+@if (ids.Length == 1 && ids[0] == DroneNetworkEngine.Everything)
+{
+    @:everything
+}
+else
+{
+    @foreach (var id in ids.Take(Max))
+    {
+        <span class="item-tag" title="@id"><Icon Id="@id" Size="1.05rem" />@Catalog.NameOf(id)</span>
+    }
+
+    @if (ids.Length > Max)
+    {
+        <span class="item-tag-more">+ @(ids.Length - Max) more</span>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Ids { get; set; } = "";
+
+    [Parameter]
+    public int Max { get; set; } = 6;
+}

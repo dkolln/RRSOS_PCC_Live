@@ -20,6 +20,8 @@ builder.Services.AddSingleton<SpeechService>();
 
 // The slower second file (bases, containers, extractors), plus what it needs: an item catalog and the base names.
 builder.Services.AddSingleton<ItemCatalog>();
+builder.Services.AddSingleton<IconCatalog>();
+builder.Services.AddSingleton<ProducerDefaults>();
 builder.Services.AddSingleton<BaseNames>();
 builder.Services.AddSingleton<PlanetNames>();
 // The boneyards come from the newest save, read again whenever the game writes it (checked every 10 seconds).
@@ -28,6 +30,9 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<SaveLooseService>(
 builder.Services.AddSingleton<WorldFileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<WorldFileService>());
 builder.Services.AddSingleton<NotebookService>();
+// Each recipe pinned in the game goes on the shopping list (from the plugin's pins.json).
+builder.Services.AddSingleton<ShoppingListService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ShoppingListService>());
 
 // Cheats page: save-file editing while the game is not in a world (see docs/contract.md's read-only principle —
 // this never touches the running game, only the save on disk).
@@ -38,6 +43,7 @@ builder.Services.AddScoped<ToastService>();
 builder.Services.AddSingleton<BuildTemplateStore>();
 builder.Services.AddSingleton<BaseBuildingService>();
 builder.Services.AddSingleton<FactoryService>();
+builder.Services.AddSingleton<PlayerTravelService>();
 
 var app = builder.Build();
 
@@ -49,6 +55,15 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 app.MapStaticAssets();
+
+// The icons the plugin wrote out of the game (plugin 0.12.0), one PNG per group id, beside the live files. A missing one is a plain 404.
+app.MapGet("/icons/{file}", (string file, IConfiguration config) =>
+{
+    var path = Path.Combine(LivePaths.Folder(config), "icons", file);
+    return file.EndsWith(".png", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(file) == file && File.Exists(path)
+        ? Results.File(path, "image/png")
+        : Results.NotFound();
+});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
