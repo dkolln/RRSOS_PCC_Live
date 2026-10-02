@@ -70,6 +70,20 @@
     border-radius: 4px;
 }
 
+/* The tick box above the Stored list */
+.stored-filter {
+    display: block;
+    margin-bottom: 4px;
+    color: #7f9db9;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.stored-filter input {
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
 .boneyard-off {
     color: #5f7d99;
     font-style: italic;

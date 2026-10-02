@@ -52,7 +52,9 @@ plugin writes them out of the running game once (`icons\<group id>.png`, plugin 
 from anywhere else.
 
 **Detail card (right)**: shows whichever map you last clicked.
-- **Base**: what the base you are at (or picked on the map) holds: stored items, crops ready to harvest, the
+- **Base**: what the base you are at (or picked on the map) holds: stored items (a **Hide full single-item containers**
+  tick leaves out every Container3 holding 80 of one item, which is what a stocked warehouse chest is, so the rest of what
+  you store is not buried; it says how many it hides and is remembered between runs), crops ready to harvest, the
   **boneyard** (loose ore, alloy, quartz and rods lying around, read from the last save), the **floor plan**, and, once
   that base has a factory, a **Factory card**: which products its autocrafters are short of ingredients for, click a
   line to see which crafters.

@@ -1,3 +1,5 @@
+@inject DashboardSettings Settings
+
 @* What one base holds: everything stored in it (by name), crops ready to harvest, and loose items on the ground. Each list is open on load, shows
    10 rows and then scrolls; click its title to fold it away. Ported from RRSOS-PCC's Base Contents card. *@
 <div class="contents @(Dim ? "is-dim" : "")">
@@ -33,7 +35,16 @@
         <div class="contents-lists">
             @if (info.Stored.Count > 0)
             {
-                <div class="contents-list"><ItemList Title="Stored" Data="@ByName(info.Stored)" Columns="1" MaxRows="10" Collapsible="true" /></div>
+                <div class="contents-list">
+                    @if (info.FullSingleContainers > 0 || Settings.HideFullContainers)
+                    {
+                        <label class="stored-filter" title="A Container3 with 80 of one item in it (a stocked warehouse chest) is left out, so what else you have stands out">
+                            <input type="checkbox" checked="@Settings.HideFullContainers" @onchange="e => Settings.SetHideFullContainers(e.Value is true)" />
+                            Hide full single-item containers (@info.FullSingleContainers)
+                        </label>
+                    }
+                    <ItemList Title="Stored" Data="@ByName(Settings.HideFullContainers ? info.StoredWithoutFull : info.Stored)" Columns="1" MaxRows="10" Collapsible="true" />
+                </div>
             }
 
             <div class="contents-pair">
