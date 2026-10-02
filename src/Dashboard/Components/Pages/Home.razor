@@ -4,6 +4,7 @@
 @inject PCLauncherService Launcher
 @inject WorldFileService World
 @inject SaveLooseService Save
+@inject DashboardSettings Settings
 @inject SpeechService Speech
 @inject IJSRuntime JS
 @inject NavigationManager Nav
@@ -52,6 +53,10 @@
                        @onchange="OnVolumeChanged" />
             </div>
         </div>
+
+        <button type="button" class="live-only @(Settings.LiveOnly ? "is-on" : "")" @onclick="ToggleLiveOnly" title="@LiveOnlyTitle">
+            LIVE ONLY@(Settings.LiveOnly ? " ✓" : "")
+        </button>
 
         <button class="launch" disabled="@running" @onclick="LaunchGame"
                 title="@(running ? "Planet Crafter is already running" : "Start Planet Crafter through Steam")">
@@ -194,7 +199,7 @@
                                       EmptyText="@BasesEmptyText(status, world)"
                                       PlayerPosition="@(player?.Position is { } pp ? new Vector3((float)pp.X, (float)pp.Y, (float)pp.Z) : null)"
                                       PlayerHeading="@(player is null ? 0f : Compass.HeadingFromYaw(player.YawDegrees))"
-                                      BoneyardSavedAt="@Save.SavedAtUtc?.ToLocalTime()"
+                                      BoneyardSavedAt="@Save.SavedAtUtc?.ToLocalTime()" LiveOnly="@Settings.LiveOnly"
                                       PlanEmptyText="@(world?.Structures.Count > 0 ? "No building pieces reported for this base." : "Floor plans need plugin 0.4.0 or later (restart the game after updating).")" />
                     </div>
                 </section>
@@ -574,6 +579,13 @@
     private void LaunchGame() { Launcher.Launch(); StateHasChanged(); }
 
     private void GoToCheats() => Nav.NavigateTo("/cheats");
+
+    // Live only: nothing is read from a save file while playing (no boneyard), in case the page stalls when the game autosaves. Remembered between runs.
+    private void ToggleLiveOnly() => Settings.SetLiveOnly(!Settings.LiveOnly);
+
+    private string LiveOnlyTitle => Settings.LiveOnly
+        ? "Live data only: nothing is read from save files while you play (no boneyard). Click to allow it again."
+        : "Click for live data only: stops reading save files while you play (the boneyard), in case the page pauses when the game autosaves.";
 
     public void Dispose()
     {

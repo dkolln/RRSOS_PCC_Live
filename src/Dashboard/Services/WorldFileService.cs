@@ -67,8 +67,13 @@ namespace RRSOS.PCC.Dashboard
         {
             // On the main menu the plugin says "not in a world" and nothing else: that is no bases, not a failure.
             // Book() is cached (see FactoryService), so this costs nothing extra beyond a file-time check.
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+
             lock (_buildLock)
                 Bases = data.InWorld ? BaseDirectory.Build(data, _save.Objects, _names, _catalog, _factory.Book()) : BaseDirectory.Empty;
+
+            watch.Stop();
+            _log.LogDebug("Bases worked out in {Ms} ms ({Containers} containers, {Structures} building pieces)", watch.ElapsedMilliseconds, data.Containers.Count, data.Structures.Count);
         }
 
         /// <summary>The latest world reading, or null when the plugin has not written one.</summary>

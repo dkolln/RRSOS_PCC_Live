@@ -182,7 +182,7 @@ namespace RRSOS.PCC.Dashboard
             return map;
         }
 
-        private static int StableHash(string str)
+        internal static int StableHash(string str)
         {
             int num = 5381, num2 = num;
             for (var i = 0; i < str.Length && str[i] != 0; i += 2)

@@ -1,0 +1,612 @@
+@inject StorageService Svc
+@inject ItemCatalog Catalog
+@inject ToastService Toasts
+@inject PlanetNames Planets
+@inject IJSRuntime JS
+
+<section class="st">
+    <h2>Storage</h2>
+    <p class="hint">
+        Move items between storage units, or throw them away, in the save: containers, lockers, vaults, refrigerators, your backpack, vehicle trunks, the escape storage
+        and the rocket storages (interplanetary, trade and travel). Pick a unit on the left and one on the right, then move items across, either by dragging them or by
+        ticking them (switch below; use whichever works in your browser). A unit never holds more than its slots; dropping onto an item in a full unit swaps the two.
+        Nothing is written until you press <strong>TRANSFER</strong>, and then it is all one edit, backed up first. This is an offline edit (the game at the main menu),
+        and it works on one planet at a time: the planet the player is registered on in the save to begin with, and the Planet picker switches (which drops any
+        changes you have not transferred).
+    </p>
+
+    @if (string.IsNullOrEmpty(SavePath))
+    {
+        <p class="hint">Choose a save above.</p>
+    }
+    else if (_snapshot is null)
+    {
+        <p class="hint">Reading the save…</p>
+    }
+    else if (_snapshot.Error is not null)
+    {
+        <p class="st-problem">@_snapshot.Error</p>
+    }
+    else if (_planets.Count == 0)
+    {
+        <p class="st-problem">No storage units were found in this save.</p>
+    }
+    else
+    {
+        <div class="st-planet">
+            <label class="st-planet-pick">Planet
+                <select @key="_planetKey" value="@_planet" @onchange="OnPlanetChanged">
+                    @foreach (var option in _planets)
+                    {
+                        <option value="@option.Hash">@PlanetText(option.Hash) (@option.Count)@(option.Hash == _snapshot.PlanetHash ? " · you are here" : "")</option>
+                    }
+                </select>
+            </label>
+            · @_units.Count storage units ·
+            @if (_snapshot.BeaconsOn(_planet) == 0)
+            {
+                <span class="st-legend">no warehouse beacon (named All) on this planet, so nothing is marked as warehouse</span>
+            }
+            else
+            {
+                <span class="st-legend"><span class="st-legend-dot"></span> green: within @StorageTransferEngine.WarehouseRangeMeters.ToString("0") m of the warehouse beacon (@_units.Count(u => u.NearWarehouse) units)</span>
+            }
+        </div>
+
+        <div class="st-modes">
+            <button class="st-mode @(_useDrag ? "is-on" : "")" @onclick="() => SetMode(true)">Drag &amp; drop</button>
+            <button class="st-mode @(!_useDrag ? "is-on" : "")" @onclick="() => SetMode(false)">Checkboxes</button>
+            <span class="st-mode-hint">@(_useDrag ? "Drag items between the two units, or into the trash." : "Tick items, then use the buttons under the panels.")</span>
+            <span class="st-spacer"></span>
+            <label class="st-check" title="Container labels are usually item ids: show the id exactly as typed in the game instead of the item's name">
+                <input type="checkbox" checked="@_showGIds" @onchange="e => _showGIds = e.Value is true" /> Show gIds (the real label)
+            </label>
+        </div>
+
+        @if (GameLive)
+        {
+            <p class="st-problem">The game has a world loaded. Go back to the main menu: a change made now would be overwritten at its next autosave.</p>
+        }
+
+        @* Firefox only starts a drag when something is put in the data transfer; the panels' items set it here, as the event rises. *@
+        <div class="st-grid" ondragstart="event.dataTransfer.setData('text/plain', 'x'); event.dataTransfer.effectAllowed = 'move';">
+            @Panel(0)
+            @Panel(1)
+
+            <div class="st-side">
+                <div class="st-trash @(_trash.Count > 0 ? "has-items" : "")" @ondragover="NoOp" @ondragover:preventDefault="true" @ondrop="DropTrash">
+                    <div class="st-trash-title">🗑 Trash <span class="st-count">@(_trash.Count + _crateTrash.Count)</span></div>
+                    <div class="st-trash-hint">@(_useDrag ? "Drop items here to delete them from the game. Drag one back out to keep it." : "Items ticked and trashed are deleted from the game. Tick one here and Restore it to keep it.")</div>
+                    @foreach (var crate in _crateTrash)
+                    {
+                        <div class="st-crate" @key="crate" title="This empty crate is deleted from the save when you press TRANSFER">
+                            <Icon Id="@_byInventory[crate].GId" />
+                            <span class="st-crate-name">@UnitName(_byInventory[crate])</span>
+                            <button class="st-restore" title="Keep this crate" @onclick="() => RestoreUnit(crate)">↩</button>
+                        </div>
+                    }
+                    <div class="st-trash-items">
+                        @foreach (var id in _trash)
+                        {
+                            @if (_useDrag)
+                            {
+                                <div class="st-item" draggable="true" title="@ItemTitle(id)" @key="id" @ondragstart="() => StartDrag(id, null)" @ondragend="EndDrag">
+                                    <Icon Id="@GIdOf(id)" Size="1.5rem" />
+                                </div>
+                            }
+                            else
+                            {
+                                <label class="@ItemClass(id)" title="@ItemTitle(id)" @key="id">
+                                    <input type="checkbox" checked="@_picked.Contains(id)" @onchange="() => Pick(id)" />
+                                    <Icon Id="@GIdOf(id)" Size="1.5rem" />
+                                </label>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_note))
+        {
+            <p class="st-note">@_note</p>
+        }
+
+        <div class="st-bar">
+            @if (!_useDrag)
+            {
+                <button class="bar-btn" disabled="@(!PickedIn(0) || _sel[1] is null)" @onclick="() => MovePicked(0, 1)">Move ticked ▶</button>
+                <button class="bar-btn" disabled="@(!PickedIn(1) || _sel[0] is null)" @onclick="() => MovePicked(1, 0)">◀ Move ticked</button>
+                <button class="bar-btn is-danger-text" disabled="@(!PickedInUnits)" @onclick="TrashPicked">Trash ticked</button>
+                <button class="bar-btn" disabled="@(!_trash.Any(_picked.Contains))" @onclick="RestorePicked">Restore ticked from trash</button>
+            }
+            <span class="st-spacer"></span>
+            <span class="st-summary">@Summary</span>
+            <button class="bar-btn" disabled="@(!HasChanges || _busy)" @onclick="Undo">Undo all my changes</button>
+            <button class="resupply-btn" disabled="@(!HasChanges || _busy || GameLive)" @onclick="Transfer">@(_busy ? "WORKING..." : "TRANSFER")</button>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public string SavePath { get; set; } = "";
+
+    /// <summary>True while the game has a world loaded: the save would only be overwritten.</summary>
+    [Parameter] public bool GameLive { get; set; }
+
+    private const int MaxRows = 250;
+
+    private string _loadedFor = "";
+    private StorageSnapshot? _snapshot;
+    private List<StorageUnit> _units = new();
+    private Dictionary<long, StorageUnit> _byInventory = new();
+    private Dictionary<long, string> _gid = new();
+    private Dictionary<long, long> _origin = new();
+
+    // What the page wants the save to be: the item ids of each unit that differs from the save (in slot order), and the items in the trash.
+    private readonly Dictionary<long, List<long>> _work = new();
+    private readonly List<long> _trash = new();
+    private readonly List<long> _crateTrash = new(); // empty crates (by inventory id) to delete along with their contents
+
+    private readonly long?[] _sel = new long?[2];
+    private readonly string[] _filter = { "", "" };
+    private readonly string[] _kind = { "", "" };
+    private readonly bool[] _hideEmpty = new bool[2];
+    private readonly HashSet<long> _picked = new();
+    private (long Item, long? From)? _drag;
+    private bool _useDrag = true;
+    private bool _showGIds;
+    private string? _note;
+    private bool _busy;
+
+    private sealed record PlanetOption(int Hash, int Count);
+
+    // The planets that have storage in this save (most units first), and the one shown: the player's registered planet when the save is opened, then whichever is picked.
+    private List<PlanetOption> _planets = new();
+    private int _planet;
+    private int _planetKey; // bumped to put the picker back when a switch is cancelled
+
+    private string PlanetText(int hash) => Planets.NameOf(hash) ?? _snapshot?.NameOf(hash) ?? (hash == _snapshot?.PlanetHash ? _snapshot.PlanetName : null) ?? hash.ToString();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SavePath == _loadedFor)
+            return;
+
+        _loadedFor = SavePath;
+        await Reload(null);
+    }
+
+    // Switching planet drops every change not yet transferred, so the owner is asked first when there are any.
+    private async Task OnPlanetChanged(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var hash) || hash == _planet)
+            return;
+
+        if (HasChanges)
+        {
+            var confirmed = await JS.InvokeAsync<bool>("confirm",
+                "You have changes that are not transferred yet.\n\nSwitching to another planet will LOSE ALL OF THEM (nothing has been written to the save).\n\nSwitch planet anyway?");
+
+            if (!confirmed)
+            {
+                _planetKey++;
+                return;
+            }
+        }
+
+        if (_snapshot is not null && _loadedSignature is not null && SignatureOf(SavePath) == _loadedSignature)
+            ShowPlanet(hash);
+        else
+            await Reload(hash);
+    }
+
+    private async Task Reload(int? planet)
+    {
+        _snapshot = null;
+        ClearStaged();
+        _sel[0] = _sel[1] = null;
+        StateHasChanged();
+
+        if (string.IsNullOrEmpty(SavePath))
+            return;
+
+        var signature = SignatureOf(SavePath);
+        var snapshot = await Svc.LoadAsync(SavePath);
+        _planets = snapshot.Units.Where(u => u.PlanetHash != 0).GroupBy(u => u.PlanetHash).Select(g => new PlanetOption(g.Key, g.Count())).OrderByDescending(p => p.Count).ToList();
+        _planet = planet is int wanted && _planets.Any(p => p.Hash == wanted) ? wanted
+            : _planets.Any(p => p.Hash == snapshot.PlanetHash) ? snapshot.PlanetHash
+            : _planets.FirstOrDefault()?.Hash ?? 0;
+        _planetKey++;
+        BuildView(snapshot);
+        _snapshot = snapshot;
+        _loadedSignature = signature;
+    }
+
+    // What the save file looks like on disk (size and time): when it is the same as when it was read, what was read is still true.
+    private (long Length, DateTime WrittenUtc)? _loadedSignature;
+
+    private static (long Length, DateTime WrittenUtc)? SignatureOf(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists ? (info.Length, info.LastWriteTimeUtc) : null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    // The units of the shown planet, and the lookups the page works from.
+    private void BuildView(StorageSnapshot snapshot)
+    {
+        _units = snapshot.Units.Where(u => u.PlanetHash == _planet).ToList();
+        _byInventory = _units.ToDictionary(u => u.InventoryId);
+        _gid = _units.SelectMany(u => u.Items).GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First().GId);
+        _origin = _units.SelectMany(u => u.Items.Select(i => (i.Id, u.InventoryId))).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First().InventoryId);
+    }
+
+    // Another planet from what was already read, with nothing pending: no need to read the save again, unless it has changed on disk since.
+    private void ShowPlanet(int hash)
+    {
+        ClearStaged();
+        _sel[0] = _sel[1] = null;
+        _planet = hash;
+        _planetKey++;
+        BuildView(_snapshot!);
+    }
+
+    private void ClearStaged()
+    {
+        _work.Clear();
+        _trash.Clear();
+        _crateTrash.Clear();
+        _picked.Clear();
+        _drag = null;
+        _note = null;
+    }
+
+    // ---- reading the staged state
+
+    private List<long> Ids(long inventory) => _work.TryGetValue(inventory, out var staged) ? staged : _byInventory[inventory].Items.Select(i => i.Id).ToList();
+
+    // The unit's list to change: started from what the save has, and dropped again by Tidy when it ends up the same.
+    private List<long> Edit(long inventory)
+    {
+        if (!_work.TryGetValue(inventory, out var staged))
+            _work[inventory] = staged = _byInventory[inventory].Items.Select(i => i.Id).ToList();
+
+        return staged;
+    }
+
+    private void Tidy(long inventory)
+    {
+        if (_work.TryGetValue(inventory, out var staged) && staged.SequenceEqual(_byInventory[inventory].Items.Select(i => i.Id)))
+            _work.Remove(inventory);
+    }
+
+    private bool HasChanges => _work.Count > 0 || _trash.Count > 0 || _crateTrash.Count > 0;
+
+    private int MovedCount => _work.Sum(kv => kv.Value.Count(id => _origin.TryGetValue(id, out var home) && home != kv.Key));
+
+    private string Summary => HasChanges
+        ? $"{MovedCount} to move, {_trash.Count} to delete" + (_crateTrash.Count > 0 ? $", {_crateTrash.Count} crate{(_crateTrash.Count == 1 ? "" : "s")} to delete" : "") +
+          $", in {_work.Count} unit{(_work.Count == 1 ? "" : "s")}"
+        : "No changes yet";
+
+    // An empty container, locker, vault or refrigerator (empty counting what has been moved out of it here) not already in the trash.
+    private bool CanDelete(StorageUnit u) => StorageTransferEngine.IsDeletable(u.GId) && Ids(u.InventoryId).Count == 0 && !_crateTrash.Contains(u.InventoryId);
+
+    private void DeleteUnit(long inventory)
+    {
+        if (!_byInventory.TryGetValue(inventory, out var unit) || !CanDelete(unit))
+            return;
+
+        _note = null;
+        _crateTrash.Add(inventory);
+
+        for (var side = 0; side < 2; side++)
+        {
+            if (_sel[side] == inventory)
+                _sel[side] = null;
+        }
+    }
+
+    private void RestoreUnit(long inventory) => _crateTrash.Remove(inventory);
+
+    private string GIdOf(long item) => _gid.GetValueOrDefault(item) ?? "";
+
+    private string ItemName(long item) => GIdOf(item) is { Length: > 0 } g ? Catalog.NameOf(g) : "(unknown item)";
+
+    private string ItemTitle(long item) => ItemName(item) + (GIdOf(item) is { Length: > 0 } g && Catalog.NameOf(g) != g ? $" ({g})" : "");
+
+    // The label the owner gave a unit in the game is usually an item's id ("TreeRoot"): shown as that item's name ("Tree Bark") unless the box asks for the real label.
+    // A label that is not an item ("Misc") is shown as it is, and "No Label" stands in for none.
+    private string LabelText(StorageUnit u) =>
+        u.Label.Length == 0 ? "No Label" : _showGIds ? u.Label : Catalog.NameOf(u.Label);
+
+    // The kind, the label, and where it is. A backpack is named for its player.
+    private string UnitName(StorageUnit u) =>
+        u.Kind == StorageTransferEngine.BackpackKind
+            ? "Backpack · " + u.Label
+            : u.Kind + " · " + LabelText(u) + (u.Position.Length > 0 ? " · " + u.Position : "");
+
+    // ---- moving things
+
+    private void StartDrag(long item, long? from) => _drag = (item, from);
+
+    private void EndDrag() => _drag = null;
+
+    private void NoOp()
+    {
+    }
+
+    private void DropOnUnit(long to, long? onItem)
+    {
+        if (_drag is not { } drag)
+            return;
+
+        _drag = null;
+        Place(drag.Item, drag.From, to, onItem);
+    }
+
+    private void DropTrash()
+    {
+        if (_drag is not { } drag)
+            return;
+
+        _drag = null;
+        if (drag.From is long from)
+            ToTrash(drag.Item, from);
+    }
+
+    // Puts an item in a unit: in the next free slot, or, in a full unit, in the place of the item it was dropped on (which goes back where the first one came from).
+    private void Place(long item, long? from, long to, long? onItem)
+    {
+        _note = null;
+
+        if (from == to)
+            return;
+
+        var destination = Edit(to);
+        var source = from is long f ? Edit(f) : _trash;
+
+        if (destination.Count < _byInventory[to].Size)
+        {
+            source.Remove(item);
+            destination.Add(item);
+        }
+        else if (onItem is long other && other != item && destination.Contains(other) && source.Contains(item))
+        {
+            source[source.IndexOf(item)] = other;
+            destination[destination.IndexOf(other)] = item;
+        }
+        else
+        {
+            _note = $"{UnitName(_byInventory[to])} is full ({_byInventory[to].Size} slots). Drop onto one of its items to swap, or move something out first.";
+        }
+
+        _picked.Remove(item);
+        Tidy(to);
+        if (from is long g)
+            Tidy(g);
+    }
+
+    private void ToTrash(long item, long from)
+    {
+        _note = null;
+        Edit(from).Remove(item);
+        _trash.Add(item);
+        _picked.Remove(item);
+        Tidy(from);
+    }
+
+    private long? UnitOf(long item) => _work.Where(kv => kv.Value.Contains(item)).Select(kv => (long?)kv.Key).FirstOrDefault() ?? (_origin.TryGetValue(item, out var home) && !_trash.Contains(item) ? home : null);
+
+    private void Pick(long item)
+    {
+        if (!_picked.Remove(item))
+            _picked.Add(item);
+    }
+
+    private void MovePicked(int fromSide, int toSide)
+    {
+        if (_sel[fromSide] is not long from || _sel[toSide] is not long to)
+            return;
+
+        foreach (var item in Ids(from).Where(_picked.Contains).ToList())
+            Place(item, from, to, null);
+    }
+
+    private void TrashPicked()
+    {
+        foreach (var item in _picked.ToList())
+        {
+            if (UnitOf(item) is long from)
+                ToTrash(item, from);
+        }
+    }
+
+    // Items ticked in the unit on this side / in any unit (not the trash).
+    private bool PickedIn(int side) => _sel[side] is long unit && Ids(unit).Any(_picked.Contains);
+
+    private bool PickedInUnits => _picked.Any(id => !_trash.Contains(id));
+
+    // Ticked items in the trash go back to the unit they came from, if it has room.
+    private void RestorePicked()
+    {
+        _note = null;
+
+        foreach (var item in _trash.Where(_picked.Contains).ToList())
+        {
+            if (_origin.TryGetValue(item, out var home) && _byInventory.ContainsKey(home))
+                Place(item, null, home, null);
+        }
+    }
+
+    private void SetMode(bool drag)
+    {
+        _useDrag = drag;
+        _picked.Clear();
+        _drag = null;
+        _note = null;
+    }
+
+    private void Undo()
+    {
+        ClearStaged();
+    }
+
+    private void Select(int side, long inventory)
+    {
+        if (_crateTrash.Contains(inventory))
+            return;
+
+        _sel[side] = inventory;
+        _picked.Clear();
+        _note = null;
+    }
+
+    private async Task Transfer()
+    {
+        if (!HasChanges || _busy || GameLive || _snapshot is null)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Have you exited to the Main Menu?\n\nTRANSFER moves {MovedCount} items between storage units" +
+            (_trash.Count > 0 ? $" and PERMANENTLY DELETES {_trash.Count} items from your save" : "") +
+            (_crateTrash.Count > 0 ? $" and PERMANENTLY DELETES {_crateTrash.Count} empty crate{(_crateTrash.Count == 1 ? "" : "s")} (the building as well)" : "") + $" ({_work.Count} units change).\n\n" +
+            "If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        StateHasChanged();
+
+        try
+        {
+            var plan = new StoragePlan(_work.ToDictionary(kv => kv.Key, kv => (IReadOnlyList<long>)kv.Value.ToList()), _trash.ToList(), _crateTrash.ToList());
+            var edit = await Svc.ApplyAsync(SavePath, plan, _planet);
+
+            if (!edit.Success || edit.Result is null)
+            {
+                Toasts.Show("Storage transfer failed. " + (edit.Error ?? "Nothing was changed."), ToastKind.Error, TimeSpan.FromSeconds(9));
+                return;
+            }
+
+            Toasts.Show($"Moved {edit.Result.Moved} items, deleted {edit.Result.Trashed}" + (edit.Result.UnitsDeleted > 0 ? $" and {edit.Result.UnitsDeleted} crate(s)" : "") + $". Backup: {edit.BackupPath}", ToastKind.Success, TimeSpan.FromSeconds(6));
+            await Reload(_planet);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // ---- the two panels
+
+    private IEnumerable<StorageUnit> Visible(int side)
+    {
+        var other = _sel[1 - side];
+        var filter = _filter[side].Trim();
+
+        return _units
+            .Where(u => _kind[side].Length == 0 || u.Kind == _kind[side])
+            .Where(u => !_hideEmpty[side] || Ids(u.InventoryId).Count > 0 || u.InventoryId == _sel[side])
+            .Where(u => filter.Length == 0
+                || LabelText(u).Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || u.Label.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || u.Kind.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || u.GId.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || u.Position.Contains(filter, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string RowClass(int side, StorageUnit u) =>
+        "st-unit" + (u.NearWarehouse ? " is-near" : "") + (_sel[side] == u.InventoryId ? " is-selected" : "") + (_sel[1 - side] == u.InventoryId ? " is-other" : "") + (_work.ContainsKey(u.InventoryId) ? " is-changed" : "")
+        + (_crateTrash.Contains(u.InventoryId) ? " is-deleted" : "");
+
+    private string ItemClass(long item) => "st-item" + (_picked.Contains(item) ? " is-picked" : "");
+
+    private RenderFragment<int> Panel => side => @<div class="st-panel">
+        <div class="st-panel-title">@(side == 0 ? "From" : "To")</div>
+        <div class="st-filters">
+            <input class="item-pick" placeholder="Filter…" value="@_filter[side]" @oninput="e => _filter[side] = e.Value?.ToString() ?? string.Empty" />
+            <select value="@_kind[side]" @onchange="e => _kind[side] = e.Value?.ToString() ?? string.Empty">
+                <option value="">All kinds</option>
+                @foreach (var kind in _units.Select(u => u.Kind).Distinct().OrderBy(k => k, StringComparer.Ordinal))
+                {
+                    <option value="@kind">@kind</option>
+                }
+            </select>
+            <label class="st-check"><input type="checkbox" checked="@_hideEmpty[side]" @onchange="e => _hideEmpty[side] = e.Value is true" /> hide empty</label>
+        </div>
+
+        @{
+            var shown = Visible(side).ToList();
+        }
+        <div class="st-units">
+            @foreach (var u in shown.Take(MaxRows))
+            {
+                var count = Ids(u.InventoryId).Count;
+                <div class="@RowClass(side, u)" @key="u.InventoryId" @onclick="() => Select(side, u.InventoryId)" title="@u.GId">
+                    <Icon Id="@u.GId" />
+                    <span class="st-unit-name">@UnitName(u)</span>
+                    <span class="st-unit-fill @(count >= u.Size ? "is-full" : "")">@count / @u.Size</span>
+                    @if (CanDelete(u))
+                    {
+                        <button class="st-del" title="This crate is empty: put it in the trash (it is deleted from the save when you press TRANSFER)"
+                                @onclick="() => DeleteUnit(u.InventoryId)" @onclick:stopPropagation="true">🗑</button>
+                    }
+                </div>
+            }
+            @if (shown.Count > MaxRows)
+            {
+                <div class="st-more">… and @(shown.Count - MaxRows) more: filter to narrow the list.</div>
+            }
+            @if (shown.Count == 0)
+            {
+                <div class="st-more">No storage unit matches.</div>
+            }
+        </div>
+
+        @if (_sel[side] is long inventory)
+        {
+            var unit = _byInventory[inventory];
+            var ids = Ids(inventory);
+            <div class="st-contents-title @(unit.NearWarehouse ? "is-near" : "")">@UnitName(unit) <span class="st-count">@ids.Count / @unit.Size</span></div>
+            <div class="st-contents" @ondragover="NoOp" @ondragover:preventDefault="true" @ondrop="() => DropOnUnit(inventory, null)">
+                @foreach (var id in ids)
+                {
+                    @if (_useDrag)
+                    {
+                        <div class="@ItemClass(id)" draggable="true" title="@ItemTitle(id)" @key="id"
+                             @ondragstart="() => StartDrag(id, inventory)" @ondragend="EndDrag"
+                             @ondragover="NoOp" @ondragover:preventDefault="true" @ondrop="() => DropOnUnit(inventory, id)" @ondrop:stopPropagation="true">
+                            <Icon Id="@GIdOf(id)" Size="1.7rem" />
+                            <span class="st-item-name">@ItemName(id)</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <label class="@ItemClass(id)" title="@ItemTitle(id)" @key="id">
+                            <input type="checkbox" checked="@_picked.Contains(id)" @onchange="() => Pick(id)" />
+                            <Icon Id="@GIdOf(id)" Size="1.7rem" />
+                            <span class="st-item-name">@ItemName(id)</span>
+                        </label>
+                    }
+                }
+                @for (var free = ids.Count; free < unit.Size; free++)
+                {
+                    <div class="st-slot"></div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="st-more">Pick a unit above to see what it holds.</div>
+        }
+    </div>;
+}

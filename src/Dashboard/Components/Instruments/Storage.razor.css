@@ -1,0 +1,375 @@
+.st {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.st-problem {
+    color: #ff8a65;
+}
+
+.st-planet {
+    color: #9ac7ff;
+}
+
+.st-planet-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.st-planet-pick select {
+    min-width: 200px;
+}
+
+.st-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.st-mode {
+    background: none;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+    color: #7f9db9;
+    font-size: 0.8rem;
+    padding: 3px 12px;
+    cursor: pointer;
+}
+
+.st-mode:hover {
+    color: #cfe4ff;
+    border-color: #4a7fa5;
+}
+
+.st-mode.is-on {
+    color: #0b0f17;
+    background: #7ab8ff;
+    border-color: #7ab8ff;
+}
+
+.st-mode-hint {
+    color: #7f9db9;
+    font-size: 0.8rem;
+}
+
+.st-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 200px;
+    gap: 12px;
+    align-items: start;
+}
+
+.st-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 8px;
+    background: #0b111a;
+    border: 1px solid #1a2a3a;
+    border-radius: 6px;
+}
+
+.st-panel-title {
+    color: #7ab8ff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.st-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.st-filters .item-pick {
+    flex: 1;
+    min-width: 90px;
+}
+
+.st-check {
+    font-size: 0.78rem;
+    color: #7f9db9;
+    white-space: nowrap;
+}
+
+.st-units {
+    max-height: 210px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    scrollbar-color: #24384d #0b0f17;
+    scrollbar-width: thin;
+}
+
+.st-unit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    background: #0e1520;
+    border: 1px solid #1a2a3a;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.st-unit:hover {
+    border-color: #4a7fa5;
+}
+
+.st-unit.is-selected {
+    background: #12263a;
+    border-color: #7ab8ff;
+}
+
+/* The unit chosen on the other side: greyed out, not pickable here. */
+.st-unit.is-other {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.st-unit.is-changed .st-unit-name::after {
+    content: " •";
+    color: #e8c547;
+}
+
+.st-unit-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #cfe4ff;
+}
+
+/* The little delete box on an empty crate. */
+.st-del {
+    background: none;
+    border: 1px solid #5a2a2a;
+    border-radius: 3px;
+    color: #ff9d9d;
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 1px 4px;
+    cursor: pointer;
+}
+
+.st-del:hover {
+    background: #3a1717;
+    border-color: #ff6b6b;
+}
+
+/* A crate waiting in the trash: still listed, struck through, not pickable. */
+.st-unit.is-deleted {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.st-unit.is-deleted .st-unit-name {
+    text-decoration: line-through;
+}
+
+.st-crate {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+    padding: 2px 4px;
+    background: #1d1010;
+    border: 1px solid #5a2a2a;
+    border-radius: 4px;
+    font-size: 0.74rem;
+    color: #ffb3b3;
+}
+
+.st-crate-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.st-restore {
+    background: none;
+    border: 1px solid #5a2a2a;
+    border-radius: 3px;
+    color: #ffb3b3;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.st-restore:hover {
+    border-color: #ff6b6b;
+}
+
+/* Part of the warehouse (near its beacon): the label text is green. */
+.st-unit.is-near .st-unit-name,
+.st-contents-title.is-near {
+    color: #4fd18b;
+}
+
+.st-legend {
+    color: #7f9db9;
+    font-size: 0.8rem;
+}
+
+.st-legend-dot {
+    display: inline-block;
+    width: 0.6em;
+    height: 0.6em;
+    border-radius: 50%;
+    background: #4fd18b;
+}
+
+.st-unit-fill {
+    color: #7f9db9;
+    font-variant-numeric: tabular-nums;
+}
+
+.st-unit-fill.is-full {
+    color: #e8c547;
+}
+
+.st-more {
+    color: #5f7d99;
+    font-style: italic;
+    font-size: 0.8rem;
+    padding: 2px 4px;
+}
+
+.st-contents-title {
+    margin-top: 4px;
+    color: #cfe4ff;
+    font-size: 0.85rem;
+}
+
+.st-count {
+    color: #7f9db9;
+    font-variant-numeric: tabular-nums;
+}
+
+.st-contents {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+    gap: 4px;
+    min-height: 70px;
+    padding: 6px;
+    background: #090d14;
+    border: 1px dashed #24384d;
+    border-radius: 4px;
+}
+
+.st-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 2px;
+    min-width: 0;
+    background: #101a28;
+    border: 1px solid #1f3248;
+    border-radius: 4px;
+    cursor: grab;
+    user-select: none;
+}
+
+.st-item:hover {
+    border-color: #4a7fa5;
+}
+
+/* Checkbox mode: the item is a label with a tick box, not something to drag. */
+label.st-item {
+    cursor: pointer;
+}
+
+label.st-item input[type="checkbox"] {
+    margin: 0;
+}
+
+.st-item.is-picked {
+    border-color: #e8c547;
+    background: #1d2616;
+}
+
+.st-item-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.66rem;
+    color: #b7d3f2;
+}
+
+.st-slot {
+    min-height: 44px;
+    border: 1px dashed #1a2a3a;
+    border-radius: 4px;
+}
+
+.st-side {
+    display: flex;
+    flex-direction: column;
+}
+
+.st-trash {
+    min-height: 150px;
+    padding: 8px;
+    background: #140d0d;
+    border: 1px dashed #5a2a2a;
+    border-radius: 6px;
+}
+
+.st-trash.has-items {
+    border-color: #ff6b6b;
+}
+
+.st-trash-title {
+    color: #ff9d9d;
+}
+
+.st-trash-hint {
+    margin: 2px 0 6px;
+    color: #7a5a5a;
+    font-size: 0.74rem;
+}
+
+.st-trash-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.st-note {
+    margin: 0;
+    color: #e8c547;
+}
+
+.st-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.st-spacer {
+    flex: 1;
+}
+
+.st-summary {
+    color: #9ac7ff;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+    .st-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
