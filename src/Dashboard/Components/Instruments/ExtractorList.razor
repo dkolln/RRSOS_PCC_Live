@@ -63,7 +63,7 @@
 </div>
 
 @code {
-    private static readonly string[] Order = { "ore", "gas", "water", "algae" };
+    private static readonly string[] Order = { "ore", "gas", "water", "toxicwater", "algae" };
 
     /// <summary>Every extractor the plugin found.</summary>
     [Parameter]
@@ -118,7 +118,7 @@
         }
     </div>;
 
-    // What the user has clicked. The four kinds (ore, gas, water, algae) start open and the ore or gas under each starts folded;
+    // What the user has clicked. The five kinds (ore, gas, water, toxic water, algae) start open and the ore or gas under each starts folded;
     // a click flips that, and the choice survives new readings.
     private readonly HashSet<string> _flipped = new();
 
@@ -202,6 +202,7 @@
         "ore" => "Ore",
         "gas" => "Gas",
         "water" => "Water",
+        "toxicwater" => "Toxic water",
         "algae" => "Algae",
         _ => kind
     };

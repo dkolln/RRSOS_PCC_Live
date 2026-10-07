@@ -14,7 +14,8 @@
                 Data.Rockets.TryGetValue(key, out var rocket);
                 Data.Units.TryGetValue(key, out var unit);
 
-                <div class="ti-gauge @(category.Status == TiStatus.Idle ? "is-idle" : "")" title="@Tooltip(category)">
+                <div class="ti-gauge is-clickable @(category.Status == TiStatus.Idle ? "is-idle" : "")" title="@Tooltip(category) Click to see what makes it."
+                     @onclick="() => OnSelect.InvokeAsync(category.Name)">
                     <Gauge Label="@category.Name"
                            Centered="true"
                            Value="@(category.Deviation / TiBalance.ScalePoints)"
@@ -55,46 +56,22 @@
     [Parameter]
     public bool Dim { get; set; }
 
-    private IReadOnlyList<TiCategory> Categories =>
-        Data is null
-            ? Array.Empty<TiCategory>()
-            : TiBalance.Evaluate(Names
-                .Select(n => (n, Data.Units.TryGetValue(n.ToLowerInvariant(), out var u) ? (float)u.Value : 0f))
-                .ToList());
+    /// <summary>Raised with the stat's name ("Oxygen") when its gauge is clicked.</summary>
+    [Parameter]
+    public EventCallback<string> OnSelect { get; set; }
 
-    private double Total => Data is null
-        ? 0
-        : Names.Sum(n => Data.Units.TryGetValue(n.ToLowerInvariant(), out var u) ? u.Value : 0);
+    // Purification takes part in the balance (and the total) but has its dial on the Toxicity tab of the power card.
+    private IReadOnlyList<TiCategory> Categories => TiBalance.ForPlanet(Data).Where(c => Names.Contains(c.Name)).ToList();
 
-    private static string? StatusName(TiStatus status) => status switch
-    {
-        TiStatus.Good => "good",
-        TiStatus.Warn => "warn",
-        TiStatus.Crit => "crit",
-        _ => null
-    };
+    private double Total => TiBalance.Total(Data);
 
-    // Signed whole points in the middle of the dial: -21, +3, or a plain 0 when exactly fair.
-    private static string Signed(float deviation)
-    {
-        var rounded = (int)Math.Round(deviation);
-        return rounded == 0 ? "0" : (rounded < 0 ? "−" : "+") + Math.Abs(rounded);
-    }
+    private static string? StatusName(TiStatus status) => TiBalance.StatusName(status);
+
+    private static string Signed(float deviation) => TiBalance.Signed(deviation);
 
     private static string Scale(string sign) => sign + TiBalance.ScalePoints.ToString("0");
 
-    private static string Tooltip(TiCategory category)
-    {
-        if (category.Status == TiStatus.Idle)
-            return $"{category.Name}: not started yet";
-
-        var direction = category.Deviation < 0 ? "below" : "above";
-        var text = $"{category.Name}: {category.Share:0.0}% of the total. " +
-                   $"{Math.Abs(category.Deviation):0.0} points {direction} an equal share " +
-                   $"({category.FairShare:0.0}%, split across {category.ActiveCount} categories).";
-
-        return category.Balanced ? text + " The planet is balanced, so nothing is flagged." : text;
-    }
+    private static string Tooltip(TiCategory category) => TiBalance.Tooltip(category);
 
     private static string RocketTooltip(string stat, RocketData rocket) =>
         $"{stat}: {rocket.Count} rocket(s) launched, so {stat.ToLowerInvariant()} generation is x{rocket.Multiplier:0.##} " +

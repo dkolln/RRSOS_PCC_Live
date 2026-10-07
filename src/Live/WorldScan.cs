@@ -285,6 +285,7 @@ namespace RRSOS.PCC.Live
             if (id.StartsWith("OreExtractor", StringComparison.OrdinalIgnoreCase)) return "ore";
             if (id.StartsWith("GasExtractor", StringComparison.OrdinalIgnoreCase)) return "gas";
             if (id.StartsWith("WaterCollector", StringComparison.OrdinalIgnoreCase)) return "water";
+            if (id.StartsWith("ToxicWaterCollector", StringComparison.OrdinalIgnoreCase)) return "toxicwater";
             if (id.StartsWith("AlgaeGenerator", StringComparison.OrdinalIgnoreCase)) return "algae";
             return null;
         }

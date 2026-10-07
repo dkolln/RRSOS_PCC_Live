@@ -115,7 +115,7 @@ namespace RRSOS.PCC.Dashboard
         // which the owner does not send out. Autocrafters are not either: they hold ingredients as well as what they make, so
         // what they hold says nothing about what they supply.
         private static readonly Regex Producer = new(
-            @"^(OreExtractor|GasExtractor|WaterCollector|WaterLifeCollector|Beehive|Biodome|Ecosystem|HarvestingRobot|SilkGenerator)\d*$",
+            @"^(OreExtractor|GasExtractor|WaterCollector|ToxicWaterCollector|WaterLifeCollector|Beehive|Biodome|Ecosystem|HarvestingRobot|SilkGenerator)\d*$",
             RegexOptions.Compiled);
 
         // Extractors pull random ore or gas, and ecosystems produce random larvae, so what they hold says nothing about what they

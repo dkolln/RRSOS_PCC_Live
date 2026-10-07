@@ -20,6 +20,7 @@ builder.Services.AddSingleton<SpeechService>();
 
 // The slower second file (bases, containers, extractors), plus what it needs: an item catalog and the base names.
 builder.Services.AddSingleton<DashboardSettings>();
+builder.Services.AddSingleton<TerraformersService>();
 builder.Services.AddSingleton<ItemCatalog>();
 builder.Services.AddSingleton<IconCatalog>();
 builder.Services.AddSingleton<ProducerDefaults>();

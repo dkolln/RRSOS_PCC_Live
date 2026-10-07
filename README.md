@@ -30,8 +30,14 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
 
 **Planet (middle)**
 - Six terraformation dials (oxygen, heat, pressure, plants, insects, animals) with live per-second rates and the rocket
-  count and multiplier under each, the total TI, a **Phases** row and the power dial with one icon per generator. Under
-  it, a notes card.
+  count and multiplier under each, the total TI, a **Phases** row and the **Power / Toxicity** card. Power is the power dial with one icon per generator. Toxicity (on a
+  planet that has purification or toxic goo) has the **Purification** dial, balanced against the other stats like they are and counted in
+  the total TI, and **Cleanup**: how much goo and how many toxic areas are cleaned (plugin 0.14.0). The other tab's headline
+  (surplus or deficit, or the purification total) sits at the right of the card header. Under it, a notes card.
+- **Click a gauge** (oxygen, heat, pressure, plants, insects, animals, purification) to see every building the game has that makes that
+  stat, strongest first: how many you have built, what one makes, and what they make together right now (each machine's own
+  figure, boosts included). Buildings you have not unlocked yet are shown in grey with a lock, and a tick hides them;
+  you can sort by what they make now or by what one makes. (Plugin 0.13.0, `terraformers.json`.)
 - **Phases**: the current planet's own named terraformation milestones (the game's "progress" screen — Lakes, Animals,
   Complete Transformation, ...; not every one lines up with a gauge), each planet with its own list: solid once
   complete, flashing for the one in progress, plain for the rest, with a live percentage toward the next one.
@@ -65,7 +71,7 @@ from anywhere else.
   itself the moment a drone takes off and closes back to Base once every one has landed; a 📌 pin stops that when you
   want to stay put (picking the drone view by hand pins it, picking anything else un-pins it).
 - **Vehicles**: every truck (Truck 1, 2, ...), where it is or that it is stowed, its trunk and modules.
-- **Extractors**: every ore, gas, water and algae machine, grouped, with fill level, position, and distance and
+- **Extractors**: every ore, gas, water, toxic water and algae machine, grouped, with fill level, position, and distance and
   direction from you.
 
 **Also**
@@ -190,7 +196,7 @@ page keeps the last reading, dimmed, and says so.
   undoing its edit would give back the original file exactly.
 - **Awareness, not shortcuts.** It shows what the game already knows; it does not help anyone bypass how the game is played.
 - **One small contract.** Everything leaves the game through a few versioned JSON files (`live.json`, `live-world.json`,
-  `blueprints.json`, `recipes.json`, `planets.json`, `pins.json`, and the `icons\` folder) ([docs/contract.md](docs/contract.md)).
+  `blueprints.json`, `recipes.json`, `planets.json`, `pins.json`, `terraformers.json`, and the `icons\` folder) ([docs/contract.md](docs/contract.md)).
 - **Nothing of the game is redistributed.** The project references the game's assemblies in place. Game files, and the
   game's decompiled source, are never copied into this repo.
 - **Nothing is trusted blindly.** Every section of the files is read on its own; if one fails it becomes `null` and the
@@ -253,6 +259,7 @@ files (it only reads the save).
 | Pinned recipes (plugin 0.11.0, `pins.json`) kept in a shopping list with quantities and totals, coloured by what your backpack holds | done, run in the game |
 | The game's own icons (plugin 0.12.0, `icons\`) beside items and buildings, on the power card, floor-plan containers and warehouse chests | done, run in the game |
 | Drone Network: shows what a producer supplies now, **Fix** to the usual items, **Choose…**, `producer-supply-defaults.json`, and icons on its lines | done |
+| Click a planet gauge to see what makes that stat: every building, strongest first, built count, live output, locked ones in grey (plugin 0.13.0, `terraformers.json`) | built, dashboard checked on sample data; the plugin side not yet run in the game |
 | Cheats / Travel: move the player to a spot on any planet in the save | done |
 | Cheats / Storage: move items between storage units (drag and drop, or checkboxes) and a trash bin, scoped to the player's planet, one verified edit | built, tested on a scratch copy of a save; not yet run in the game |
 | Optional: local HTTP feed, in-game overlay | later |

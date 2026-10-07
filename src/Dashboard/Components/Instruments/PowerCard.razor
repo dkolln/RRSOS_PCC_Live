@@ -2,9 +2,66 @@
 
 @* Power straight from the game: what is produced and used, with a picture per generator. *@
 <div class="power @(Dim ? "is-dim" : "")">
-    <div class="power-title">Power</div>
+    <div class="power-title">
+        <button type="button" class="power-tab @(ShowToxicity ? "" : "is-on")" @onclick="() => _tab = Tab.Power">Power</button>
+        @if (HasToxicity)
+        {
+            <button type="button" class="power-tab @(ShowToxicity ? "is-on" : "")" @onclick="() => _tab = Tab.Toxicity">Toxicity</button>
+        }
 
-    @if (Data is null)
+        @* The other tab's headline, so it never goes out of sight. *@
+        @if (ShowToxicity && Data is not null)
+        {
+            <button type="button" class="power-aside power-figure @FigureClass" @onclick="() => _tab = Tab.Power" title="Power: @FigureLabel. Click to show Power.">
+                <span class="lbl">@FigureLabel</span> <span class="num">@Kw(Math.Abs(Data.ProducedKw - Data.UsedKw))</span>
+            </button>
+        }
+        else if (!ShowToxicity && NeedsPurification)
+        {
+            <button type="button" class="power-aside" @onclick="() => _tab = Tab.Toxicity" title="Purification. Click to show Toxicity.">
+                <span class="lbl">Purification</span> <span class="num">@Compass.Abbreviate(Purification!.Value)</span>
+            </button>
+        }
+    </div>
+
+    @if (ShowToxicity)
+    {
+        <div class="tox-main">
+            @if (PurificationCategory is { } category)
+            {
+                @* Same dial as the other terraformation stats: how far Purification is from an equal share of the total. *@
+                <div class="tox-gauge is-clickable" title="@TiBalance.Tooltip(category) Click to see what makes it."
+                     @onclick="() => OnSelect.InvokeAsync(category.Name)">
+                    <Gauge Label="Purification"
+                           Centered="true"
+                           Value="@(category.Deviation / TiBalance.ScalePoints)"
+                           Unknown="@(category.Status == TiStatus.Idle)"
+                           StatusOverride="@TiBalance.StatusName(category.Status)"
+                           DisplayText="@TiBalance.Signed(category.Deviation)"
+                           MinLabel="@("−" + TiBalance.ScalePoints.ToString("0"))"
+                           MaxLabel="@("+" + TiBalance.ScalePoints.ToString("0"))" />
+                    <div class="tox-value">@Compass.Abbreviate(category.Value)</div>
+                    @if (PurificationUnit is { } unit)
+                    {
+                        <div class="tox-sub" title="Gained per second, as the game reports it">▲ @Compass.Abbreviate(unit.IncreasePerSec)/s</div>
+                    }
+                </div>
+            }
+
+            <div class="tox-gauge" title="@CleanupTitle">
+                <Gauge Label="Cleanup"
+                       Value="@CleanupFraction"
+                       Unknown="@(Toxicity is null || Toxicity.TotalObjects <= 0)"
+                       DisplayText="@CleanupText"
+                       WarnAt="0f" CritAt="0f" />
+                @if (Toxicity is { TotalObjects: > 0 })
+                {
+                    <div class="tox-sub">Goo @Toxicity.CleanedObjects/@Toxicity.TotalObjects · Areas @Toxicity.CleanedAreas/@Toxicity.TotalAreas</div>
+                }
+            </div>
+        </div>
+    }
+    else if (Data is null)
     {
         <div class="power-empty">no data</div>
     }
@@ -66,10 +123,44 @@
     private static readonly string[] TypeOrder = { "windmill", "sun", "sun-large", "atom", "atoms", "starburst", "bolt" };
 
     [Parameter]
-    public PowerData? Data { get; set; }
+    public PlanetData? Planet { get; set; }
 
     [Parameter]
     public bool Dim { get; set; }
+
+    private enum Tab { Power, Toxicity }
+
+    private Tab _tab = Tab.Power;
+
+    private PowerData? Data => Planet?.Power;
+
+    private UnitData? PurificationUnit => Planet is not null && Planet.Units.TryGetValue("purification", out var u) ? u : null;
+
+    // The game parks purification at -1 on a planet that does not need it.
+    private double? Purification => PurificationUnit is { Value: >= 0 } u ? u.Value : null;
+
+    private bool NeedsPurification => Purification is not null;
+
+    private ToxicityData? Toxicity => Planet?.Toxicity;
+
+    private bool HasToxicity => NeedsPurification || Toxicity is { TotalAreas: > 0 };
+
+    private bool ShowToxicity => _tab == Tab.Toxicity && HasToxicity;
+
+    // Purification is one of the stats Terraformation adds up, so it is balanced against the others like they are.
+    private TiCategory? PurificationCategory => TiBalance.ForPlanet(Planet).FirstOrDefault(c => c.Name == "Purification");
+
+    /// <summary>Raised with the stat's name ("Purification") when its dial is clicked.</summary>
+    [Parameter]
+    public EventCallback<string> OnSelect { get; set; }
+
+    private float CleanupFraction => Toxicity is { TotalObjects: > 0 } t ? (float)t.CleanedObjects / t.TotalObjects : 0f;
+
+    private string CleanupText => Toxicity is { TotalObjects: > 0 } ? $"{(int)Math.Floor(CleanupFraction * 100f)}%" : "--";
+
+    private string CleanupTitle => Toxicity is { TotalObjects: > 0 } t
+        ? $"Cleanup: {t.CleanedObjects} of {t.TotalObjects} toxic objects cleaned, {t.CleanedAreas} of {t.TotalAreas} areas fully clean. This is the game's Toxicity screen."
+        : "Cleanup: no toxic areas read yet (needs plugin 0.14.0 and a loaded world).";
 
     private bool Short => Data is not null && Data.UsedKw > Data.ProducedKw;
     private float Load => Data is null || Data.ProducedKw <= 0 ? 0f : (float)Math.Clamp(Data.UsedKw / Data.ProducedKw, 0, 1);

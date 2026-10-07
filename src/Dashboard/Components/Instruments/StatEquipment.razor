@@ -1,0 +1,94 @@
+@inject TerraformersService Svc
+
+@* What makes one planet stat, opened by clicking its gauge: every building the game has that makes it, strongest first. Buildings the player has not unlocked are
+   greyed. The numbers come from the plugin (terraformers.json): what one makes, how many there are, and what they make together right now. *@
+<div class="se-backdrop" @onclick="OnClose">
+    <div class="se-panel" role="dialog" aria-label="@Label equipment" @onclick:stopPropagation="true">
+        <div class="se-head">
+            <span class="se-title">@Label · what makes it</span>
+            @if (RatePerSec is { } rate)
+            {
+                <span class="se-rate" title="The planet's rate for this stat right now, as the game reports it">▲ @Compass.Abbreviate(rate)/s now</span>
+            }
+            <button class="se-close" title="Close" @onclick="OnClose">✕</button>
+        </div>
+
+        @if (_entries is null)
+        {
+            <p class="se-hint">No reading yet. This needs plugin 0.13.0: start the game with it and load a world, then click the gauge again.</p>
+        }
+        else if (_entries.Count == 0)
+        {
+            <p class="se-hint">Nothing the game builds makes @Label.ToLowerInvariant().</p>
+        }
+        else
+        {
+            <div class="se-bar">
+                <span class="se-sort">Sort by
+                    <button class="se-toggle @(_byTotal ? "is-on" : "")" @onclick="() => _byTotal = true" title="What they make together now, biggest first">total now</button>
+                    <button class="se-toggle @(!_byTotal ? "is-on" : "")" @onclick="() => _byTotal = false" title="What one makes, biggest first">each</button>
+                </span>
+                <label class="se-check"><input type="checkbox" checked="@_showLocked" @onchange="e => _showLocked = e.Value is true" /> show locked (grey)</label>
+            </div>
+
+            <div class="se-list">
+                <div class="se-row se-row-head">
+                    <span class="se-name">Equipment</span><span class="se-num">Built</span><span class="se-num">Each</span><span class="se-num">Total now</span>
+                </div>
+                @foreach (var row in Rows)
+                {
+                    <div class="se-row @(row.Unlocked ? "" : "is-locked")" @key="row.Id" title="@Title(row)">
+                        <span class="se-name"><Icon Id="@row.Id" Size="1.5rem" /> @row.Label@(row.Unlocked ? "" : " 🔒")</span>
+                        <span class="se-num @(row.Working < row.Count ? "is-idle" : "")">@BuiltText(row)</span>
+                        <span class="se-num">@Compass.Abbreviate(row.Each)/s</span>
+                        <span class="se-num se-total">@(row.Count > 0 ? Compass.Abbreviate(row.Total) + "/s" : "")</span>
+                    </div>
+                }
+            </div>
+
+            <div class="se-foot">
+                What is built here makes @Compass.Abbreviate(_entries.Sum(e => e.Total))/s of it together (machines only: rockets and other multipliers are on top).
+                @if (_entries.Any(e => e.Working < e.Count))
+                {
+                    <span>A count like 8/12 means 12 are built and 8 are working: an empty planter or spreader makes nothing until it is stocked.</span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>The stat's name as the gauge shows it ("Oxygen").</summary>
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>The planet's rate for the stat right now (the game's own figure), for the header. Null when unknown.</summary>
+    [Parameter]
+    public double? RatePerSec { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private bool _byTotal = true;
+    private bool _showLocked = true;
+
+    // Re-read on every render: the dashboard re-renders every second, and the service only parses again when the file has changed.
+    private List<TerraformerEntry>? _entries => Svc.Get() is { } file && file.Units.TryGetValue(Label.ToLowerInvariant(), out var list) ? list : null;
+
+    // Unlocked first, then the locked (grey) ones; each group strongest first by what is asked for, with ties broken by what one makes.
+    private IEnumerable<TerraformerEntry> Rows =>
+        (_entries ?? new List<TerraformerEntry>())
+            .Where(e => _showLocked || e.Unlocked)
+            .OrderBy(e => e.Unlocked ? 0 : 1)
+            .ThenByDescending(e => _byTotal ? e.Total : e.Each)
+            .ThenByDescending(e => e.Each)
+            .ThenBy(e => e.Label, StringComparer.CurrentCultureIgnoreCase);
+
+    // "×12" when all 12 built are working; "8/12" when some are idle (an empty planter or spreader makes nothing until it is stocked).
+    private static string BuiltText(TerraformerEntry e) =>
+        e.Count == 0 ? "" : e.Working < e.Count ? $"{e.Working}/{e.Count}" : "×" + e.Count;
+
+    private static string Title(TerraformerEntry e) =>
+        e.Id + (e.Unlocked ? "" : " (not unlocked yet)")
+        + (e.Count > 0 ? $": {e.Count} built" + (e.Working < e.Count ? $", {e.Working} working" : "") + $", {Compass.Abbreviate(e.Total)}/s together" : ": none built");
+}

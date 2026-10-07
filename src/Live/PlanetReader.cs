@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using SpaceCraft;
 
 namespace RRSOS.PCC.Live
@@ -72,15 +73,58 @@ namespace RRSOS.PCC.Live
             json.End()
                 .Raw("power", PowerFragment(produced, used))
                 .Raw("rockets", RocketsFragment())
-                .Raw("phases", PhasesFragment(terraformation));
+                .Raw("phases", PhasesFragment(terraformation))
+                .Raw("toxicity", ToxicityFragment());
 
             return json.End().ToString();
+        }
+
+        private static FieldInfo _toxicAreasField;
+
+        /// <summary>
+        /// The game's Toxicity screen: how many toxic objects (goo) have been cleaned out of the total, and how many toxic areas are fully
+        /// clean. The game answers this through a one-slot callback the Toxicity window also uses, so this adds up the handler's own areas
+        /// instead (the same sums its answer is made of). Null when the handler is not there.
+        /// </summary>
+        private static string ToxicityFragment()
+        {
+            var handler = ToxicAreaHandler.Instance;
+            if (handler == null)
+                return null;
+
+            if (_toxicAreasField == null)
+                _toxicAreasField = typeof(ToxicAreaHandler).GetField("_toxicAreas", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            var areas = _toxicAreasField == null ? null : _toxicAreasField.GetValue(handler) as Dictionary<int, ToxicArea>;
+            if (areas == null)
+                return null;
+
+            int cleanedObjects = 0, totalObjects = 0, cleanedAreas = 0;
+            foreach (var area in areas.Values)
+            {
+                if (area == null)
+                    continue;
+
+                var cleaned = area.GetCleanedToxicObjectsCount();
+                var total = area.GetToxicObjectsCount();
+                cleanedObjects += cleaned;
+                totalObjects += total;
+                if (cleaned == total)
+                    cleanedAreas++;
+            }
+
+            return new Json().Begin()
+                .Int("cleanedObjects", cleanedObjects)
+                .Int("totalObjects", totalObjects)
+                .Int("cleanedAreas", cleanedAreas)
+                .Int("totalAreas", areas.Count)
+                .End().ToString();
         }
 
         // The game counts only what stands on the planet being played (WorldUnit and the energy groups compare each
         // object's planet hash with the current planet's), so a second planet starts with none of the first one's
         // generators or rockets. 0 means the planet is not known, and then nothing is left out.
-        private static bool OnThisPlanet(WorldObject worldObject, int planetHash) =>
+        internal static bool OnThisPlanet(WorldObject worldObject, int planetHash) =>
             planetHash == 0 || worldObject.GetPlanetHash() == planetHash;
 
         /// <summary>The current world's planet hash (the game's own <c>GetStableHashCode()</c> of its id), or 0 when none is loaded.</summary>

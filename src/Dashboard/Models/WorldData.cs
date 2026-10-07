@@ -243,7 +243,7 @@ namespace RRSOS.PCC.Dashboard
     {
         public int Id { get; set; }
 
-        /// <summary>"ore", "gas", "water" or "algae".</summary>
+        /// <summary>"ore", "gas", "water", "toxicwater" or "algae".</summary>
         public string Kind { get; set; } = "";
 
         public string Group { get; set; } = "";
