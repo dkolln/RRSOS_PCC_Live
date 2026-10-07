@@ -78,6 +78,18 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>The current planet's own named terraformation milestones, in the order they unlock (plugin 0.10.5 and later).</summary>
         public List<PhaseData>? Phases { get; set; }
+
+        /// <summary>The game's Toxicity screen: goo cleaned so far (plugin 0.14.0 and later; null before, or when the game has no toxic areas handler).</summary>
+        public ToxicityData? Toxicity { get; set; }
+    }
+
+    /// <summary>How much of the planet's toxic goo has been cleaned: objects (the goo patches) and the areas they sit in.</summary>
+    public sealed class ToxicityData
+    {
+        public int CleanedObjects { get; set; }
+        public int TotalObjects { get; set; }
+        public int CleanedAreas { get; set; }
+        public int TotalAreas { get; set; }
     }
 
     /// <summary>

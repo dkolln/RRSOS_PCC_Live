@@ -12,7 +12,7 @@ namespace RRSOS.PCC.Live
     {
         public const string Guid = "com.rrsos.pcc.live";
         public const string Name = "RRSOS PCC Live";
-        public const string Version = "0.12.0";
+        public const string Version = "0.14.0";
 
         private const int MaxRepeats = 3;
 
@@ -29,6 +29,7 @@ namespace RRSOS.PCC.Live
             gameObject.AddComponent<RecipeReader>();
             gameObject.AddComponent<PinReader>();
             gameObject.AddComponent<IconExporter>();
+            gameObject.AddComponent<TerraformReader>();
             Log.LogInfo($"{Name} {Version} loaded. Read-only: it reports game state and never changes it. Live file: {LiveFile.FilePath}; world file: {LiveFile.WorldFilePath}");
         }
 

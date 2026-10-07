@@ -51,6 +51,56 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>If even the biggest gap between two categories is under this, nothing is flagged.</summary>
         public const float BalancedSpread = 5f;
 
+        /// <summary>The stats that add up to Terraformation, in display order. Purification is the game's seventh, only on a planet that needs it.</summary>
+        public static readonly string[] Stats = { "Oxygen", "Heat", "Pressure", "Plants", "Insects", "Animals", "Purification" };
+
+        /// <summary>
+        /// The balance across every stat that counts on this planet: the six dial stats plus Purification when the planet needs it (the game parks
+        /// it at -1 otherwise). Purification is part of the total the game works out Terraformation from, so it takes part in the equal split too.
+        /// </summary>
+        public static IReadOnlyList<TiCategory> ForPlanet(PlanetData? data)
+        {
+            if (data is null)
+                return Array.Empty<TiCategory>();
+
+            float ValueOf(string name) => data.Units.TryGetValue(name.ToLowerInvariant(), out var u) ? (float)u.Value : 0f;
+
+            var names = Stats.Where(n => n != "Purification" || ValueOf(n) >= 0f);
+            return Evaluate(names.Select(n => (n, ValueOf(n))).ToList());
+        }
+
+        /// <summary>The total TI across the same stats (what the game adds up for Terraformation).</summary>
+        public static double Total(PlanetData? data) =>
+            data is null ? 0 : Stats.Sum(n => data.Units.TryGetValue(n.ToLowerInvariant(), out var u) ? Math.Max(u.Value, 0) : 0);
+
+        /// <summary>Signed whole points for the middle of a dial: -21, +3, or a plain 0 when exactly fair.</summary>
+        public static string Signed(float deviation)
+        {
+            var rounded = (int)Math.Round(deviation);
+            return rounded == 0 ? "0" : (rounded < 0 ? "−" : "+") + Math.Abs(rounded);
+        }
+
+        public static string Tooltip(TiCategory category)
+        {
+            if (category.Status == TiStatus.Idle)
+                return $"{category.Name}: not started yet";
+
+            var direction = category.Deviation < 0 ? "below" : "above";
+            var text = $"{category.Name}: {category.Share:0.0}% of the total. " +
+                       $"{Math.Abs(category.Deviation):0.0} points {direction} an equal share " +
+                       $"({category.FairShare:0.0}%, split across {category.ActiveCount} categories).";
+
+            return category.Balanced ? text + " The planet is balanced, so nothing is flagged." : text;
+        }
+
+        public static string? StatusName(TiStatus status) => status switch
+        {
+            TiStatus.Good => "good",
+            TiStatus.Warn => "warn",
+            TiStatus.Crit => "crit",
+            _ => null
+        };
+
         // An idle category still shows how much TI it does have (say 0.4), never something non-numeric.
         private static float IdleValue(float value) => float.IsFinite(value) && value > 0f ? value : 0f;
 

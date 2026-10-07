@@ -21,6 +21,16 @@
     min-width: 0;
 }
 
+/* Click a gauge to see what makes that stat. */
+.ti-gauge.is-clickable {
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.ti-gauge.is-clickable:hover {
+    background: rgba(122, 184, 255, 0.07);
+}
+
 .ti-value {
     margin-top: -1px;
     font-size: 0.95rem;

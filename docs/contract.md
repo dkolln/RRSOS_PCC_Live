@@ -78,6 +78,8 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
 | `planet.units.energy` | The same numbers for power, in kW: increase is produced, decrease is used |
 | `planet.power` | Produced and used in kW, and each kind of generator with its count and current combined output (optimizer boosts included) |
 | `planet.rockets.<stat>` | Present only for stats that have launched rockets: how many, and the multiplier the game applies (a Tier 1 rocket is 10, so three Heat rockets are 30) |
+| `planet.units.purification` | Same shape as the other stats. The game parks `value` at -1 on a planet that does not need purification |
+| `planet.toxicity` | The game's Toxicity screen (plugin 0.14.0): `cleanedObjects` of `totalObjects` toxic goo objects cleaned, `cleanedAreas` of `totalAreas` toxic areas fully clean. Summed from the game's toxic areas handler; null when it is not there |
 | `vehicle.trunk` / `gear` | The truck's storage and its equipped modules |
 
 ## Rules
@@ -204,8 +206,24 @@ Two things used to pool every planet in a save together, which only mattered onc
 - The dashboard serves them at `/icons/<group id>.png` (a missing file is a 404) and shows each beside its name; nothing breaks without them. File names are the group
   id, with any character a file name cannot hold replaced by `_`.
 
+## What makes each planet stat (`terraformers.json`, added in plugin 0.13.0)
+
+- Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\terraformers.json`. Rewritten about every 3 seconds while a world is loaded (and only when its content changed); not written on the main menu,
+  where the last reading stays.
+- Shape: `{ "schema": 1, "planetHash": N, "units": { "oxygen": [ { "id": "Biodome2", "name": "Biodome", "count": 3, "each": 40000000, "total": 126000000, "unlocked": true } ], "heat": [...], ... } }`.
+  The units are `oxygen`, `heat`, `pressure`, `plants`, `insects`, `animals` and `purification`.
+- One entry for every building the game has that makes the stat, built or not (`GroupConstructible.GetGroupUnitGeneration(unit) > 0`), plus anything built that makes it:
+  - `each`: what one makes per second, from the game's building data.
+  - `count`, `active` and `total`: how many are built on **this planet**, how many of those are making some of the stat right now, and what they make together, the sum of each machine's own live
+    figure (`WorldObject.GetUnitGeneration`, optimizer boosts included; the same figure the power card uses). Rockets and other multipliers are not in it. `active` can be less than `count`
+    because a machine that makes its stat through what it holds (`WorldUnitGenerationViaInventory`: planters, spreaders and the like) reports 0 while it is empty, though it is built.
+  - `unlocked`: the game's own test for showing a building in its menus (`Group.GetUnlockingInfos().GetIsUnlocked(true)` or `Group.GetIsGloballyUnlocked()`), true whenever one is built.
+- The dashboard shows it when a planet gauge is clicked: strongest first, the not-unlocked ones greyed.
+
 ## Changes
 
+- **Plugin 0.14.0**: new `planet.toxicity` in `live.json`, and Toxic Water Collectors in `extractors[]` (kind `toxicwater`). See above.
+- **Plugin 0.13.0**: new file `terraformers.json` (see above). Nothing in the other files changes.
 - **Plugin 0.12.0**: the item icons, as PNG files (see above). Nothing in `live.json` or `live-world.json` changes.
 - **Plugin 0.11.0**: new file `pins.json` (see above).
 - **Plugin 0.9.0**: new file `recipes.json` (see above).
@@ -270,7 +288,7 @@ The plugin (0.3.0 and later) writes them to a second file beside it. The dashboa
 | `containers[]` | Placed objects with storage that hold something, within 220 m of some pod (widened from 120 m in plugin 0.10.0, for a large factory's farthest platforms). `items` is the main storage, `secondary` any secondary storage (a grower keeps its plants there). Items are counted by kind. `ready` (only when above zero) counts plants in `secondary` that have finished growing (growth 100). `label`/`labelName` (plugin 0.10.0 and later) are what the container is set for: a warehouse chest's demand item, or an autocrafter's chosen recipe (the same linked-group the game uses for an ore/gas extractor's product); null when nothing is picked |
 | `planetHash` | The game's hash for the planet (0.5.0 and later). Each object in a save carries it as `"planet"`, so the dashboard can keep only this planet's loose items from the save |
 | `loose[]` | **Gone in 0.5.0.** Loose items were read live up to 0.4.1, but the counts were unreliable; the dashboard now reads them from the save (see "The boneyard" below) |
-| `extractors[]` | Ore, gas, water and algae machines. `kind` is `ore`, `gas`, `water` or `algae`. `product` and `productName` are what an ore or gas extractor is set to produce (null for water and algae). `size` is its slot count, `count` how many items it holds, `productCount` how many of those are the product, `ready` (algae) how many have finished growing. `items` is everything in it, by kind |
+| `extractors[]` | Ore, gas, water, toxic water and algae machines. `kind` is `ore`, `gas`, `water`, `toxicwater` (the Toxic Water Collector, plugin 0.14.0) or `algae`. `product` and `productName` are what an ore or gas extractor is set to produce (null for water and algae). `size` is its slot count, `count` how many items it holds, `productCount` how many of those are the product, `ready` (algae) how many have finished growing. `items` is everything in it, by kind |
 | `position` | Raw world position, two decimals. Compass conventions belong to the reader, as in `live.json` |
 
 Everything is limited to the planet the player is on.
