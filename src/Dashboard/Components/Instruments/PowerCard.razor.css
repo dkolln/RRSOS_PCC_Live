@@ -101,6 +101,49 @@
     color: #c8e4ff;
 }
 
+.tox-bars {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.tox-bar-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 3px;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    color: #7f9db9;
+}
+
+.tox-bar-head span:last-child {
+    color: #c8e4ff;
+    font-weight: bold;
+}
+
+.tox-bar-track {
+    height: 10px;
+    border-radius: 5px;
+    background: #0d1620;
+    border: 1px solid #1a2a3a;
+    overflow: hidden;
+}
+
+.tox-bar-fill {
+    height: 100%;
+    background: #7ab8ff;
+    transition: width 0.4s ease;
+}
+
+.tox-bar-fill.is-done {
+    background: #4fd18b;
+}
+
 .tox-sub {
     margin-top: 2px;
     font-size: 0.75rem;

@@ -32,7 +32,7 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
 - Six terraformation dials (oxygen, heat, pressure, plants, insects, animals) with live per-second rates and the rocket
   count and multiplier under each, the total TI, a **Phases** row and the **Power / Toxicity** card. Power is the power dial with one icon per generator. Toxicity (on a
   planet that has purification or toxic goo) has the **Purification** dial, balanced against the other stats like they are and counted in
-  the total TI, and **Cleanup**: how much goo and how many toxic areas are cleaned (plugin 0.14.0). The other tab's headline
+  the total TI, and two **progress bars**: goo collected and toxic areas cleaned (plugin 0.14.0). The tab you pick is remembered. The other tab's headline
   (surplus or deficit, or the purification total) sits at the right of the card header. Under it, a notes card.
 - **Click a gauge** (oxygen, heat, pressure, plants, insects, animals, purification) to see every building the game has that makes that
   stat, strongest first: how many you have built, what one makes, and what they make together right now (each machine's own
@@ -76,7 +76,7 @@ from anywhere else.
 
 **Also**
 - **Spoken alerts**, through a Windows voice (a picker next to the volume slider lists every one installed; your pick
-  and the volume are both remembered): low oxygen, health and thirst; a trade or interplanetary-exchange rocket
+  and the volume are both remembered): low oxygen, health and thirst, and toxicity ("Toxicity is low" at half your tolerance left, "critical" at a fifth); a trade or interplanetary-exchange rocket
   departing or arriving; a terraformation phase completing or the next one starting, and once per planet,
   "Terraformation is complete". Two landing close together are both heard in full (they queue, with a short pause,
   rather than a newer one cutting an older one off).
