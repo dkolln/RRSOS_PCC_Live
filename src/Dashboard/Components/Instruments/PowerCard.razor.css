@@ -134,13 +134,30 @@
     overflow: hidden;
 }
 
-.tox-bar-fill {
-    height: 100%;
-    background: #7ab8ff;
-    transition: width 0.4s ease;
+.tox-bar-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.tox-bar-fill.is-done {
+.tox-bar-head span:last-child {
+    flex-shrink: 0;
+}
+
+.tox-bar-fill {
+    height: 100%;
+    background: #ff6b6b;
+    transition: width 0.4s ease, background-color 0.4s ease;
+}
+
+.tox-bar-fill.is-warn {
+    background: #ffd86b;
+}
+
+.tox-bar-fill.is-good {
     background: #4fd18b;
 }
 
