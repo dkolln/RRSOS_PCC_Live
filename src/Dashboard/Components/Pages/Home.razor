@@ -534,6 +534,12 @@
 
         if      (th < 0.2f) Speak("th-crit", "Thirst is critical");
         else if (th < 0.5f) Speak("th-low",  "Thirst is low");
+
+        // The toxicity gauge fills as you are exposed, so half of your tolerance left is 0.5 full and a fifth left is 0.8 full (the gauge's own zones).
+        var tox = Fraction(vitals.Toxic, player.VitalsMax?.Toxic, 100);
+
+        if      (tox > 0.8f) Speak("tox-crit", "Toxicity is critical");
+        else if (tox > 0.5f) Speak("tox-low",  "Toxicity is low");
     }
 
     private void Speak(string key, string text) => Speech.Alert(key, text, _volume, AlertCooldown);

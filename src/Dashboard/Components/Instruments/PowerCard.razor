@@ -1,24 +1,25 @@
 @inject IconCatalog Icons
+@inject IJSRuntime JS
 
 @* Power straight from the game: what is produced and used, with a picture per generator. *@
 <div class="power @(Dim ? "is-dim" : "")">
     <div class="power-title">
-        <button type="button" class="power-tab @(ShowToxicity ? "" : "is-on")" @onclick="() => _tab = Tab.Power">Power</button>
+        <button type="button" class="power-tab @(ShowToxicity ? "" : "is-on")" @onclick="() => ChooseTab(Tab.Power)">Power</button>
         @if (HasToxicity)
         {
-            <button type="button" class="power-tab @(ShowToxicity ? "is-on" : "")" @onclick="() => _tab = Tab.Toxicity">Toxicity</button>
+            <button type="button" class="power-tab @(ShowToxicity ? "is-on" : "")" @onclick="() => ChooseTab(Tab.Toxicity)">Toxicity</button>
         }
 
         @* The other tab's headline, so it never goes out of sight. *@
         @if (ShowToxicity && Data is not null)
         {
-            <button type="button" class="power-aside power-figure @FigureClass" @onclick="() => _tab = Tab.Power" title="Power: @FigureLabel. Click to show Power.">
+            <button type="button" class="power-aside power-figure @FigureClass" @onclick="() => ChooseTab(Tab.Power)" title="Power: @FigureLabel. Click to show Power.">
                 <span class="lbl">@FigureLabel</span> <span class="num">@Kw(Math.Abs(Data.ProducedKw - Data.UsedKw))</span>
             </button>
         }
         else if (!ShowToxicity && NeedsPurification)
         {
-            <button type="button" class="power-aside" @onclick="() => _tab = Tab.Toxicity" title="Purification. Click to show Toxicity.">
+            <button type="button" class="power-aside" @onclick="() => ChooseTab(Tab.Toxicity)" title="Purification. Click to show Toxicity.">
                 <span class="lbl">Purification</span> <span class="num">@Compass.Abbreviate(Purification!.Value)</span>
             </button>
         }
@@ -48,15 +49,21 @@
                 </div>
             }
 
-            <div class="tox-gauge" title="@CleanupTitle">
-                <Gauge Label="Cleanup"
-                       Value="@CleanupFraction"
-                       Unknown="@(Toxicity is null || Toxicity.TotalObjects <= 0)"
-                       DisplayText="@CleanupText"
-                       WarnAt="0f" CritAt="0f" />
-                @if (Toxicity is { TotalObjects: > 0 })
+            <div class="tox-bars" title="@CleanupTitle">
+                @if (Toxicity is { TotalObjects: > 0 } t)
                 {
-                    <div class="tox-sub">Goo @Toxicity.CleanedObjects/@Toxicity.TotalObjects · Areas @Toxicity.CleanedAreas/@Toxicity.TotalAreas</div>
+                    <div class="tox-bar">
+                        <div class="tox-bar-head"><span>Goo collected</span><span>@t.CleanedObjects / @t.TotalObjects</span></div>
+                        <div class="tox-bar-track"><div class="tox-bar-fill @(t.CleanedObjects >= t.TotalObjects ? "is-done" : "")" style="width: @Pct(t.CleanedObjects, t.TotalObjects)"></div></div>
+                    </div>
+                    <div class="tox-bar">
+                        <div class="tox-bar-head"><span>Areas cleaned</span><span>@t.CleanedAreas / @t.TotalAreas</span></div>
+                        <div class="tox-bar-track"><div class="tox-bar-fill @(t.CleanedAreas >= t.TotalAreas ? "is-done" : "")" style="width: @Pct(t.CleanedAreas, t.TotalAreas)"></div></div>
+                    </div>
+                }
+                else
+                {
+                    <div class="power-empty">no cleanup reading yet</div>
                 }
             </div>
         </div>
@@ -130,7 +137,43 @@
 
     private enum Tab { Power, Toxicity }
 
+    private const string TabKey = "pcc.powerCardTab";
+
     private Tab _tab = Tab.Power;
+
+    // The pick is kept in this browser, so a page refresh (or the card being rebuilt when the data goes away and comes back) lands on the same tab.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            if (await JS.InvokeAsync<string?>("localStorage.getItem", TabKey) == "toxicity")
+            {
+                _tab = Tab.Toxicity;
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // No storage (a private window) or the circuit is gone: stay on Power.
+        }
+    }
+
+    private async Task ChooseTab(Tab tab)
+    {
+        _tab = tab;
+
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", TabKey, tab == Tab.Toxicity ? "toxicity" : "power");
+        }
+        catch (Exception)
+        {
+            // This visit only.
+        }
+    }
 
     private PowerData? Data => Planet?.Power;
 
@@ -154,9 +197,8 @@
     [Parameter]
     public EventCallback<string> OnSelect { get; set; }
 
-    private float CleanupFraction => Toxicity is { TotalObjects: > 0 } t ? (float)t.CleanedObjects / t.TotalObjects : 0f;
-
-    private string CleanupText => Toxicity is { TotalObjects: > 0 } ? $"{(int)Math.Floor(CleanupFraction * 100f)}%" : "--";
+    private static string Pct(int done, int total) =>
+        total <= 0 ? "0%" : (Math.Clamp(done / (double)total, 0, 1) * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
 
     private string CleanupTitle => Toxicity is { TotalObjects: > 0 } t
         ? $"Cleanup: {t.CleanedObjects} of {t.TotalObjects} toxic objects cleaned, {t.CleanedAreas} of {t.TotalAreas} areas fully clean. This is the game's Toxicity screen."
