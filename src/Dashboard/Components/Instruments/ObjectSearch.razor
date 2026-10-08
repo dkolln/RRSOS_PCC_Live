@@ -6,7 +6,7 @@
 @inject NotebookService Notebook
 
 <div class="object-search">
-    <input class="object-search-input" placeholder="Search objects by name or id…"
+    <input class="object-search-input" placeholder="@Placeholder"
            value="@_query" @oninput="OnInput" @onkeydown="OnKeyDown" spellcheck="false" autocomplete="off" />
 
     @if (Query.Length > 0)
@@ -26,10 +26,20 @@
                     var index = i;
 
                     <div class="object-search-row @(index == Selected(matches.Count) ? "is-selected" : "")"
-                         role="button" title="Click to add to the notes: @name = @gId"
-                         @onclick="() => AddAsync(matches[index])">
+                         role="button" title="@(OnPickBreakdown.HasDelegate ? name : OnPick.HasDelegate ? $"Click to add {name}" : $"Click to add to the notes: {name} = {gId}")"
+                         @onclick="() => OnRowClick(matches[index])">
                         <span class="object-search-name">@name</span>
                         <span class="object-search-gid">@gId</span>
+                        @if (OnPickBreakdown.HasDelegate)
+                        {
+                            @* Two ways to add it: just the item, or the item with what it takes to make (as if it had been pinned in the game). *@
+                            <span class="object-search-actions">
+                                <button type="button" class="object-search-act" title="Add just @name" @onclick="() => AddAsync(matches[index])" @onclick:stopPropagation="true">item</button>
+                                <button type="button" class="object-search-act" disabled="@(!CanBreakdown(gId))"
+                                        title="@(CanBreakdown(gId) ? $"Add {name} with what it takes to make" : "No recipe for this one")"
+                                        @onclick="() => AddBreakdownAsync(matches[index])" @onclick:stopPropagation="true">breakdown</button>
+                            </span>
+                        }
                     </div>
                 }
             </div>
@@ -42,12 +52,45 @@
     }
     else if (_added is not null)
     {
-        <div class="object-search-added">Added to notes: @_added</div>
+        <div class="object-search-added">@(OnPick.HasDelegate ? "Added" : "Added to notes"): @_added</div>
     }
 </div>
 
 @code {
     private const int MaxRows = 50;
+
+    /// <summary>When set, picking a match hands it to this instead of adding a note (the shopping list uses it to add an item).</summary>
+    [Parameter]
+    public EventCallback<(string GId, string Name)> OnPick { get; set; }
+
+    /// <summary>When set, each match offers a second button that hands it to this: the item with its breakdown (what it takes to make).</summary>
+    [Parameter]
+    public EventCallback<(string GId, string Name)> OnPickBreakdown { get; set; }
+
+    /// <summary>Whether an item has a breakdown to offer (the second button is greyed when not).</summary>
+    [Parameter]
+    public Func<string, bool>? HasBreakdown { get; set; }
+
+    private bool CanBreakdown(string gId) => HasBreakdown?.Invoke(gId) ?? true;
+
+    // With two buttons per row, only they add (a click on the row itself does nothing).
+    private async Task OnRowClick((string GId, string Name) match)
+    {
+        if (!OnPickBreakdown.HasDelegate)
+            await AddAsync(match);
+    }
+
+    private async Task AddBreakdownAsync((string GId, string Name) match)
+    {
+        await OnPickBreakdown.InvokeAsync(match);
+
+        _added = match.Name + " and its breakdown";
+        _query = "";
+        _selected = 0;
+    }
+
+    [Parameter]
+    public string Placeholder { get; set; } = "Search objects by name or id…";
 
     private string _query = "";
     private int _more;
@@ -94,8 +137,18 @@
 
     private async Task AddAsync((string GId, string Name) match)
     {
-        var text = $"{match.Name} = {match.GId}";
-        await Notebook.AddNoteAsync(text);
+        string text;
+
+        if (OnPick.HasDelegate)
+        {
+            text = match.Name;
+            await OnPick.InvokeAsync(match);
+        }
+        else
+        {
+            text = $"{match.Name} = {match.GId}";
+            await Notebook.AddNoteAsync(text);
+        }
 
         _added = text;
         _query = "";

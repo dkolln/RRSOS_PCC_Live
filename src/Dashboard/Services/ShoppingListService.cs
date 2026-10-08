@@ -53,6 +53,38 @@ namespace RRSOS.PCC.Dashboard
                 .OrderBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
 
+        /// <summary>
+        /// Adds one single item (a fuse, say) by hand, next to the recipes pinned in the game. It is its own ingredient, so it lands in the totals by itself and
+        /// adds up with the same item wanted by a recipe; with a <paramref name="breakdown"/> it is what the item takes to make instead, as for a pinned recipe.
+        /// Adding one already on the list wants one more.
+        /// </summary>
+        public void AddItem(string id, string name, IReadOnlyList<ShoppingIngredient>? breakdown = null) =>
+            Edit(f =>
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                    return false;
+
+                if (f.Items.FirstOrDefault(e => e.Id == id) is { } existing)
+                {
+                    existing.Qty++;
+
+                    // Asking for the breakdown of something added as a plain item gives it its ingredients.
+                    if (breakdown is { Count: > 0 })
+                        existing.Ingredients = breakdown.Select(i => new ShoppingIngredient { Id = i.Id, Name = i.Name, Count = i.Count }).ToList();
+
+                    return true;
+                }
+
+                f.Items.Add(new ShoppingEntry
+                {
+                    Id = id, Name = string.IsNullOrWhiteSpace(name) ? id : name, Qty = 1, Added = DateTime.UtcNow,
+                    Ingredients = breakdown is { Count: > 0 }
+                        ? breakdown.Select(i => new ShoppingIngredient { Id = i.Id, Name = i.Name, Count = i.Count }).ToList()
+                        : new List<ShoppingIngredient> { new() { Id = id, Name = string.IsNullOrWhiteSpace(name) ? id : name, Count = 1 } }
+                });
+                return true;
+            });
+
         public void Remove(string id) => Edit(f => f.Items.RemoveAll(e => e.Id == id) > 0);
 
         public void Clear() => Edit(f => { var any = f.Items.Count > 0; f.Items.Clear(); return any; });

@@ -46,7 +46,7 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
 right of the screen) lands here and **stays after the pin is cleared**, so the game's few pin slots are no limit. Each
 entry has a quantity (− / +) and a ✕; below them, the **totals** of every ingredient across the whole list. A total turns
 **yellow** when your backpack holds some of it and **green** when it holds all of it. An **ids** switch shows game ids
-instead of names where space is tight. Pinning something already on the list does not add it twice. The list is kept in
+instead of names where space is tight. Pinning something already on the list does not add it twice. **+ item** opens a search box. Each match has two buttons: **item** adds just that item (the fuses to go in an enhancer, say) as its own line and total, and **breakdown** adds it the way a pinned recipe is added, the item on top and what it takes to make below (greyed when the game has no recipe for it). Picking one already there wants one more. The list is kept in
 `shopping-list.json`; the dashboard has to be running while you pin.
 
 **Icons**: the game's own icon for every item and building sits beside its name in the backpack, gear, trunk, base and
