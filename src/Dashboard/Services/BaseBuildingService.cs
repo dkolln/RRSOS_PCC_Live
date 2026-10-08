@@ -323,6 +323,25 @@ namespace RRSOS.PCC.Dashboard
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was removed. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "removing the warehouse");
 
+        /// <summary>The teleporter site this beacon would get (read-only; null when the save cannot be read).</summary>
+        public Task<TeleportPlan?> PlanTeleporterAsync(string savePath, long beaconId, bool faceAway) => Task.Run(() =>
+        {
+            var text = ReadText(savePath, out _);
+            return text is null ? (TeleportPlan?)null : BaseBuildingEngine.PlanTeleporter(text, beaconId, faceAway, IsBuilding);
+        });
+
+        /// <summary>
+        /// Builds the teleporter site into the save: the plan is worked out again from the file as it is right now, then written with a backup
+        /// (see <see cref="SaveResupplyService.EditAsync{T}"/>). The game must be at its main menu.
+        /// </summary>
+        public Task<SaveEdit<TeleportOutcome>> BuildTeleporterAsync(string savePath, long beaconId, bool faceAway, string? label) =>
+            _saves.EditAsync<TeleportOutcome>(savePath, text =>
+            {
+                var plan = BaseBuildingEngine.PlanTeleporter(text, beaconId, faceAway, IsBuilding);
+                var outcome = BaseBuildingEngine.ApplyTeleporter(text, plan, label);
+                return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
+            }, "building the teleporter");
+
         private BuildPlan MakePlan(string text, long beaconId, BuildTemplate template, BuildRecipe recipe) =>
             recipe.Warehouse ? BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding, WarehouseDepth)
             : recipe.Bundles is not null ? BaseBuildingEngine.Plan(text, beaconId, template, recipe.Bundles, IsBuilding)

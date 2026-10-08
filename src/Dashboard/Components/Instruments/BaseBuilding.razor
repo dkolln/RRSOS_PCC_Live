@@ -8,6 +8,19 @@
 
 <section class="bb">
     <h2>Base Building</h2>
+
+    @* The templates: each is its own page under here. *@
+    <nav class="bb-sub">
+        <button class="bb-sub-btn @(_sub == Sub.Warehouse ? "is-active" : "")" @onclick="() => _sub = Sub.Warehouse">Warehouse</button>
+        <button class="bb-sub-btn @(_sub == Sub.Teleporter ? "is-active" : "")" @onclick="() => _sub = Sub.Teleporter">Teleporter</button>
+    </nav>
+
+    @if (_sub == Sub.Teleporter)
+    {
+        <BaseBuildingTeleport SavePath="@SavePath" GameLive="@GameLive" />
+    }
+    else
+    {
     <p class="hint">
         Place a foundation with a <strong>beacon</strong> on it, named for what the row is for (like <code>Fish</code>), turned to point
         the way the row should grow. Save, then pick it here: the row is built from the platform the beacon points at, out in that
@@ -263,9 +276,14 @@
             }
         }
     }
+    }
 </section>
 
 @code {
+    private enum Sub { Warehouse, Teleporter }
+
+    private Sub _sub = Sub.Warehouse;
+
     [Parameter] public string SavePath { get; set; } = "";
 
     /// <summary>True while the game has a world loaded: the save would only be overwritten.</summary>

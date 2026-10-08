@@ -133,7 +133,10 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   written until **TRANSFER**, which applies everything as one edit, backed up first, and refuses to write unless the
   result is exactly the original save with only those units' item lists changed and the trashed items' and crates'
   records gone.
-- **Base Building**: builds a whole row of storage.
+- **Base Building** has a sub-menu of templates: **Warehouse** (below) and **Teleporter**. Teleporter: put a foundation with a beacon named
+  `Teleport` on it, pointing the way the teleporter should go; the build adds a foundation behind it and a teleporter on it facing away
+  from the beacon (or toward it, your choice), with an optional name (the teleporter stands a metre further along the way it faces, so its back does not overhang the beacon's foundation). Only buildings are checked for room, not the ground.
+- **Base Building, Warehouse**: builds a whole row of storage.
   1. Place a foundation with a **beacon** whose text names the job (for example "Fish"); the way the beacon faces is
      the way the row grows.
   2. Build one platform of chests (Container1, 2 or 3) as a sample and **capture** it as a template.

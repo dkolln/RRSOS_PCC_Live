@@ -1,0 +1,236 @@
+@inject BaseBuildingService Building
+@inject ToastService Toasts
+@inject PlanetNames Planets
+@inject IJSRuntime JS
+
+@* The Teleporter template: a beacon named for it (like "Teleport") on a foundation; the build adds the platform behind it, the way the beacon points,
+   with a teleporter on it facing away. Same rules as the other builds: it writes into the save (with a backup first), so the game must be at the main menu. *@
+<div class="bt">
+    <p class="hint">
+        Place a foundation with a <strong>beacon</strong> on it, named <code>Teleport</code>, turned to point the way the teleporter should go. Save, then pick it
+        here: a foundation is added behind the beacon, and a teleporter on it facing away from the beacon. Building writes into the save (with a backup first),
+        so do it with the game at the main menu. <strong>Only buildings are checked for room, not the ground</strong>, so make sure the spot is clear and flat.
+    </p>
+
+    @if (string.IsNullOrEmpty(SavePath))
+    {
+        <p class="hint">Choose a save above.</p>
+    }
+    else if (_error is not null)
+    {
+        <p class="bb-problem">@_error</p>
+    }
+    else
+    {
+        <h3>Teleport beacons in this save</h3>
+        @if (_beacons.Count == 0)
+        {
+            <p class="hint">No beacon named <code>Teleport</code> found (any name starting with it works, like <code>Teleport North</code>).</p>
+        }
+
+        @foreach (var b in _beacons)
+        {
+            <div class="bb-card @(b.Id == _beaconId ? "is-picked" : "")" @key="b.Id">
+                <div class="bb-card-head">
+                    <label class="bb-pick">
+                        <input type="radio" name="teleport-beacon" checked="@(b.Id == _beaconId)" @onchange="() => PickBeacon(b)" />
+                        <strong>@b.Text</strong>
+                        @if (Planets.NameOf(b.PlanetHash) is { Length: > 0 } planet)
+                        {
+                            <span class="bb-planet">@planet</span>
+                        }
+                    </label>
+                    <span class="bb-muted">points @Compass(b) · @(b.FoundationId is null ? "not on a foundation" : "on a foundation")</span>
+                </div>
+                <div class="bb-muted">north @b.X.ToString("0.#") · east @((-b.Z).ToString("0.#")) · yaw @b.YawDegrees.ToString("0")°</div>
+            </div>
+        }
+
+        @if (_beaconId != 0)
+        {
+            <h3>Plan</h3>
+            <div class="bb-controls">
+                <label>Name
+                    <input class="bt-name" maxlength="@BaseBuildingEngine.MaxTeleporterLabel" placeholder="optional" value="@_label" @oninput="OnLabel" />
+                </label>
+                <label>Facing
+                    <select @onchange="OnFacing">
+                        <option value="away" selected="@_faceAway">away from the beacon</option>
+                        <option value="toward" selected="@(!_faceAway)">toward the beacon</option>
+                    </select>
+                </label>
+            </div>
+
+            @if (_plan is null)
+            {
+                <p class="hint">Working out the plan…</p>
+            }
+            else if (_plan.Problems.Count > 0)
+            {
+                @foreach (var p in _plan.Problems)
+                {
+                    <p class="bb-problem">@p</p>
+                }
+            }
+            else
+            {
+                <p class="bb-summary">
+                    A teleporter@(CalledText) on @(_plan.FoundationExists ? "the foundation already" : "a new foundation") 6 m @Compass(_plan.Beacon!)
+                    of the beacon, at north <strong>@_plan.PlatformX.ToString("0.#")</strong> · east <strong>@((-_plan.PlatformZ).ToString("0.#"))</strong>,
+                    facing @(_faceAway ? "away from" : "toward") the beacon.
+                </p>
+
+                @foreach (var c in _plan.Conflicts)
+                {
+                    <p class="bb-problem">Not clear: @c</p>
+                }
+
+                <button class="resupply-btn" disabled="@(!CanBuild)" @onclick="Build">
+                    @(_busy ? "BUILDING..." : "BUILD TELEPORTER")
+                </button>
+                @if (GameLive)
+                {
+                    <p class="bb-problem">The game is running a world. Exit to the main menu first.</p>
+                }
+            }
+
+            @if (_message is not null)
+            {
+                <p class="@(_ok ? "bb-ok" : "bb-problem")">@_message</p>
+            }
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string SavePath { get; set; } = "";
+
+    /// <summary>True while the game has a world loaded: the save would only be overwritten.</summary>
+    [Parameter] public bool GameLive { get; set; }
+
+    private const string BeaconPrefix = "Teleport";
+
+    private string _loadedFor = "";
+    private string? _error;
+    private IReadOnlyList<BuildBeacon> _beacons = Array.Empty<BuildBeacon>();
+    private long _beaconId;
+    private bool _faceAway = true;
+    private string _label = "";
+    private TeleportPlan? _plan;
+    private bool _busy;
+    private string? _message;
+    private bool _ok;
+
+    private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SavePath == _loadedFor)
+            return;
+
+        _loadedFor = SavePath;
+        _beaconId = 0;
+        _plan = null;
+        _error = null;
+
+        if (string.IsNullOrEmpty(SavePath) || !File.Exists(SavePath))
+        {
+            _beacons = Array.Empty<BuildBeacon>();
+            return;
+        }
+
+        var (beacons, error) = await Building.ScanAsync(SavePath);
+        _error = error;
+
+        // Only beacons named for it: "Teleport", "Teleport North", ... (not "Teleporter" for some other job, or a row's beacon).
+        _beacons = beacons.Where(b => b.Text.StartsWith(BeaconPrefix, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (_beacons.Count == 1)
+            await PickBeacon(_beacons[0]);
+    }
+
+    private async Task PickBeacon(BuildBeacon b)
+    {
+        _beaconId = b.Id;
+        await Replan();
+    }
+
+    private void OnLabel(ChangeEventArgs e) => _label = e.Value?.ToString() ?? "";
+
+    private string CalledText => string.IsNullOrWhiteSpace(_label) ? "" : " called " + (char)34 + _label.Trim() + (char)34;
+
+    private async Task OnFacing(ChangeEventArgs e)
+    {
+        _faceAway = e.Value?.ToString() != "toward";
+        await Replan();
+    }
+
+    private async Task Replan()
+    {
+        _plan = null;
+        if (_beaconId == 0)
+            return;
+
+        var beacon = _beaconId;
+        var faceAway = _faceAway;
+        var plan = await Building.PlanTeleporterAsync(SavePath, beacon, faceAway);
+
+        if (beacon == _beaconId && faceAway == _faceAway)
+            _plan = plan;
+    }
+
+    private async Task Build()
+    {
+        if (!CanBuild || _plan is null)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Have you exited to the Main Menu?\n\nBUILD TELEPORTER adds {(_plan.FoundationExists ? "a teleporter" : "a foundation and a teleporter")} to your save file. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        _message = null;
+        StateHasChanged();
+
+        try
+        {
+            var edit = await Building.BuildTeleporterAsync(SavePath, _beaconId, _faceAway, _label);
+
+            if (!edit.Success || edit.Result is null)
+            {
+                _ok = false;
+                _message = edit.Error ?? "The build failed.";
+                Toasts.Show("Building the teleporter failed. " + _message, ToastKind.Error, TimeSpan.FromSeconds(9));
+            }
+            else
+            {
+                _ok = true;
+                _message = $"Built: {(edit.Result.Foundations > 0 ? "a foundation and " : "")}a teleporter. Backup: {edit.BackupPath}";
+                Toasts.Show("Built a teleporter", ToastKind.Success);
+            }
+
+            _loadedFor = ""; // read the save again: the teleporter is in it now
+            var keep = _message;
+            var keepOk = _ok;
+            await OnParametersSetAsync();
+            _message = keep;
+            _ok = keepOk;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // North is +x and east is -z in the save; a beacon pointing +x points north.
+    private static string Compass(BuildBeacon b) => (b.DirX, b.DirZ) switch
+    {
+        (1, _) => "north",
+        (-1, _) => "south",
+        (_, 1) => "west",
+        _ => "east"
+    };
+}
