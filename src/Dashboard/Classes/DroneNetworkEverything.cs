@@ -2,6 +2,9 @@ namespace RRSOS.PCC.Dashboard
 {
     public static partial class DroneNetworkEngine
     {
+        /// <summary>The same list, for builds that have no save list to learn it from (the Main Base template's "supply everything").</summary>
+        internal static IReadOnlyList<string> EverythingFallback => FallbackEverything;
+
         /// <summary>
         /// What the game's "Supply everything" writes, in its own order, as of the owner's Custom-1 save. Used only when the
         /// save being edited has no drone settings to learn the list from; otherwise the save's own lists win, since the

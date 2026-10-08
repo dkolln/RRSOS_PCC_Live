@@ -12,12 +12,17 @@
     @* The templates: each is its own page under here. *@
     <nav class="bb-sub">
         <button class="bb-sub-btn @(_sub == Sub.Warehouse ? "is-active" : "")" @onclick="() => _sub = Sub.Warehouse">Warehouse</button>
+        <button class="bb-sub-btn @(_sub == Sub.MainBase ? "is-active" : "")" @onclick="() => _sub = Sub.MainBase">Main Base</button>
         <button class="bb-sub-btn @(_sub == Sub.Teleporter ? "is-active" : "")" @onclick="() => _sub = Sub.Teleporter">Teleporter</button>
     </nav>
 
     @if (_sub == Sub.Teleporter)
     {
         <BaseBuildingTeleport SavePath="@SavePath" GameLive="@GameLive" />
+    }
+    else if (_sub == Sub.MainBase)
+    {
+        <BaseBuildingMainBase SavePath="@SavePath" GameLive="@GameLive" />
     }
     else
     {
@@ -280,7 +285,7 @@
 </section>
 
 @code {
-    private enum Sub { Warehouse, Teleporter }
+    private enum Sub { Warehouse, MainBase, Teleporter }
 
     private Sub _sub = Sub.Warehouse;
 

@@ -38,13 +38,13 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
   stat, strongest first: how many you have built, what one makes, and what they make together right now (each machine's own
   figure, boosts included). Buildings you have not unlocked yet are shown in grey with a lock, and a tick hides them;
   you can sort by what they make now or by what one makes. (Plugin 0.13.0, `terraformers.json`.)
-- **Phases**: the current planet's own named terraformation milestones (the game's "progress" screen — Lakes, Animals,
+- **Phases**: the current planet's own named terraformation milestones (the game's "progress" screen â€” Lakes, Animals,
   Complete Transformation, ...; not every one lines up with a gauge), each planet with its own list: solid once
   complete, flashing for the one in progress, plain for the rest, with a live percentage toward the next one.
 
 **Shopping list (right, under the detail card)**: every recipe you pin in the game (the Blueprint pinning microchip, top
 right of the screen) lands here and **stays after the pin is cleared**, so the game's few pin slots are no limit. Each
-entry has a quantity (− / +) and a ✕; below them, the **totals** of every ingredient across the whole list. A total turns
+entry has a quantity (âˆ’ / +) and a âœ•; below them, the **totals** of every ingredient across the whole list. A total turns
 **yellow** when your backpack holds some of it and **green** when it holds all of it. An **ids** switch shows game ids
 instead of names where space is tight. Pinning something already on the list does not add it twice. **+ item** opens a search box. Each match has two buttons: **item** adds just that item (the fuses to go in an enhancer, say) as its own line and total, and **breakdown** adds it the way a pinned recipe is added, the item on top and what it takes to make below (greyed when the game has no recipe for it). Picking one already there wants one more. The list is kept in
 `shopping-list.json`; the dashboard has to be running while you pin.
@@ -64,11 +64,11 @@ from anywhere else.
   **boneyard** (loose ore, alloy, quartz and rods lying around, read from the last save), the **floor plan**, and, once
   that base has a factory, a **Factory card**: which products its autocrafters are short of ingredients for, click a
   line to see which crafters.
-- **Floor plan**: the base drawn from above, one floor at a time (▲/▼, or it follows the floor you stand on): pods, walls,
+- **Floor plan**: the base drawn from above, one floor at a time (â–²/â–¼, or it follows the floor you stand on): pods, walls,
   windows and doors, foundations, platforms (launch, vehicle, trade, **the departure platform**), domes, labs, ladders,
   containers and you.
 - **Drones**: flying drones with their tasks and cargo, and every drone station with what is docked in it. The map opens
-  itself the moment a drone takes off and closes back to Base once every one has landed; a 📌 pin stops that when you
+  itself the moment a drone takes off and closes back to Base once every one has landed; a ðŸ“Œ pin stops that when you
   want to stay put (picking the drone view by hand pins it, picking anything else un-pins it).
 - **Vehicles**: every truck (Truck 1, 2, ...), where it is or that it is stowed, its trunk and modules.
 - **Extractors**: every ore, gas, water, toxic water and algae machine, grouped, with fill level, position, and distance and
@@ -100,14 +100,14 @@ backup first, writes atomically, and is refused unless undoing it would give bac
 
 - **Resupply**: a configurable list of items to top up in your inventories. With a save that has labelled containers
   on more than one planet, a **Planet** picker scopes RESUPPLY to the one chosen (does not depend on a warehouse beacon
-  — a planet with none named "All" still works).
+  â€” a planet with none named "All" still works).
 - **Drone Network**: sets which containers supply and which demand, so drones move things without hand setup. A
   container is either a demand sink or a supply source; producers supply what they hold, extractors and ecosystems
   supply everything. Pick which producers and consumers to switch on, and choose the item a container demands. Same
   **Planet** picker as Resupply when more than one planet has producers or containers. Each producer says what it is
   set to supply now ("Supplies everything (206 items)", or the names), and where a pending change names items it shows
-  each one's icon and name ("→ will supply 🍯 Honey"). A producer set to something other than what it makes has **Fix**,
-  which sets it to the usual items for its kind, and **Choose…**, which offers each item that kind makes, one at a time or
+  each one's icon and name ("â†’ will supply ðŸ¯ Honey"). A producer set to something other than what it makes has **Fix**,
+  which sets it to the usual items for its kind, and **Chooseâ€¦**, which offers each item that kind makes, one at a time or
   all together; the item box also takes several ids separated by commas (`honey,Bee1Larvae`). The usual items come from
   `producer-supply-defaults.json` beside the dashboard's other files, written once with `Beehive2` = honey and
   Bee1Larvae (a hive holds only what it has made so far, so what it holds is no guide to what it makes) and yours to
@@ -127,13 +127,19 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   name ("Tree Bark") unless you tick **Show gIds** for the label exactly as typed; a unit with none says "No Label". A
   container, locker, vault or refrigerator within 200 m of the planet's warehouse beacon (the one named All) has its
   label in **green**, so the warehouse stands out from the rest. An
-  empty container, locker, vault or refrigerator (empty counting what you have moved out of it here) gets a small 🗑 box:
-  it puts the crate in the trash (↩ keeps it), and TRANSFER deletes the building and its inventory from the save, the
+  empty container, locker, vault or refrigerator (empty counting what you have moved out of it here) gets a small ðŸ—‘ box:
+  it puts the crate in the trash (â†© keeps it), and TRANSFER deletes the building and its inventory from the save, the
   way a warehouse removal does. Backpacks, trunks, rockets and the escape storage are never deleted. Nothing is
   written until **TRANSFER**, which applies everything as one edit, backed up first, and refuses to write unless the
   result is exactly the original save with only those units' item lists changed and the trashed items' and crates'
   records gone.
-- **Base Building** has a sub-menu of templates: **Warehouse** (below) and **Teleporter**. Teleporter: put a foundation with a beacon named
+- **Base Building** has a sub-menu of templates: **Warehouse** (below), **Main Base** and **Teleporter**. **Main Base** builds the whole base the owner designed
+  (685 objects: 387 foundations, pods and domes, power, crafting, farms, drone stations, signs...) from a beacon named `Base` on a foundation (or, early in a game before beacons exist, an **outdoor lamp** on a foundation: the foundation under it is the start and its facing the direction), turned to whichever of the four
+  directions the beacon points, with a preview drawing. Heights follow the beacon's foundation; only buildings are checked for room, not the ground (it is about 114 m by 162 m).
+  The drone stations are filled with T3 drones (optional tick), and what the machines held can be put back (optional tick, off); optimizers always come with their fuses. The drone supply settings come along: storage
+  crates supply everything only on the one labelled `Supplier`, the `Misc` crates supply nothing, beehives supply honey and bee larvae. The layout is in
+  `src/Dashboard/Assets/main-base-template.json`, made from a save by `python tools/capture-main-base.py <save.json>`.
+- **Base Building, Teleporter**: put a foundation with a beacon named
   `Teleport` on it, pointing the way the teleporter should go; the build adds a foundation behind it and a teleporter on it facing away
   from the beacon (or toward it, your choice), with an optional name (the teleporter stands a metre further along the way it faces, so its back does not overhang the beacon's foundation). Only buildings are checked for room, not the ground.
 - **Base Building, Warehouse**: builds a whole row of storage.
@@ -142,7 +148,7 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   2. Build one platform of chests (Container1, 2 or 3) as a sample and **capture** it as a template.
   3. Pick the beacon, a **group** and a template. The tab shows the plan (an SVG preview, the labels, anything in the
      way) and, on **BUILD ROW**, writes the platforms and chests into the save. A beacon's card shows which planet it
-     is on (once `planets.json` has learned its name) — handy when two planets each have a beacon with the same name.
+     is on (once `planets.json` has learned its name) â€” handy when two planets each have a beacon with the same name.
 
   Each chest is labelled and filtered with the next item of the group, nearest platform first and left chest before
   right. Options: set every chest to demand its item, and fill it. There are 18 groups: fish eggs, frog eggs,
@@ -261,7 +267,7 @@ files (it only reads the save).
 | Drone map auto-opens on takeoff / closes on landing, with a pin | done |
 | Pinned recipes (plugin 0.11.0, `pins.json`) kept in a shopping list with quantities and totals, coloured by what your backpack holds | done, run in the game |
 | The game's own icons (plugin 0.12.0, `icons\`) beside items and buildings, on the power card, floor-plan containers and warehouse chests | done, run in the game |
-| Drone Network: shows what a producer supplies now, **Fix** to the usual items, **Choose…**, `producer-supply-defaults.json`, and icons on its lines | done |
+| Drone Network: shows what a producer supplies now, **Fix** to the usual items, **Chooseâ€¦**, `producer-supply-defaults.json`, and icons on its lines | done |
 | Click a planet gauge to see what makes that stat: every building, strongest first, built count, live output, locked ones in grey (plugin 0.13.0, `terraformers.json`) | built, dashboard checked on sample data; the plugin side not yet run in the game |
 | Cheats / Travel: move the player to a spot on any planet in the save | done |
 | Cheats / Storage: move items between storage units (drag and drop, or checkboxes) and a trash bin, scoped to the player's planet, one verified edit | built, tested on a scratch copy of a save; not yet run in the game |
