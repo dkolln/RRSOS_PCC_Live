@@ -48,6 +48,33 @@
     background: rgba(122, 184, 255, 0.10);
 }
 
+.object-search-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.object-search-act {
+    background: none;
+    border: 1px solid #24384d;
+    border-radius: 4px;
+    color: #7ab8ff;
+    font-family: inherit;
+    font-size: 0.72rem;
+    padding: 0 6px;
+    cursor: pointer;
+}
+
+.object-search-act:hover:not(:disabled) {
+    color: #cfe4ff;
+    border-color: #4a7fa5;
+}
+
+.object-search-act:disabled {
+    color: #3f5870;
+    cursor: default;
+}
+
 /* The one Enter would add */
 .object-search-row.is-selected {
     background: rgba(122, 184, 255, 0.20);

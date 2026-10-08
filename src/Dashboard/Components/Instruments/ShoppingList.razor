@@ -1,10 +1,13 @@
 @implements IDisposable
 @inject ShoppingListService Shopping
+@inject FactoryService Factory
+@inject ItemCatalog Catalog
 
 @* What the player pinned in the game, kept after the pin is cleared: the things wanted (with a quantity each), and below them what they all take. The
    "ids" switch shows game ids instead of names, for when the names are too long to fit. *@
 <div class="shop">
     <div class="shop-toolbar">
+        <button class="shop-btn @(_adding ? "is-on" : "")" @onclick="() => _adding = !_adding" title="Add a single item (a fuse, say) to the list">+ item</button>
         <button class="shop-btn @(_ids ? "is-on" : "")" @onclick="() => _ids = !_ids" title="Show the game's ids instead of names">ids</button>
         @if (_items.Count > 0)
         {
@@ -12,9 +15,14 @@
         }
     </div>
 
+    @if (_adding)
+    {
+        <ObjectSearch OnPick="AddItem" OnPickBreakdown="AddWithBreakdown" HasBreakdown="CanBreakdown" Placeholder="Add an item by name or id…" />
+    }
+
     @if (_items.Count == 0)
     {
-        <div class="shop-empty">Nothing yet. Pin a recipe in the game and it lands here.</div>
+        <div class="shop-empty">Nothing yet. Pin a recipe in the game, or add an item, and it lands here.</div>
     }
     else
     {
@@ -51,6 +59,19 @@
     private IReadOnlyList<ShoppingEntry> _items = Array.Empty<ShoppingEntry>();
     private IReadOnlyList<ShoppingIngredient> _totals = Array.Empty<ShoppingIngredient>();
     private bool _ids;
+    private bool _adding;
+
+    private void AddItem((string GId, string Name) item) => Shopping.AddItem(item.GId, item.Name);
+
+    // What an item takes to make, from the game's own recipes (plugin 0.9.0, recipes.json), the way a pinned recipe lists it: one line per ingredient, with a count.
+    private IReadOnlyList<ShoppingIngredient> BreakdownOf(string id) =>
+        Factory.Book()?.Recipes.TryGetValue(id, out var recipe) == true
+            ? recipe.Ingredients.Select(i => new ShoppingIngredient { Id = i.Key, Name = Catalog.NameOf(i.Key), Count = i.Value }).ToList()
+            : Array.Empty<ShoppingIngredient>();
+
+    private bool CanBreakdown(string id) => BreakdownOf(id).Count > 0;
+
+    private void AddWithBreakdown((string GId, string Name) item) => Shopping.AddItem(item.GId, item.Name, BreakdownOf(item.GId));
 
     /// <summary>What the player carries, to colour the totals: green when the backpack holds all of an ingredient, yellow when it holds some.</summary>
     [Parameter]
