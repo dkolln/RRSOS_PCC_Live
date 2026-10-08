@@ -24,6 +24,9 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>What it is filled with when the build is asked to fill the drone stations (they hold T3 drones).</summary>
         public Dictionary<string, int>? Fill { get; set; }
 
+        /// <summary>What it is filled with when the build is asked to stock the disposal crates (the ore each one is set to demand, filling it).</summary>
+        public Dictionary<string, int>? Stock { get; set; }
+
         /// <summary>What it always holds: an optimizer's fuses are its setup, not a product.</summary>
         public Dictionary<string, int>? Keep { get; set; }
     }
@@ -179,9 +182,9 @@ namespace RRSOS.PCC.Dashboard
             return new MainBasePlan(beacon, turn, placed, conflicts, Array.Empty<string>());
         }
 
-        /// <param name="copyContents">Also put back what each machine held when the base was captured (honey, gas capsules, fuses...).</param>
-        /// <param name="fillDrones">Fill the drone stations with the template's drones.</param>
-        public static MainBaseOutcome ApplyMainBase(string text, MainBasePlan plan, bool copyContents, bool fillDrones, Random? random = null)
+        /// <param name="prefill">Pre-fill the base: the drone stations get their drones, the optimizers their fuses and the disposal-room ore crates their ore. Everything else (suppliers, machines) starts empty and fills up on its own.</param>
+        /// <param name="copyContents">Also put back what each machine held when the base was captured (honey, gas capsules...). Not offered on the page.</param>
+        public static MainBaseOutcome ApplyMainBase(string text, MainBasePlan plan, bool prefill, bool copyContents = false, Random? random = null)
         {
             random ??= Rng;
 
@@ -259,10 +262,12 @@ namespace RRSOS.PCC.Dashboard
 
                 var held = new List<long>();
                 var wanted = new List<(string GId, int Count)>();
-                if (spec?.Keep is { } keep)
+                if (spec?.Keep is { } keep && prefill)
                     wanted.AddRange(keep.Select(p => (p.Key, p.Value)));
-                if (spec?.Fill is { } fill && fillDrones)
+                if (spec?.Fill is { } fill && prefill)
                     wanted.AddRange(fill.Select(p => (p.Key, p.Value)));
+                if (spec?.Stock is { } stock && prefill)
+                    wanted.AddRange(stock.Select(p => (p.Key, p.Value)));
                 if (spec?.Held is { } contents && copyContents)
                     wanted.AddRange(contents.Select(p => (p.Key, p.Value)));
 
