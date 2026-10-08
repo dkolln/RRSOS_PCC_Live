@@ -53,12 +53,12 @@
                 @if (Toxicity is { TotalObjects: > 0 } t)
                 {
                     <div class="tox-bar">
-                        <div class="tox-bar-head"><span>Goo collected</span><span>@t.CleanedObjects / @t.TotalObjects</span></div>
-                        <div class="tox-bar-track"><div class="tox-bar-fill @(t.CleanedObjects >= t.TotalObjects ? "is-done" : "")" style="width: @Pct(t.CleanedObjects, t.TotalObjects)"></div></div>
+                        <div class="tox-bar-head"><span class="tox-bar-label"><Icon Id="ToxicGoo" Size="1.1rem" />Goo collected</span><span>@t.CleanedObjects / @t.TotalObjects</span></div>
+                        <div class="tox-bar-track"><div class="tox-bar-fill @BarState(t.CleanedObjects, t.TotalObjects)" style="width: @Pct(t.CleanedObjects, t.TotalObjects)"></div></div>
                     </div>
                     <div class="tox-bar">
                         <div class="tox-bar-head"><span>Areas cleaned</span><span>@t.CleanedAreas / @t.TotalAreas</span></div>
-                        <div class="tox-bar-track"><div class="tox-bar-fill @(t.CleanedAreas >= t.TotalAreas ? "is-done" : "")" style="width: @Pct(t.CleanedAreas, t.TotalAreas)"></div></div>
+                        <div class="tox-bar-track"><div class="tox-bar-fill @BarState(t.CleanedAreas, t.TotalAreas)" style="width: @Pct(t.CleanedAreas, t.TotalAreas)"></div></div>
                     </div>
                 }
                 else
@@ -196,6 +196,16 @@
     /// <summary>Raised with the stat's name ("Purification") when its dial is clicked.</summary>
     [Parameter]
     public EventCallback<string> OnSelect { get; set; }
+
+    // The same zones the gauges use for a stat where more is better: red under a fifth, yellow under half, green from half up.
+    private const float BarCritAt = 0.2f;
+    private const float BarWarnAt = 0.5f;
+
+    private static string BarState(int done, int total)
+    {
+        var fraction = total <= 0 ? 0f : Math.Clamp(done / (float)total, 0f, 1f);
+        return fraction < BarCritAt ? "is-crit" : fraction < BarWarnAt ? "is-warn" : "is-good";
+    }
 
     private static string Pct(int done, int total) =>
         total <= 0 ? "0%" : (Math.Clamp(done / (double)total, 0, 1) * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
