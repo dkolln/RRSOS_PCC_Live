@@ -84,12 +84,14 @@ namespace RRSOS.PCC.Dashboard
         private readonly ItemCatalog _catalog;
         private readonly SaveResupplyService _saves;
         private readonly IConfiguration _config;
+        private readonly IWebHostEnvironment _env;
 
-        public BaseBuildingService(ItemCatalog catalog, SaveResupplyService saves, IConfiguration config)
+        public BaseBuildingService(ItemCatalog catalog, SaveResupplyService saves, IConfiguration config, IWebHostEnvironment env)
         {
             _catalog = catalog;
             _saves = saves;
             _config = config;
+            _env = env;
         }
 
         /// <summary>
@@ -341,6 +343,66 @@ namespace RRSOS.PCC.Dashboard
                 var outcome = BaseBuildingEngine.ApplyTeleporter(text, plan, label);
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "building the teleporter");
+
+        private MainBaseTemplate? _mainBase;
+        private string? _mainBaseError;
+
+        /// <summary>The captured Main Base (Assets/main-base-template.json, made by tools/capture-main-base.py), read once. Null with an error when it cannot be read.</summary>
+        public (MainBaseTemplate? Template, string? Error) MainBase()
+        {
+            if (_mainBase is not null || _mainBaseError is not null)
+                return (_mainBase, _mainBaseError);
+
+            try
+            {
+                var path = Path.Combine(_env.ContentRootPath, "Assets", "main-base-template.json");
+                _mainBase = System.Text.Json.JsonSerializer.Deserialize<MainBaseTemplate>(File.ReadAllText(path), BaseBuildingEngine.TemplateJson);
+                if (_mainBase is null || _mainBase.Objects.Count == 0)
+                {
+                    _mainBase = null;
+                    _mainBaseError = "The Main Base template file is empty.";
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+            {
+                _mainBaseError = "Could not read the Main Base template: " + ex.Message;
+            }
+
+            return (_mainBase, _mainBaseError);
+        }
+
+        /// <summary>Where a Main Base can be built from in this save: the beacons named Base, and outdoor lamps on a foundation.</summary>
+        public Task<(IReadOnlyList<BuildBeacon> Anchors, string? Error)> ScanAnchorsAsync(string savePath) => Task.Run(() =>
+        {
+            var text = ReadText(savePath, out var error);
+            return text is null
+                ? ((IReadOnlyList<BuildBeacon>)Array.Empty<BuildBeacon>(), error)
+                : (BaseBuildingEngine.FindMainBaseAnchors(text), (string?)null);
+        });
+
+        /// <summary>The Main Base as this beacon would get it (read-only; null when the save or the template cannot be read).</summary>
+        public Task<MainBasePlan?> PlanMainBaseAsync(string savePath, long beaconId) => Task.Run(() =>
+        {
+            var (template, _) = MainBase();
+            var text = ReadText(savePath, out _);
+            return template is null || text is null ? (MainBasePlan?)null : BaseBuildingEngine.PlanMainBase(text, beaconId, template, IsBuilding);
+        });
+
+        /// <summary>
+        /// Builds the Main Base into the save: the plan is worked out again from the file as it is right now, then written with a backup
+        /// (see <see cref="SaveResupplyService.EditAsync{T}"/>). The game must be at its main menu.
+        /// </summary>
+        public Task<SaveEdit<MainBaseOutcome>> BuildMainBaseAsync(string savePath, long beaconId, bool copyContents, bool fillDrones) =>
+            _saves.EditAsync<MainBaseOutcome>(savePath, text =>
+            {
+                var (template, error) = MainBase();
+                if (template is null)
+                    return ((string?)null, new MainBaseOutcome(null, 0, 0, 0, new[] { error ?? "No template." }), (string?)("Nothing was built. " + error));
+
+                var plan = BaseBuildingEngine.PlanMainBase(text, beaconId, template, IsBuilding);
+                var outcome = BaseBuildingEngine.ApplyMainBase(text, plan, copyContents, fillDrones);
+                return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
+            }, "building the main base");
 
         private BuildPlan MakePlan(string text, long beaconId, BuildTemplate template, BuildRecipe recipe) =>
             recipe.Warehouse ? BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding, WarehouseDepth)

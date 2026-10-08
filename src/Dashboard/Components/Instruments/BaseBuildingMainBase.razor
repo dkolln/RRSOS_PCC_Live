@@ -1,0 +1,305 @@
+@inject BaseBuildingService Building
+@inject ToastService Toasts
+@inject PlanetNames Planets
+@inject IJSRuntime JS
+
+@* The Main Base template: the owner's finished base, captured from the save he built it in (tools/capture-main-base.py), built from a beacon named "Base".
+   Same rules as the other builds: it writes into the save (with a backup first), so the game must be at the main menu. *@
+<div class="mb">
+    <p class="hint">
+        Place a foundation with a <strong>beacon</strong> on it, named <code>Base</code>, turned to point the way the base should go (the base is built the way it was
+        captured, turned to that direction), and save. Early in a game, before you have beacons, an <strong>outdoor lamp</strong> on a foundation works the same way:
+        the foundation under it is where the base starts and the way the lamp faces is the way the base goes. Then pick it here. Building writes the whole base into the save (with a backup first), so do it with the
+        game at the main menu. Heights follow the beacon's foundation, and <strong>only buildings are checked for room, not the ground</strong>: pick a flat,
+        clear area (the base is about 114 m by 162 m).
+    </p>
+
+    @if (_templateError is not null)
+    {
+        <p class="bb-problem">@_templateError</p>
+    }
+    else if (string.IsNullOrEmpty(SavePath))
+    {
+        <p class="hint">Choose a save above.</p>
+    }
+    else if (_error is not null)
+    {
+        <p class="bb-problem">@_error</p>
+    }
+    else
+    {
+        <h3>Where to build from</h3>
+        @if (_beacons.Count == 0)
+        {
+            <p class="hint">Nothing to build from: no beacon named <code>Base</code> on a foundation (any name starting with it works), and no outdoor lamp on a foundation.</p>
+        }
+
+        @foreach (var b in _beacons)
+        {
+            <div class="bb-card @(b.Id == _beaconId ? "is-picked" : "")" @key="b.Id">
+                <div class="bb-card-head">
+                    <label class="bb-pick">
+                        <input type="radio" name="base-beacon" checked="@(b.Id == _beaconId)" @onchange="() => PickBeacon(b)" />
+                        <strong>@b.Text</strong>
+                        @if (Planets.NameOf(b.PlanetHash) is { Length: > 0 } planet)
+                        {
+                            <span class="bb-planet">@planet</span>
+                        }
+                    </label>
+                    <span class="bb-muted">points @Compass(b) · @(b.FoundationId is null ? "not on a foundation" : "on a foundation")</span>
+                </div>
+                <div class="bb-muted">north @b.X.ToString("0.#") · east @((-b.Z).ToString("0.#")) · yaw @b.YawDegrees.ToString("0")°</div>
+            </div>
+        }
+
+        @if (_beaconId != 0)
+        {
+            <h3>@_template!.Name</h3>
+            <p class="bb-muted">@_template.CapturedFrom. Left out: @_template.Excluded.</p>
+
+            <label class="bb-option">
+                <input type="checkbox" checked="@_fillDrones" @onchange="e => _fillDrones = e.Value is true" />
+                Fill the drone stations with T3 drones (@DroneCount)
+            </label>
+            <label class="bb-option">
+                <input type="checkbox" checked="@_copyContents" @onchange="e => _copyContents = e.Value is true" />
+                Also put back what the machines held when it was captured (honey and larvae, gas capsules, water bottles, silk...). Optimizers always get their fuses.
+            </label>
+
+            @if (_plan is null)
+            {
+                <p class="hint">Working out the plan…</p>
+            }
+            else if (_plan.Problems.Count > 0)
+            {
+                @foreach (var p in _plan.Problems)
+                {
+                    <p class="bb-problem">@p</p>
+                }
+            }
+            else
+            {
+                <p class="bb-summary">
+                    <strong>@_plan.NewCount</strong> objects to build@(_plan.ExistingCount > 0 ? $", {_plan.ExistingCount} already there" : ""),
+                    going @Compass(_plan.Beacon!)@(_plan.Turn == 0 ? "" : $" (turned {(_plan.Turn + 360) % 360}° from the captured layout)").
+                </p>
+
+                @foreach (var c in _plan.Conflicts)
+                {
+                    <p class="bb-problem">In the way: @c</p>
+                }
+
+                <svg class="bb-svg" viewBox="@ViewBox(_plan)" xmlns="http://www.w3.org/2000/svg">
+                    @foreach (var o in _plan.Objects.Where(o => o.Source.G.StartsWith("Foundation", StringComparison.Ordinal)))
+                    {
+                        <rect x="@Sx(o.Z + Half)" y="@Sy(o.X + Half)" width="@Num(Spacing)" height="@Num(Spacing)" class="bb-found @(o.Exists ? "is-there" : "is-new")" />
+                    }
+
+                    @* The big pieces (pods, domes, platforms) are drawn with a pretend foundation under them, roughly their size, so the plan has no black gaps. Drawing only. *@
+                    @foreach (var o in _plan.Objects)
+                    {
+                        if (Pad(o) is { } pad)
+                        {
+                            <rect x="@Sx(o.Z + pad.D / 2)" y="@Sy(o.X + pad.W / 2)" width="@Num(pad.D)" height="@Num(pad.W)" class="bb-pad" />
+                        }
+                    }
+
+                    @foreach (var o in _plan.Objects.Where(o => !o.Source.G.StartsWith("Foundation", StringComparison.Ordinal)))
+                    {
+                        <circle cx="@Sx(o.Z)" cy="@Sy(o.X)" r="@(IsBig(o.Source.G) ? "2.2" : "0.7")" class="@(IsBig(o.Source.G) ? "bb-pod" : "bb-thing")"><title>@o.Source.G@(string.IsNullOrEmpty(o.Source.Text) ? "" : " · " + o.Source.Text)</title></circle>
+                    }
+
+                    <circle cx="@Sx(_plan.Beacon!.Z)" cy="@Sy(_plan.Beacon.X)" r="1" class="bb-beacon" />
+                </svg>
+
+                <details class="bb-labels">
+                    <summary>What it builds, by kind</summary>
+                    <div class="mb-kinds">
+                        @foreach (var g in _plan.Objects.GroupBy(o => o.Source.G).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal))
+                        {
+                            <div class="bb-muted">@g.Count() × @g.Key@(g.Any(o => o.Exists) ? $" ({g.Count(o => o.Exists)} there)" : "")</div>
+                        }
+                    </div>
+                </details>
+
+                <button class="resupply-btn" disabled="@(!CanBuild)" @onclick="Build">
+                    @(_busy ? "BUILDING..." : $"BUILD MAIN BASE ({_plan.NewCount} OBJECTS)")
+                </button>
+                @if (GameLive)
+                {
+                    <p class="bb-problem">The game is running a world. Exit to the main menu first.</p>
+                }
+            }
+
+            @if (_message is not null)
+            {
+                <p class="@(_ok ? "bb-ok" : "bb-problem")">@_message</p>
+            }
+        }
+    }
+</div>
+
+@code {
+    private const string BeaconPrefix = "Base";
+    private const double Spacing = BaseBuildingEngine.PlatformSpacing;
+    private const double Half = Spacing / 2;
+
+    [Parameter] public string SavePath { get; set; } = "";
+
+    /// <summary>True while the game has a world loaded: the save would only be overwritten.</summary>
+    [Parameter] public bool GameLive { get; set; }
+
+    private string _loadedFor = "";
+    private string? _error;
+    private string? _templateError;
+    private MainBaseTemplate? _template;
+    private IReadOnlyList<BuildBeacon> _beacons = Array.Empty<BuildBeacon>();
+    private long _beaconId;
+    private bool _fillDrones = true;
+    private bool _copyContents;
+    private MainBasePlan? _plan;
+    private bool _busy;
+    private string? _message;
+    private bool _ok;
+
+    private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true, NewCount: > 0 };
+
+    private int DroneCount => _template?.Objects.Where(o => o.Inv?.Fill is not null).Sum(o => o.Inv!.Fill!.Values.Sum()) ?? 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_template is null && _templateError is null)
+            (_template, _templateError) = Building.MainBase();
+
+        if (SavePath == _loadedFor)
+            return;
+
+        _loadedFor = SavePath;
+        _beaconId = 0;
+        _plan = null;
+        _error = null;
+
+        if (string.IsNullOrEmpty(SavePath) || !File.Exists(SavePath))
+        {
+            _beacons = Array.Empty<BuildBeacon>();
+            return;
+        }
+
+        // Beacons named "Base", "Base North", ... and outdoor lamps standing on a foundation.
+        var (anchors, error) = await Building.ScanAnchorsAsync(SavePath);
+        _error = error;
+        _beacons = anchors;
+
+        // One beacon named for it, else the only candidate there is.
+        var named = _beacons.Where(b => b.Text.StartsWith(BeaconPrefix, StringComparison.OrdinalIgnoreCase)).ToList();
+        var pick = named.Count == 1 ? named[0] : _beacons.Count == 1 ? _beacons[0] : null;
+        if (pick is not null)
+            await PickBeacon(pick);
+    }
+
+    private async Task PickBeacon(BuildBeacon b)
+    {
+        _beaconId = b.Id;
+        _plan = null;
+
+        var beacon = b.Id;
+        var plan = await Building.PlanMainBaseAsync(SavePath, beacon);
+
+        if (beacon == _beaconId)
+            _plan = plan;
+    }
+
+    private async Task Build()
+    {
+        if (!CanBuild || _plan is null)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Have you exited to the Main Menu?\n\nBUILD MAIN BASE adds {_plan.NewCount} objects{(_fillDrones ? $" (and {DroneCount} drones)" : "")} to your save file. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        _message = null;
+        StateHasChanged();
+
+        try
+        {
+            var edit = await Building.BuildMainBaseAsync(SavePath, _beaconId, _copyContents, _fillDrones);
+
+            if (!edit.Success || edit.Result is null)
+            {
+                _ok = false;
+                _message = edit.Error ?? "The build failed.";
+                Toasts.Show("Building the base failed. " + _message, ToastKind.Error, TimeSpan.FromSeconds(9));
+            }
+            else
+            {
+                _ok = true;
+                _message = $"Built {edit.Result.Objects} objects with {edit.Result.Inventories} inventories{(edit.Result.Items > 0 ? $" and {edit.Result.Items} items" : "")}. Backup: {edit.BackupPath}";
+                Toasts.Show($"Built {edit.Result.Objects} objects", ToastKind.Success);
+            }
+
+            _loadedFor = ""; // read the save again: the base is in it now
+            var keep = _message;
+            var keepOk = _ok;
+            await OnParametersSetAsync();
+            _message = keep;
+            _ok = keepOk;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // North is +x and east is -z in the save; a beacon pointing +x points north.
+    private static string Compass(BuildBeacon b) => (b.DirX, b.DirZ) switch
+    {
+        (1, _) => "north",
+        (-1, _) => "south",
+        (_, 1) => "west",
+        _ => "east"
+    };
+
+    // The pods, domes and platforms are drawn bigger than the small things inside them.
+    private static bool IsBig(string g) =>
+        g.StartsWith("Pod", StringComparison.OrdinalIgnoreCase) || g.Equals("pod", StringComparison.Ordinal) || g.Contains("dome", StringComparison.OrdinalIgnoreCase)
+        || g.EndsWith("Platform", StringComparison.Ordinal) || g is "Biolab" or "Aquarium2";
+
+    // Roughly how big each big piece is (metres, along x and z before any turn): measured in the game for the pods, domes and the launch platform, guessed for
+    // the other platforms. Only the preview drawing uses these.
+    private static readonly Dictionary<string, (double W, double D)> PadSizes = new(StringComparer.Ordinal)
+    {
+        ["pod"] = (8.5, 8.5), ["podAngle"] = (8.3, 8.3), ["Pod4x"] = (17, 16.5), ["Pod9xA"] = (24, 24), ["Pod9xB"] = (24, 24), ["Pod9xC"] = (24.5, 24.5),
+        ["Biolab"] = (16.5, 16.5), ["biodome"] = (24, 20), ["Biodome2"] = (32, 27), ["ButterflyDome1"] = (32, 27), ["Aquarium2"] = (32, 26),
+        ["LaunchPlatform"] = (48, 31), ["DeparturePlatform"] = (36, 24), ["TradePlatform1"] = (12, 12), ["InterplanetaryExchangePlatform1"] = (12, 12),
+        ["PortalGenerator1"] = (12, 12), ["VehicleCrafter1"] = (12, 12), ["PlanetaryDeliveryDepot1"] = (6, 6), ["RocketTravel1"] = (8, 8)
+    };
+
+    private static (double W, double D)? Pad(PlacedObject o)
+    {
+        if (!PadSizes.TryGetValue(o.Source.G, out var size))
+            return null;
+
+        // A piece turned a quarter turn swaps its two sides.
+        var yaw = Math.Abs(BaseBuildingEngine.YawOf(o.Rot)) % 180;
+        return Math.Abs(yaw - 90) < 1 ? (size.D, size.W) : size;
+    }
+
+    // Plan drawing: north up, east right, in metres. x (north) runs up and z (east is -z) runs across.
+    private static string Num(double v) => v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Sx(double z) => Num(-z);
+    private static string Sy(double x) => Num(-x);
+
+    private static string ViewBox(MainBasePlan plan)
+    {
+        var xs = plan.Objects.Select(o => o.X).Append(plan.Beacon!.X).ToList();
+        var zs = plan.Objects.Select(o => o.Z).Append(plan.Beacon!.Z).ToList();
+        double left = -(zs.Max() + Half) - 1, right = -(zs.Min() - Half) + 1;
+        double top = -(xs.Max() + Half) - 1, bottom = -(xs.Min() - Half) + 1;
+        return $"{Num(left)} {Num(top)} {Num(right - left)} {Num(bottom - top)}";
+    }
+}
