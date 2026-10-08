@@ -392,7 +392,7 @@ namespace RRSOS.PCC.Dashboard
         /// Builds the Main Base into the save: the plan is worked out again from the file as it is right now, then written with a backup
         /// (see <see cref="SaveResupplyService.EditAsync{T}"/>). The game must be at its main menu.
         /// </summary>
-        public Task<SaveEdit<MainBaseOutcome>> BuildMainBaseAsync(string savePath, long beaconId, bool copyContents, bool fillDrones) =>
+        public Task<SaveEdit<MainBaseOutcome>> BuildMainBaseAsync(string savePath, long beaconId, bool prefill) =>
             _saves.EditAsync<MainBaseOutcome>(savePath, text =>
             {
                 var (template, error) = MainBase();
@@ -400,7 +400,7 @@ namespace RRSOS.PCC.Dashboard
                     return ((string?)null, new MainBaseOutcome(null, 0, 0, 0, new[] { error ?? "No template." }), (string?)("Nothing was built. " + error));
 
                 var plan = BaseBuildingEngine.PlanMainBase(text, beaconId, template, IsBuilding);
-                var outcome = BaseBuildingEngine.ApplyMainBase(text, plan, copyContents, fillDrones);
+                var outcome = BaseBuildingEngine.ApplyMainBase(text, plan, prefill);
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "building the main base");
 

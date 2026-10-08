@@ -134,9 +134,10 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   result is exactly the original save with only those units' item lists changed and the trashed items' and crates'
   records gone.
 - **Base Building** has a sub-menu of templates: **Warehouse** (below), **Main Base** and **Teleporter**. **Main Base** builds the whole base the owner designed
-  (685 objects: 387 foundations, pods and domes, power, crafting, farms, drone stations, signs...) from a beacon named `Base` on a foundation (or, early in a game before beacons exist, an **outdoor lamp** on a foundation: the foundation under it is the start and its facing the direction), turned to whichever of the four
+  (695 objects: 387 foundations, pods and domes, power, crafting, farms, drone stations, signs, and the ten ore crates of the disposal room, each labelled and set to demand its ore...) from a beacon named `Base` on a foundation (or, early in a game before beacons exist, an **outdoor lamp** on a foundation: the foundation under it is the start and its facing the direction), turned to whichever of the four
   directions the beacon points, with a preview drawing. Heights follow the beacon's foundation; only buildings are checked for room, not the ground (it is about 114 m by 162 m).
-  The drone stations are filled with T3 drones (optional tick), and what the machines held can be put back (optional tick, off); optimizers always come with their fuses. The drone supply settings come along: storage
+  One tick, **Pre-fill the base** (on by default), stocks the drone stations with T3 drones, the optimizers with their fuses and the ten disposal-room ore crates full
+  of their ore (800 items). Suppliers and machines start empty and fill up on their own. The drone supply settings come along: storage
   crates supply everything only on the one labelled `Supplier`, the `Misc` crates supply nothing, beehives supply honey and bee larvae. The layout is in
   `src/Dashboard/Assets/main-base-template.json`, made from a save by `python tools/capture-main-base.py <save.json>`.
   **Remove main base** (same page, same anchor) takes it out again: it clears the base's whole area (the template's footprint turned the way the anchor points, plus a margin,

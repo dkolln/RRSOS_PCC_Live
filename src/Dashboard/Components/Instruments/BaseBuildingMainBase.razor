@@ -58,12 +58,9 @@
             <p class="bb-muted">@_template.CapturedFrom. Left out: @_template.Excluded.</p>
 
             <label class="bb-option">
-                <input type="checkbox" checked="@_fillDrones" @onchange="e => _fillDrones = e.Value is true" />
-                Fill the drone stations with T3 drones (@DroneCount)
-            </label>
-            <label class="bb-option">
-                <input type="checkbox" checked="@_copyContents" @onchange="e => _copyContents = e.Value is true" />
-                Also put back what the machines held when it was captured (honey and larvae, gas capsules, water bottles, silk...). Optimizers always get their fuses.
+                <input type="checkbox" checked="@_prefill" @onchange="e => _prefill = e.Value is true" />
+                Pre-fill the base: @DroneCount T3 drones in the drone stations, @FuseCount fuses in the optimizers and @StockCount ore in the disposal-room crates.
+                Suppliers and machines start empty and fill up on their own as the game goes.
             </label>
 
             @if (_plan is null)
@@ -217,8 +214,7 @@
     private MainBaseTemplate? _template;
     private IReadOnlyList<BuildBeacon> _beacons = Array.Empty<BuildBeacon>();
     private long _beaconId;
-    private bool _fillDrones = true;
-    private bool _copyContents;
+    private bool _prefill = true;
     private MainBasePlan? _plan;
     private bool _busy;
     private string? _message;
@@ -231,6 +227,10 @@
     private bool CanRemove => !_busy && !GameLive && _removal is { Ok: true, Any: true };
 
     private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true, NewCount: > 0 };
+
+    private int StockCount => _template?.Objects.Where(o => o.Inv?.Stock is not null).Sum(o => o.Inv!.Stock!.Values.Sum()) ?? 0;
+
+    private int FuseCount => _template?.Objects.Where(o => o.Inv?.Keep is not null).Sum(o => o.Inv!.Keep!.Values.Sum()) ?? 0;
 
     private int DroneCount => _template?.Objects.Where(o => o.Inv?.Fill is not null).Sum(o => o.Inv!.Fill!.Values.Sum()) ?? 0;
 
@@ -344,7 +344,7 @@
 
         var confirmed = await JS.InvokeAsync<bool>(
             "confirm",
-            $"Have you exited to the Main Menu?\n\nBUILD MAIN BASE adds {_plan.NewCount} objects{(_fillDrones ? $" (and {DroneCount} drones)" : "")} to your save file. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
+            $"Have you exited to the Main Menu?\n\nBUILD MAIN BASE adds {_plan.NewCount} objects{(_prefill ? $" (and {DroneCount} drones, {FuseCount} fuses and {StockCount} ore)" : "")} to your save file. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
 
         if (!confirmed)
             return;
@@ -355,7 +355,7 @@
 
         try
         {
-            var edit = await Building.BuildMainBaseAsync(SavePath, _beaconId, _copyContents, _fillDrones);
+            var edit = await Building.BuildMainBaseAsync(SavePath, _beaconId, _prefill);
 
             if (!edit.Success || edit.Result is null)
             {

@@ -9,6 +9,7 @@ rebuilt empty by the build; what they held is kept in "held" (copied only when a
 Rules of this capture (the owner's decisions, 2026-10-08):
   - leave out the escape pod and everything far from the base (the heater field: 8 Heater5 and an Optimizer2)
   - the "supply everything" list (211 items) is written as "*" and expanded at build time
+  - the disposal-room ore crates (labelled, demanding one ore, supplying nothing) get a "stock": that ore, filling the crate
   - crates labelled Misc* supply nothing; Beehive2 supply only honey and Bee1Larvae
   - every DroneStation1 is filled with T3 drones (Drone3), 25 each; an Optimizer keeps its fuses ("keep", always built)
   - a Teleporter1's "set" (its number in the game's list) is dropped: the game gives it one
@@ -98,6 +99,9 @@ def csv_count(csv):
     return [x for x in (csv or '').split(',') if x]
 
 
+# the items the disposal-room crates are for (the game's own ids: Uranim, Aluminium), so other labelled crates (quartz, fuses...) are not stocked
+ORES = {'Iron', 'Silicon', 'Titanium', 'Magnesium', 'Cobalt', 'Alloy', 'Uranim', 'Iridium', 'Aluminium', 'Sulfur', 'Osmium', 'Obsidian', 'Aluminum'}
+
 excluded = []
 template_objects = []
 li_owner = {}
@@ -144,6 +148,9 @@ for o in objs.values():
             spec['held'] = held
         if g == 'DroneStation1':
             spec['fill'] = {'Drone3': inv['size']}
+        # the disposal-room ore crates: labelled, set to demand one item and supply nothing; a build can stock them full of that item
+        if g.startswith('Container') and label and spec.get('supply') == '' and spec.get('demand') in ORES:
+            spec['stock'] = {spec['demand']: inv['size']}
         # an optimizer's fuses are its setup, not a product: always built
         if g.startswith('Optimizer') and held:
             spec['keep'] = dict(held)
