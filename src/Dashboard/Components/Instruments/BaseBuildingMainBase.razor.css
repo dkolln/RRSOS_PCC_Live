@@ -30,4 +30,8 @@
 .bb-pad { fill: rgba(122, 184, 255, 0.07); stroke: #2b4560; stroke-width: 0.15; }
 .bb-pod { fill: rgba(255, 179, 71, 0.30); stroke: #ffb347; stroke-width: 0.2; }
 .bb-thing { fill: #9fd6a8; }
+.resupply-btn.is-danger { background: #8f2d2d; border-color: #ff6b6b; }
+.bb-box { fill: rgba(255, 107, 107, 0.05); stroke: #ff6b6b; stroke-width: 0.5; stroke-dasharray: 3 2; }
+.bb-gone { fill: rgba(255, 107, 107, 0.22); stroke: #8f2d2d; stroke-width: 0.15; }
+.bb-gone-dot { fill: #ff9a6b; }
 .mb-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 2px 12px; margin-top: 4px; }

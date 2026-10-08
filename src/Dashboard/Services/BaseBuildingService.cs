@@ -404,6 +404,32 @@ namespace RRSOS.PCC.Dashboard
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "building the main base");
 
+        /// <summary>What removing the Main Base around this anchor would take (read-only; null when the save or the template cannot be read).</summary>
+        public Task<MainBaseRemovalPlan?> PlanRemoveMainBaseAsync(string savePath, long anchorId) => Task.Run(() =>
+        {
+            var (template, _) = MainBase();
+            var text = ReadText(savePath, out _);
+            return template is null || text is null ? (MainBaseRemovalPlan?)null : BaseBuildingEngine.PlanRemoveMainBase(text, anchorId, template);
+        });
+
+        /// <summary>
+        /// Removes the Main Base around this anchor from the save: the plan is worked out again from the file as it is right now, then written with a backup
+        /// (see <see cref="SaveResupplyService.EditAsync{T}"/>). The game must be at its main menu.
+        /// </summary>
+        public Task<SaveEdit<MainBaseRemovalOutcome>> RemoveMainBaseAsync(string savePath, long anchorId) =>
+            _saves.EditAsync<MainBaseRemovalOutcome>(savePath, text =>
+            {
+                var (template, error) = MainBase();
+                if (template is null)
+                {
+                    var none = new MainBaseRemovalPlan(null, 0, 0, 0, 0, 0, 0, Array.Empty<RemovedObject>(), 0, 0, Array.Empty<string>(), Array.Empty<long>(), Array.Empty<long>(), new[] { error ?? "No template." });
+                    return ((string?)null, new MainBaseRemovalOutcome(null, none, none.Problems), (string?)("Nothing was removed. " + error));
+                }
+
+                var outcome = BaseBuildingEngine.RemoveMainBase(text, BaseBuildingEngine.PlanRemoveMainBase(text, anchorId, template));
+                return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was removed. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
+            }, "removing the main base");
+
         private BuildPlan MakePlan(string text, long beaconId, BuildTemplate template, BuildRecipe recipe) =>
             recipe.Warehouse ? BaseBuildingEngine.PlanWarehouse(text, beaconId, template, WarehouseRows(), IsBuilding, WarehouseDepth)
             : recipe.Bundles is not null ? BaseBuildingEngine.Plan(text, beaconId, template, recipe.Bundles, IsBuilding)

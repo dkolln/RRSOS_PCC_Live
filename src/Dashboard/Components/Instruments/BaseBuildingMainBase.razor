@@ -135,6 +135,68 @@
             {
                 <p class="@(_ok ? "bb-ok" : "bb-problem")">@_message</p>
             }
+
+            <h3>Remove main base</h3>
+            @if (_removal is null)
+            {
+                <p class="hint">Working out what stands there…</p>
+            }
+            else if (_removal.Problems.Count > 0)
+            {
+                @foreach (var p in _removal.Problems)
+                {
+                    <p class="bb-problem">@p</p>
+                }
+            }
+            else if (!_removal.Any)
+            {
+                <p class="hint">Nothing stands in the base's area, so there is nothing to remove.</p>
+            }
+            else
+            {
+                <p class="bb-summary">
+                    The base's area (about @Num(_removal.MaxX - _removal.MinX) m by @Num(_removal.MaxZ - _removal.MinZ) m, going @Compass(_removal.Anchor!), and up to 60 m above its foundation)
+                    holds <strong>@_removal.Objects.Count</strong> objects and <strong>@_removal.Items</strong> items in them@(_removal.Inventories > 0 ? $" (and {_removal.Inventories} inventories)" : "").
+                    Removing deletes <strong>everything</strong> standing there, whether or not the template put it there. It keeps the beacon or lamp, the foundation under it@(_removal.Kept.Contains("EscapePod") ? " and the escape pod" : "").
+                    The area follows the way the beacon or lamp points, so leave it turned the way it was when you built.
+                </p>
+
+                <svg class="bb-svg" viewBox="@RemovalViewBox(_removal)" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="@Sx(_removal.MaxZ)" y="@Sy(_removal.MaxX)" width="@Num(_removal.MaxZ - _removal.MinZ)" height="@Num(_removal.MaxX - _removal.MinX)" class="bb-box" />
+                    @foreach (var o in _removal.Objects.Where(o => o.G.StartsWith("Foundation", StringComparison.Ordinal)))
+                    {
+                        <rect x="@Sx(o.Z + Half)" y="@Sy(o.X + Half)" width="@Num(Spacing)" height="@Num(Spacing)" class="bb-gone" />
+                    }
+                    @foreach (var o in _removal.Objects.Where(o => !o.G.StartsWith("Foundation", StringComparison.Ordinal)))
+                    {
+                        <circle cx="@Sx(o.Z)" cy="@Sy(o.X)" r="0.7" class="bb-gone-dot"><title>@o.G</title></circle>
+                    }
+                    <circle cx="@Sx(_removal.Anchor!.Z)" cy="@Sy(_removal.Anchor.X)" r="1" class="bb-beacon" />
+                </svg>
+
+                <details class="bb-labels">
+                    <summary>What it removes, by kind</summary>
+                    <div class="mb-kinds">
+                        @foreach (var g in _removal.Objects.GroupBy(o => o.G).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal))
+                        {
+                            <div class="bb-muted">@g.Count() × @g.Key</div>
+                        }
+                    </div>
+                </details>
+
+                <button class="resupply-btn is-danger" disabled="@(!CanRemove)" @onclick="Remove">
+                    @(_busy ? "WORKING..." : $"REMOVE MAIN BASE ({_removal.Objects.Count} OBJECTS)")
+                </button>
+                @if (GameLive)
+                {
+                    <p class="bb-problem">The game is running a world. Exit to the main menu first.</p>
+                }
+            }
+
+            @if (_removeMessage is not null)
+            {
+                <p class="@(_removeOk ? "bb-ok" : "bb-problem")">@_removeMessage</p>
+            }
         }
     }
 </div>
@@ -161,6 +223,12 @@
     private bool _busy;
     private string? _message;
     private bool _ok;
+
+    private MainBaseRemovalPlan? _removal;
+    private string? _removeMessage;
+    private bool _removeOk;
+
+    private bool CanRemove => !_busy && !GameLive && _removal is { Ok: true, Any: true };
 
     private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true, NewCount: > 0 };
 
@@ -201,12 +269,72 @@
     {
         _beaconId = b.Id;
         _plan = null;
+        _removal = null;
+        _message = null;
+        _removeMessage = null;
 
         var beacon = b.Id;
         var plan = await Building.PlanMainBaseAsync(SavePath, beacon);
 
         if (beacon == _beaconId)
             _plan = plan;
+
+        var removal = await Building.PlanRemoveMainBaseAsync(SavePath, beacon);
+
+        if (beacon == _beaconId)
+            _removal = removal;
+    }
+
+    private async Task Remove()
+    {
+        if (!CanRemove || _removal is null)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Have you exited to the Main Menu?\n\nREMOVE MAIN BASE deletes {_removal.Objects.Count} objects and {_removal.Items} items in them from your save file: EVERYTHING standing in the base's area, whether or not it came from the template. The beacon or lamp and the foundation under it stay. A backup is made first, and that is the only way back. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        _removeMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var edit = await Building.RemoveMainBaseAsync(SavePath, _beaconId);
+
+            if (!edit.Success || edit.Result is null)
+            {
+                _removeOk = false;
+                _removeMessage = edit.Error ?? "The removal failed.";
+                Toasts.Show("Removing the base failed. " + _removeMessage, ToastKind.Error, TimeSpan.FromSeconds(9));
+            }
+            else
+            {
+                _removeOk = true;
+                _removeMessage = $"Removed {edit.Result.Plan.Objects.Count} objects and {edit.Result.Plan.Items} items. Backup: {edit.BackupPath}";
+                Toasts.Show($"Removed {edit.Result.Plan.Objects.Count} objects", ToastKind.Success);
+            }
+
+            _loadedFor = ""; // read the save again: the base is gone from it
+            var keep = _removeMessage;
+            var keepOk = _removeOk;
+            await OnParametersSetAsync();
+            _removeMessage = keep;
+            _removeOk = keepOk;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string RemovalViewBox(MainBaseRemovalPlan plan)
+    {
+        double left = -plan.MaxZ - 1, right = -plan.MinZ + 1, top = -plan.MaxX - 1, bottom = -plan.MinX + 1;
+        return $"{Num(left)} {Num(top)} {Num(right - left)} {Num(bottom - top)}";
     }
 
     private async Task Build()

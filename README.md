@@ -139,6 +139,10 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   The drone stations are filled with T3 drones (optional tick), and what the machines held can be put back (optional tick, off); optimizers always come with their fuses. The drone supply settings come along: storage
   crates supply everything only on the one labelled `Supplier`, the `Misc` crates supply nothing, beehives supply honey and bee larvae. The layout is in
   `src/Dashboard/Assets/main-base-template.json`, made from a save by `python tools/capture-main-base.py <save.json>`.
+  **Remove main base** (same page, same anchor) takes it out again: it clears the base's whole area (the template's footprint turned the way the anchor points, plus a margin,
+  and up to 60 m above its foundation) of **everything standing there, whether or not the template put it there**, with the inventories and items in them. The beacon or
+  lamp, the foundation under it and the escape pod stay. A preview shows what goes, by kind; it asks first, makes a backup, and proves the records left are exactly the
+  original ones minus those removed.
 - **Base Building, Teleporter**: put a foundation with a beacon named
   `Teleport` on it, pointing the way the teleporter should go; the build adds a foundation behind it and a teleporter on it facing away
   from the beacon (or toward it, your choice), with an optional name (the teleporter stands a metre further along the way it faces, so its back does not overhang the beacon's foundation). Only buildings are checked for room, not the ground.
