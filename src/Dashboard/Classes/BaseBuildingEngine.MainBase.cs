@@ -126,6 +126,15 @@ namespace RRSOS.PCC.Dashboard
             return result.OrderBy(b => b.Text, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
+        /// <summary>The turn that carries the captured direction to the way this anchor points (positive turns carry +z toward +x, as the platform templates do), with its cosine and sine.</summary>
+        private static (int Turn, double Cos, double Sin) TurnFor(MainBaseTemplate template, BuildBeacon beacon)
+        {
+            int c0 = template.Beacon.DirX * beacon.DirX + template.Beacon.DirZ * beacon.DirZ;
+            int s0 = template.Beacon.DirX * beacon.DirZ - template.Beacon.DirZ * beacon.DirX;
+            var turn = (int)Math.Round(-Math.Atan2(s0, c0) * 180 / Math.PI);
+            return (turn, Math.Round(Math.Cos(turn * Math.PI / 180)), Math.Round(Math.Sin(turn * Math.PI / 180)));
+        }
+
         /// <summary>How close an existing object's position may be to a new one's before the two are said to be in each other's way.</summary>
         private const double SamePlace = 0.6;
 
@@ -141,11 +150,7 @@ namespace RRSOS.PCC.Dashboard
             if (beacon.FoundationId is null)
                 return Problem("It is not standing on a foundation.");
 
-            // The turn that carries the captured direction to the way this beacon points (positive turns carry +z toward +x, as the platform templates do).
-            int c0 = template.Beacon.DirX * beacon.DirX + template.Beacon.DirZ * beacon.DirZ;
-            int s0 = template.Beacon.DirX * beacon.DirZ - template.Beacon.DirZ * beacon.DirX;
-            var turn = (int)Math.Round(-Math.Atan2(s0, c0) * 180 / Math.PI);
-            var (cs, sn) = (Math.Round(Math.Cos(turn * Math.PI / 180)), Math.Round(Math.Sin(turn * Math.PI / 180)));
+            var (turn, cs, sn) = TurnFor(template, beacon);
 
             var placed = new List<PlacedObject>(template.Objects.Count);
             var conflicts = new List<string>();
