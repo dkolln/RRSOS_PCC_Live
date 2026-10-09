@@ -345,20 +345,20 @@ namespace RRSOS.PCC.Dashboard
             }, "building the teleporter");
 
         /// <summary>The booster (heat, pressure) this beacon would get (read-only; null when the save cannot be read).</summary>
-        public Task<BoosterPlan?> PlanBoosterAsync(string savePath, long beaconId, double? spacing = null) => Task.Run(() =>
+        public Task<BoosterPlan?> PlanBoosterAsync(string savePath, long beaconId, BoosterOptions? options = null) => Task.Run(() =>
         {
             var text = ReadText(savePath, out _);
-            return text is null ? (BoosterPlan?)null : BaseBuildingEngine.PlanBooster(text, beaconId, spacing);
+            return text is null ? (BoosterPlan?)null : BaseBuildingEngine.PlanBooster(text, beaconId, options);
         });
 
         /// <summary>
         /// Builds the booster into the save: the plan is worked out again from the file as it is right now, then written with a backup
         /// (see <see cref="SaveResupplyService.EditAsync{T}"/>). The game must be at its main menu.
         /// </summary>
-        public Task<SaveEdit<BoosterOutcome>> BuildBoosterAsync(string savePath, long beaconId, double? spacing = null) =>
+        public Task<SaveEdit<BoosterOutcome>> BuildBoosterAsync(string savePath, long beaconId, BoosterOptions? options = null) =>
             _saves.EditAsync<BoosterOutcome>(savePath, text =>
             {
-                var plan = BaseBuildingEngine.PlanBooster(text, beaconId, spacing);
+                var plan = BaseBuildingEngine.PlanBooster(text, beaconId, options);
                 var outcome = BaseBuildingEngine.ApplyBooster(text, plan);
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "building the booster");

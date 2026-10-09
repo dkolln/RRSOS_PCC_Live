@@ -235,10 +235,14 @@ namespace RRSOS.PCC.Live
                     labelName = InventoryReader.NameOf(label, chosen);
                 }
 
-                // An empty, unlabelled container has nothing to report; an empty labelled one (a chest sitting there
-                // with nothing in it, waiting to be filled) is exactly what the dashboard needs to see, so it is not
-                // skipped just because "items" and "secondary" both come back null (Tallies' way of saying "nothing").
-                if (items == null && secondary == null && label == null)
+                // What drones are told to bring to it. A demand chest built from a template has no label, and stands empty until the drones
+                // fill it, so it is reported on its demand alone (the Factory tab needs to see it to say "a container is in reach, but empty").
+                var demand = GroupIds(LinkedInventory(o), true);
+
+                // An empty, unlabelled container with no demand has nothing to report; an empty labelled one, or an empty one that demands something
+                // (a chest sitting there waiting to be filled), is exactly what the dashboard needs to see, so it is not skipped just because
+                // "items" and "secondary" both come back null (Tallies' way of saying "nothing").
+                if (items == null && secondary == null && label == null && (demand == null || demand == "[]"))
                     return;
 
                 _containers.Add(new Json().Begin()
@@ -247,6 +251,7 @@ namespace RRSOS.PCC.Live
                     .Point("position", position.x, position.y, position.z)
                     .Str("label", label)
                     .Str("labelName", labelName)
+                    .Raw("demand", demand)
                     .Raw("items", ItemsJson(items))
                     .Raw("secondary", ItemsJson(secondary))
                     .End().ToString());
@@ -287,6 +292,7 @@ namespace RRSOS.PCC.Live
             if (id.StartsWith("WaterCollector", StringComparison.OrdinalIgnoreCase)) return "water";
             if (id.StartsWith("ToxicWaterCollector", StringComparison.OrdinalIgnoreCase)) return "toxicwater";
             if (id.StartsWith("AlgaeGenerator", StringComparison.OrdinalIgnoreCase)) return "algae";
+            if (id.StartsWith("HarvestingRobot", StringComparison.OrdinalIgnoreCase)) return "harvester";
             return null;
         }
 
@@ -658,7 +664,7 @@ namespace RRSOS.PCC.Live
             var items = Tallies(inventory, kind == "algae");
 
             string product = null, productName = null;
-            if (kind == "ore" || kind == "gas")
+            if (kind == "ore" || kind == "gas" || kind == "harvester")
             {
                 var groups = o.GetLinkedGroups();
                 var chosen = groups != null && groups.Count > 0 ? groups[0] : null;
@@ -668,6 +674,10 @@ namespace RRSOS.PCC.Live
                     productName = InventoryReader.NameOf(product, chosen);
                 }
             }
+
+            // What drones are told to collect from it (the inventory's supply list). Only a machine whose own product is on it feeds anything else.
+            // Not told for the algae generator, whose plants sit in a secondary inventory (null there).
+            var supply = kind == "algae" ? null : GroupIds(inventory, false);
 
             var count = 0;
             var ready = 0;
@@ -696,8 +706,35 @@ namespace RRSOS.PCC.Live
                 .Int("count", count)
                 .Int("productCount", ofProduct)
                 .Int("ready", ready)
+                .Raw("supply", supply)
                 .Raw("items", ItemsJson(items))
                 .End().ToString();
+        }
+
+        // The group ids an inventory's drone settings say to supply (or to demand), as a JSON array ("[]" when none, null when it cannot be read).
+        private static string GroupIds(Inventory inventory, bool demand)
+        {
+            try
+            {
+                var entity = inventory?.GetLogisticEntity();
+                var groups = demand ? entity?.GetDemandGroups() : entity?.GetSupplyGroups();
+                if (groups == null)
+                    return null;
+
+                var parts = new List<string>();
+                foreach (var group in groups)
+                {
+                    if (group != null)
+                        parts.Add("\"" + group.GetId().Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"");
+                }
+
+                return "[" + string.Join(",", parts.ToArray()) + "]";
+            }
+            catch (Exception e)
+            {
+                Plugin.LogOnce("world:supply", $"Could not read a drone supply or demand list: {e.GetType().Name}: {e.Message}");
+                return null;
+            }
         }
 
         // ------------------------------------------------------------------ inventories

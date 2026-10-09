@@ -63,7 +63,7 @@
 </div>
 
 @code {
-    private static readonly string[] Order = { "ore", "gas", "water", "toxicwater", "algae" };
+    private static readonly string[] Order = { "ore", "gas", "water", "toxicwater", "algae", "harvester" };
 
     /// <summary>Every extractor the plugin found.</summary>
     [Parameter]
@@ -169,8 +169,8 @@
             Key = g.Key,
             Title = Title(g.Key),
 
-            // Ore and gas are split by what they mine; water and algae are one list.
-            Subs = g.GroupBy(r => g.Key is "ore" or "gas" ? r.Data.ProductName ?? r.Data.Product ?? "Unset" : Title(g.Key))
+            // Ore, gas and harvesting robots are split by what they make; water and algae are one list.
+            Subs = g.GroupBy(r => g.Key is "ore" or "gas" or "harvester" ? r.Data.ProductName ?? r.Data.Product ?? "Unset" : Title(g.Key))
                     .OrderBy(s => s.Key, StringComparer.CurrentCultureIgnoreCase)
                     .Select(s => new Sub { Title = s.Key, Rows = s.OrderBy(r => r.Distance).ToList() })
                     .ToList()
@@ -204,6 +204,7 @@
         "water" => "Water",
         "toxicwater" => "Toxic water",
         "algae" => "Algae",
+        "harvester" => "Harvesting robot",
         _ => kind
     };
 

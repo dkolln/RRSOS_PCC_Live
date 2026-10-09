@@ -21,3 +21,4 @@
 .bb-problem { color: #ff9a6b; font-size: 0.85rem; margin: 2px 0; }
 .bb-ok { color: #4fd18b; font-size: 0.85rem; margin: 2px 0; }
 .bt-num { width: 5rem; }
+.bb-fuse { display: inline-flex; align-items: center; gap: 4px; color: #cfe4ff; }

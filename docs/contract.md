@@ -238,6 +238,7 @@ Two things used to pool every planet in a save together, which only mattered onc
 
 ## Changes
 
+- **Plugin 0.17.0**: `extractors[]` also lists harvesting robots (kind `harvester`, with the item they are set to), and each entry gains `supply` (the group ids its drone settings supply). The Factory tab counts an ore, gas or water source as supplied only when its product is on that list.
 - **Plugin 0.16.0**: `planet.power` gains `consumers[]` (what draws power, by kind) and a `name` on each generator and consumer. The dashboard shows both when the power gauge is clicked.
 - **Plugin 0.14.0**: new `planet.toxicity` in `live.json`, and Toxic Water Collectors in `extractors[]` (kind `toxicwater`). See above.
 - **Plugin 0.15.0**: new file `unlocks.json` (see above).
@@ -306,7 +307,7 @@ The plugin (0.3.0 and later) writes them to a second file beside it. The dashboa
 | `containers[]` | Placed objects with storage that hold something, within 220 m of some pod (widened from 120 m in plugin 0.10.0, for a large factory's farthest platforms). `items` is the main storage, `secondary` any secondary storage (a grower keeps its plants there). Items are counted by kind. `ready` (only when above zero) counts plants in `secondary` that have finished growing (growth 100). `label`/`labelName` (plugin 0.10.0 and later) are what the container is set for: a warehouse chest's demand item, or an autocrafter's chosen recipe (the same linked-group the game uses for an ore/gas extractor's product); null when nothing is picked |
 | `planetHash` | The game's hash for the planet (0.5.0 and later). Each object in a save carries it as `"planet"`, so the dashboard can keep only this planet's loose items from the save |
 | `loose[]` | **Gone in 0.5.0.** Loose items were read live up to 0.4.1, but the counts were unreliable; the dashboard now reads them from the save (see "The boneyard" below) |
-| `extractors[]` | Ore, gas, water, toxic water and algae machines. `kind` is `ore`, `gas`, `water`, `toxicwater` (the Toxic Water Collector, plugin 0.14.0) or `algae`. `product` and `productName` are what an ore or gas extractor is set to produce (null for water and algae). `size` is its slot count, `count` how many items it holds, `productCount` how many of those are the product, `ready` (algae) how many have finished growing. `items` is everything in it, by kind |
+| `extractors[]` | Ore, gas, water, toxic water and algae machines. `kind` is `ore`, `gas`, `water`, `toxicwater` (the Toxic Water Collector, plugin 0.14.0), `algae` or `harvester` (a harvesting robot, plugin 0.17.0). `product` and `productName` are what an ore or gas extractor or a harvesting robot is set to produce (null for water and algae). `size` is its slot count, `count` how many items it holds, `productCount` how many of those are the product, `ready` (algae) how many have finished growing. `items` is everything in it, by kind. `supply` (plugin 0.17.0) is the list of group ids its drone settings say to supply, so a machine feeds the factory only when its product is on it; `[]` when none, null when not read (an older plugin, or the algae generator) |
 | `position` | Raw world position, two decimals. Compass conventions belong to the reader, as in `live.json` |
 
 Everything is limited to the planet the player is on.
