@@ -13,7 +13,8 @@ same offsets), so a Tier 1 base built first is found already there when the full
 Rules of this capture (the owner's decisions, 2026-10-08):
   - what is in the save is what is captured: no drone settings are added (Tier 1 has no drone network), no machine holds anything
   - loose items lying about (ore, seeds, bottles) are not part of the base: anything the game lists as an item (plugin 0.15's unlocks.json) is left out
-  - a labelled crate that holds items is "stocked" with them (the disposal-room ore crates); the build puts them in when asked to pre-fill the base
+  - a labelled crate that holds items, and a food grower holding its seed, are "stocked" with them; the build puts them in when asked to pre-fill the base
+  - then every crate for a real item is filled to its size (tools/fill-crates.py), so a base is built with those crates completely full
   - the escape pod and the anchor lamp itself are left out
 """
 import json
@@ -122,7 +123,7 @@ for o in objs.values():
             if r is not None:
                 held[r['gId']] = held.get(r['gId'], 0) + 1
         if held:
-            if g.startswith('Container') and o.get('text'):
+            if (g.startswith('Container') and o.get('text')) or g.startswith('VegetableGrower'):
                 spec['stock'] = held
             else:
                 spec['held'] = held
@@ -150,4 +151,8 @@ with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
     json.dump(doc, f, separators=(',', ':'))
 print('objects in the template:', len(template_objects), '| left out as items:', skipped)
 print('written', os.path.abspath(OUT), os.path.getsize(OUT), 'bytes')
+
+# every crate for a real item is built completely full (see tools/fill-crates.py)
+import subprocess
+subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fill-crates.py'), os.path.abspath(OUT)], check=True)
 print(dict(sorted(counts.items(), key=lambda kv: -kv[1])))
