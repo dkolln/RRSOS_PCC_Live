@@ -140,7 +140,8 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   of their ore (800 items). Suppliers and machines start empty and fill up on their own. The drone supply settings come along: storage
   crates supply everything only on the one labelled `Supplier`, the `Misc` crates supply nothing, beehives supply honey and bee larvae. The layout is in
   `src/Dashboard/Assets/main-base-template.json`, made from a save by `python tools/capture-main-base.py <save.json>`.
-  **Tiers**: the page has a **Which base** picker. **Tier 1 base** (531 objects: the same pods and foundations, wind turbines, Container1 crates, T1 machines, no drone network; its ten
+  **Tiers**: the page has a **Which base** picker with **Tier 1 base**, **Tier 2 base** (583 objects: the tier-1 base with T1 solar panels instead of the wind turbines, T1 lockers (Container2), more extractors, growers, heaters and furnishing; `main-base-tier2.json`,
+  captured the same way with `capture-tier.py <save.json> 2`) and the **Full base**. **Tier 1 base** (531 objects: the same pods and foundations, wind turbines, Container1 crates, T1 machines, no drone network; its ten
   ore crates can be pre-filled) is `src/Dashboard/Assets/main-base-tier1.json`, made by `python tools/capture-tier.py <save.json> 1` from a base built around an outdoor lamp. Every tier is
   built in one shared frame (the anchor foundation is the origin and the pods and foundations stand at the same offsets), so a lower tier is found already there when a higher one is built over
   it. Building a tier over another is an **upgrade**: the pieces another tier placed (exactly where it placed them) that the picked tier does not have are taken out first, with what is in them (the
