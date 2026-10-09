@@ -58,8 +58,8 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>What the rocket depot is assumed to deliver (the owner's word, 2026-10-09). Game ids.</summary>
         public static readonly IReadOnlySet<string> DepotItems = new HashSet<string>(StringComparer.Ordinal) { "Selenium", "Phosphorus", "Minable-Tungsten", "Amber" };
 
-        /// <summary>Item types that are grown or bred rather than made (crops, algae, silk), plus honey: assumed supplied, as the owner said they are.</summary>
-        public static readonly IReadOnlySet<ItemType> GrownTypes = new HashSet<ItemType> { ItemType.Vegetable, ItemType.AlgaeSeed, ItemType.Thread };
+        /// <summary>Item types that are grown or bred rather than made (crops, silk), plus honey: assumed supplied, as the owner said they are. Algae are not: they need an algae collector on the planet.</summary>
+        public static readonly IReadOnlySet<ItemType> GrownTypes = new HashSet<ItemType> { ItemType.Vegetable, ItemType.Thread };
         public const string Honey = "honey";
 
         public const string CrafterGroup = "AutoCrafter1";
@@ -84,6 +84,9 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>True when the recipes were not available, so ingredients could not be worked out.</summary>
         public bool NoRecipeBook { get; init; }
+
+        /// <summary>True when an extractor did not say what its drone settings supply (plugin before 0.17.0): it is then counted as supplying its product.</summary>
+        public bool SupplyNotReported { get; init; }
 
         public int Empty => Crafters.Count(c => c.State == CrafterState.Empty);
         public int Full => Crafters.Count(c => c.State == CrafterState.Full);
@@ -208,10 +211,10 @@ namespace RRSOS.PCC.Dashboard
                     lacking.Select(c => crafterNames[c.Label!]).OrderBy(c => c, StringComparer.CurrentCultureIgnoreCase).ToList(),
                     state switch
                     {
-                        IngredientState.Unsupplied => FixFor(id, book, catalog) + (stored.TryGetValue(id, out var left) && left > 0 ? $". {left} still in storage, but nothing refills it" : ""),
-                        IngredientState.Dry => stored.TryGetValue(id, out var have) && have >= need.Needed
-                            ? $"{have} in storage on this planet, but not within reach of {(lacking.Count == 1 ? "that crafter" : "those crafters")} (needs a demand chest within {range:0} m)"
-                            : "Not enough in storage on this planet yet",
+                        IngredientState.Unsupplied => (fromExtractors.NotCollected.Contains(id)
+                            ? "A source (extractor, collector or harvesting robot) is set to " + catalog.NameOf(id) + ", but its drone supply is not: add " + catalog.NameOf(id) + " to what it supplies"
+                            : FixFor(id, book, catalog)) + (stored.TryGetValue(id, out var left) && left > 0 ? $". {left} still in storage, but nothing refills it" : ""),
+                        IngredientState.Dry => DryHint(id, supply, lacking, containers, range, stored.TryGetValue(id, out var have) ? have : 0, need.Needed),
                         _ => ""
                     }));
             }
@@ -236,8 +239,45 @@ namespace RRSOS.PCC.Dashboard
                 Crafters = crafterRows,
                 Ingredients = rows.OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase).ToList(),
                 NoRecipe = crafters.Count - withRecipe.Count,
-                NoRecipeBook = book is null
+                NoRecipeBook = book is null,
+                SupplyNotReported = fromExtractors.SupplyNotReported
             };
+        }
+
+        // Why a crafter that has a supply still finds too little. The first thing to tell is whether a container for the item stands within the crafter's reach (a
+        // demand chest, labelled or not): if one does and it is empty, the drones are bringing less than the crafters use, so the source is the thing to look at.
+        private static string DryHint(string id, SupplyKind supply, List<ContainerData> lacking, IReadOnlyList<ContainerData> containers, double range, int stored, int needed)
+        {
+            bool IsFor(ContainerData k) => !k.Group.Equals(CrafterGroup, StringComparison.OrdinalIgnoreCase)
+                && (string.Equals(k.Label, id, StringComparison.Ordinal) || k.Demand?.Contains(id, StringComparer.Ordinal) == true);
+
+            var chests = containers.Where(k => k.Position is not null && IsFor(k)).ToList();
+            var held = 0;
+            var everyone = lacking.Count > 0;
+            foreach (var crafter in lacking)
+            {
+                var near = chests.Where(k => Distance(crafter.Position!, k.Position!, ChestMiddle) <= range).ToList();
+                if (near.Count == 0)
+                    everyone = false;
+                else
+                    held = Math.Max(held, near.Sum(k => k.Items.Where(i => i.Id == id).Sum(i => i.Count)));
+            }
+
+            if (everyone)
+            {
+                var chest = (lacking.Count == 1 ? "A container for it is within reach" : "A container for it is within reach of all of them") + (held == 0 ? ", but it is empty." : $", but it holds only {held}.");
+                return chest + " " + supply switch
+                {
+                    SupplyKind.Extractor => "More extractors may be required.",
+                    SupplyKind.Depot => "Please verify the rocket depot supply is functioning properly.",
+                    SupplyKind.Crafter => "The crafter that makes it may need more of what it uses, or a second one.",
+                    _ => "More producers may be required."
+                };
+            }
+
+            return stored >= needed
+                ? $"{stored} in storage on this planet, but not within reach of {(lacking.Count == 1 ? "that crafter" : "those crafters")} (needs a demand chest within {range:0} m)"
+                : "Not enough in storage on this planet yet";
         }
 
         private static int NeededBy(ContainerData crafter, string ingredient, RecipeBook? book) =>
@@ -262,15 +302,35 @@ namespace RRSOS.PCC.Dashboard
             return list.ToDictionary(x => x.Id, x => shared.Contains(x.Name) ? $"{x.Name} ({x.Id})" : x.Name, StringComparer.Ordinal);
         }
 
-        // What each extractor or collector on the planet delivers, and how many do. An ore or gas extractor says its product; when it does not, what it
-        // holds tells (it only ever holds its own product).
-        private static Dictionary<string, int> ExtractorSupply(IEnumerable<ExtractorData> extractors)
+        /// <summary>What the planet's extractors deliver: <see cref="Count"/> how many machines per item that are set to it AND told to supply it to the drones;
+        /// <see cref="NotCollected"/> the items some machine is set to but not told to supply, which feed nothing.</summary>
+        private sealed class ExtractorSupplies
         {
-            var result = new Dictionary<string, int>(StringComparer.Ordinal);
+            public Dictionary<string, int> Count { get; } = new(StringComparer.Ordinal);
+            public HashSet<string> NotCollected { get; } = new(StringComparer.Ordinal);
+            public bool SupplyNotReported { get; set; }
+        }
 
-            void Add(string id)
+        // What each extractor or collector on the planet delivers, and how many do. An ore or gas extractor says its product; when it does not, what it
+        // holds tells (it only ever holds its own product). Setting a product is not enough: the machine's drone settings must supply it too, or nothing
+        // takes it away. A plugin that does not report the settings (before 0.17.0) leaves them unknown, and the machine counts.
+        private static ExtractorSupplies ExtractorSupply(IEnumerable<ExtractorData> extractors)
+        {
+            var result = new ExtractorSupplies();
+
+            void Add(ExtractorData e, string id)
             {
-                result[id] = result.TryGetValue(id, out var n) ? n + 1 : 1;
+                if (e.Supply is null)
+                {
+                    result.SupplyNotReported = true;
+                }
+                else if (!e.Supply.Contains(id, StringComparer.Ordinal))
+                {
+                    result.NotCollected.Add(id);
+                    return;
+                }
+
+                result.Count[id] = result.Count.TryGetValue(id, out var n) ? n + 1 : 1;
             }
 
             foreach (var e in extractors)
@@ -279,17 +339,19 @@ namespace RRSOS.PCC.Dashboard
                 {
                     case "ore":
                     case "gas":
+                    case "harvester": // a harvesting robot set to an item (common larvae...) is a source of it just the same
                         if (!string.IsNullOrEmpty(e.Product))
-                            Add(e.Product);
+                            Add(e, e.Product);
                         else
                             foreach (var id in e.Items.Select(i => i.Id).Where(i => i.Length > 0).Distinct(StringComparer.Ordinal))
-                                Add(id);
+                                Add(e, id);
                         break;
                     case "water":
-                        Add("WaterBottle1");
+                        Add(e, "WaterBottle1");
                         break;
                     case "algae":
-                        Add("Algae1Seed");
+                        // The plants sit in a secondary inventory the plugin does not read: counted as before (and algae are assumed grown anyway).
+                        result.Count["Algae1Seed"] = result.Count.TryGetValue("Algae1Seed", out var algae) ? algae + 1 : 1;
                         break;
                 }
             }
@@ -297,13 +359,13 @@ namespace RRSOS.PCC.Dashboard
             return result;
         }
 
-        private static (SupplyKind, string) SupplyOf(string id, HashSet<string> made, Dictionary<string, int> fromExtractors, ItemCatalog catalog)
+        private static (SupplyKind, string) SupplyOf(string id, HashSet<string> made, ExtractorSupplies fromExtractors, ItemCatalog catalog)
         {
             if (made.Contains(id))
                 return (SupplyKind.Crafter, "made by a crafter here");
 
-            if (fromExtractors.TryGetValue(id, out var count))
-                return (SupplyKind.Extractor, count == 1 ? "1 extractor" : count + " extractors");
+            if (fromExtractors.Count.TryGetValue(id, out var count))
+                return (SupplyKind.Extractor, count == 1 ? "1 source" : count + " sources");
 
             if (DepotItems.Contains(id))
                 return (SupplyKind.Depot, "rocket depot");
@@ -318,6 +380,9 @@ namespace RRSOS.PCC.Dashboard
         {
             if (catalog.TypeOf(id) == ItemType.Ore)
                 return "Needs an extractor set to " + catalog.NameOf(id) + ", if this planet has it";
+
+            if (catalog.TypeOf(id) == ItemType.AlgaeSeed)
+                return "There is no algae collector on this planet: build one (an Algae Generator) and set its drone supply to " + catalog.NameOf(id);
 
             if (catalog.TypeOf(id) is ItemType.GasCanister or ItemType.NitrogenCapsule)
                 return "Needs a gas extractor set to " + catalog.NameOf(id) + ", if this planet has it";

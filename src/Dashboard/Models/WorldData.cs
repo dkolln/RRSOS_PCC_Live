@@ -67,6 +67,7 @@ namespace RRSOS.PCC.Dashboard
                 container.Group ??= "";
                 container.Items = Clean(container.Items);
                 container.Secondary = Clean(container.Secondary);
+                container.Demand?.RemoveAll(s => s is null);
             }
 
 
@@ -75,6 +76,7 @@ namespace RRSOS.PCC.Dashboard
                 extractor.Kind ??= "";
                 extractor.Group ??= "";
                 extractor.Items = Clean(extractor.Items);
+                extractor.Supply?.RemoveAll(s => s is null);
             }
 
             return this;
@@ -220,6 +222,9 @@ namespace RRSOS.PCC.Dashboard
         public string? Label { get; set; }
         public string? LabelName { get; set; }
 
+        /// <summary>The group ids its drone settings say to bring to it (plugin 0.17.0 and later). Null when not reported. An empty chest built from a template has no label, only this.</summary>
+        public List<string>? Demand { get; set; }
+
         public List<StoredData> Items { get; set; } = new();
         public List<StoredData> Secondary { get; set; } = new();
     }
@@ -243,7 +248,7 @@ namespace RRSOS.PCC.Dashboard
     {
         public int Id { get; set; }
 
-        /// <summary>"ore", "gas", "water", "toxicwater" or "algae".</summary>
+        /// <summary>"ore", "gas", "water", "toxicwater", "algae" or "harvester" (a harvesting robot, plugin 0.17.0 and later).</summary>
         public string Kind { get; set; } = "";
 
         public string Group { get; set; } = "";
@@ -262,6 +267,9 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>Algae generators only: how many algae have finished growing.</summary>
         public int Ready { get; set; }
+
+        /// <summary>The group ids its drone settings say to supply (plugin 0.17.0 and later). Null when not reported: an older plugin, or the algae generator.</summary>
+        public List<string>? Supply { get; set; }
 
         public List<StoredData> Items { get; set; } = new();
     }

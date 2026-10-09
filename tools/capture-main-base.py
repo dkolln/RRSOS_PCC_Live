@@ -11,7 +11,10 @@ Rules of this capture (the owner's decisions, 2026-10-08):
   - the "supply everything" list (211 items) is written as "*" and expanded at build time
   - the disposal-room ore crates (labelled, demanding one ore, supplying nothing) get a "stock": that ore, filling the crate
   - crates labelled Misc* supply nothing
-  - butterfly farms and beehives are left out: Base Building > Boosters builds them (owner's decision, 2026-10-09)
+  - loose items lying about (the boneyard: ore, crops, flying drones...) are left out, like the tier capture does; the rover standing in the base stays, with the
+    highest tier of every upgrade fitted, so an upgrade from a tier (which has it) does not take it away
+  - butterfly farms, beehives, heaters and drills are left out (Base Building > Boosters builds them); so are the lake water collectors (WaterCollector2),
+    the algae generators and the harvesting robot (owner's decisions, 2026-10-09)
   - every DroneStation1 is filled with T3 drones (Drone3), 25 each; an Optimizer keeps its fuses ("keep", always built)
   - a Teleporter1's "set" (its number in the game's list) is dropped: the game gives it one
 """
@@ -103,9 +106,28 @@ def csv_count(csv):
 # the items the disposal-room crates are for (the game's own ids: Uranim, Aluminium), so other labelled crates (quartz, fuses...) are not stocked
 ORES = {'Iron', 'Silicon', 'Titanium', 'Magnesium', 'Cobalt', 'Alloy', 'Uranim', 'Iridium', 'Aluminium', 'Sulfur', 'Osmium', 'Obsidian', 'Aluminum'}
 
-# built by the Boosters page instead (a ring around an optimizer), never part of a base template
-BOOSTER_MACHINES = ('ButterflyFarm1', 'ButterflyFarm2', 'ButterflyFarm3', 'Beehive1', 'Beehive2')
+# Never part of a base template (owner's decisions, 2026-10-09). Butterfly farms and beehives are built by the Boosters page (a ring around an optimizer),
+# and so are the heaters and drills (stacked, with an optimizer). The lake water collectors, the algae generators and the harvesting robot stand out in the
+# world on their own, away from the base.
+BOOSTER_MACHINES = ('ButterflyFarm1', 'ButterflyFarm2', 'ButterflyFarm3', 'Beehive1', 'Beehive2',
+                    'AlgaeGenerator1', 'AlgaeGenerator2', 'HarvestingRobot1', 'WaterCollector2',
+                    'Heater1', 'Heater2', 'Heater3', 'Heater4', 'Heater5', 'Drill0', 'Drill1', 'Drill2', 'Drill3', 'Drill4')
 
+# what is an item and what a building, from the plugin's unlocks.json (the same file the tier capture reads)
+UNLOCKS = os.path.expandvars(r'%LOCALAPPDATA%\RRSOS-PCC-Live\unlocks.json')
+if not os.path.exists(UNLOCKS):
+    sys.exit('unlocks.json is not there: start the game with plugin 0.15 or newer and load a world once')
+kinds = {g['id']: g['kind'] for g in json.load(open(UNLOCKS, encoding='utf-8-sig'))['groups']}
+
+# the highest tier of each vehicle upgrade family in the game data (VehicleSpeed1..4 -> VehicleSpeed4, ...)
+_families = {}
+for _id, _kind in kinds.items():
+    _m = re.match(r'^(Vehicle.*?)(\d+)$', _id)
+    if _kind == 'item' and _m and _id != 'VehicleTruck':
+        _families.setdefault(_m.group(1), []).append((int(_m.group(2)), _id))
+MAX_VEHICLE_GEAR = {max(v)[1]: 1 for v in _families.values()}
+
+loose = {}
 excluded = []
 template_objects = []
 li_owner = {}
@@ -115,6 +137,10 @@ for o in objs.values():
         continue
     if is_far(o):
         excluded.append((g, o['pos']))
+        continue
+    # an item lying about is not part of the base; a vehicle standing in it is (with its upgrades)
+    if kinds.get(g) == 'item' and not g.startswith('Vehicle'):
+        loose[g] = loose.get(g, 0) + 1
         continue
     p = o['pos'].split(',')
     t = {'g': g, 'dx': off(p[0], ox), 'dy': off(p[1], oy), 'dz': off(p[2], oz), 'rot': o['rot']}
@@ -151,12 +177,18 @@ for o in objs.values():
         # an optimizer's fuses are its setup, not a product: always built
         if g.startswith('Optimizer') and held:
             spec['keep'] = dict(held)
+        if g.startswith('Vegetube'):
+            spec['stock'] = {'Seed4': inv['size']}   # every vegetube is built with its tuska seed
+            spec.pop('held', None)
         t['inv'] = spec
     if 'siIds' in o:
         sizes = []
         for sid in csv_count(str(o['siIds'])):
             sizes.append(invs[int(sid)]['size'])
         t['sec'] = sizes
+        if g.startswith('Vehicle'):
+            # a vehicle is built with the highest tier of every upgrade the game has for it (owner's rule), whatever was fitted when it was captured
+            t['secGear'] = [dict(MAX_VEHICLE_GEAR) for s in sizes]
     template_objects.append(t)
 
 template_objects.sort(key=lambda t: (t['g'], t['dx'], t['dz'], t['dy']))
@@ -167,9 +199,9 @@ for t in template_objects:
 doc = {
     'schema': 1,
     'name': 'Full base',
-    'capturedFrom': 'Creative-1.json, 2026-10-08, beacon "Base" on Prime',
+    'capturedFrom': 'Creative-1.json, %s, beacon "Base" on Prime' % __import__('datetime').date.today().isoformat(),
     'beacon': {'text': 'Base', 'dirX': dir_x, 'dirZ': dir_z},
-    'excluded': 'EscapePod, and %d objects far from the base (the heater field)' % len(excluded),
+    'excluded': 'EscapePod, loose items on the ground (%d), and %d objects far from the base; never butterfly farms, beehives, heaters, drills, algae generators, the harvesting robot or lake water collectors' % (sum(loose.values()), len(excluded)),
     'counts': counts,
     'objects': template_objects,
 }

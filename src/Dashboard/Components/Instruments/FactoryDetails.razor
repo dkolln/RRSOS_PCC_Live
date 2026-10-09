@@ -108,8 +108,12 @@
             </div>
 
             <div class="fd-foot">
-                Supply means something can bring the ingredient: another crafter here makes it, an extractor or collector on this planet is set to it, the rocket depot
-                delivers it (assumed for @string.Join(", ", FactoryReport.DepotItems.Select(Catalog.NameOf).OrderBy(n => n))), or it is grown (crops, algae, honey, silk; assumed).
+                Supply means something can bring the ingredient: another crafter here makes it, an extractor or collector on this planet is set to it <em>and</em> its drone supply includes it, the rocket depot
+                delivers it (assumed for @string.Join(", ", FactoryReport.DepotItems.Select(Catalog.NameOf).OrderBy(n => n))), or it is grown (crops, honey, silk; assumed) or collected as algae (needs an algae collector on the planet).
+                @if (report.SupplyNotReported)
+                {
+                    <span class="is-warn"> This plugin does not report the extractors' drone settings (needs 0.17.0), so every extractor with a product counts as supplying it.</span>
+                }
                 "Short at" counts the crafters that find less than one craft's worth in the containers within their own reach (20 m).
             </div>
         }

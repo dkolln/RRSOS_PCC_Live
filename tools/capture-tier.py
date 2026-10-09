@@ -108,8 +108,9 @@ template_objects, skipped = [], {}
 planet = lamp.get('planet')
 for o in objs.values():
     g = o['gId']
-    # butterfly farms and beehives are built by Base Building > Boosters, never part of a base template
-    if o['id'] == lamp['id'] or g in ('Beacon', 'EscapePod', 'ButterflyFarm1', 'ButterflyFarm2', 'ButterflyFarm3', 'Beehive1', 'Beehive2') or o.get('planet') != planet:
+    # butterfly farms and beehives are built by Base Building > Boosters, and the algae generators, harvesting robot and lake water collectors stand out in the world:
+    # none of them is part of a base template (the tiers do keep their own heaters)
+    if o['id'] == lamp['id'] or g in ('Beacon', 'EscapePod', 'ButterflyFarm1', 'ButterflyFarm2', 'ButterflyFarm3', 'Beehive1', 'Beehive2', 'AlgaeGenerator1', 'AlgaeGenerator2', 'HarvestingRobot1', 'WaterCollector2') or o.get('planet') != planet:
         continue
     x, y, z = pos(o)
     # only the base itself: the save may hold other things elsewhere

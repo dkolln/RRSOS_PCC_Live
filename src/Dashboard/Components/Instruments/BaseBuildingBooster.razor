@@ -3,18 +3,17 @@
 @inject PlanetNames Planets
 @inject IJSRuntime JS
 
-@* The Boosters template: a beacon named for a planet stat (Heat, Pressure) where the stack should stand. The build puts the stat's best machine there, eight
-   of them one on top of the other, and an optimizer 2 beside them holding the stat's fuses. Same rules as the other builds: it writes into the save (with a
-   backup first), so the game must be at the main menu. *@
+@* The Boosters template: any beacon, with the booster picked here (its name only suggests one: "Heat", "frog", "my bees"...), and a choice for each part of it: the machine's tier,
+   what fills it, and whether to build optimizers, of which tier, holding which fuses. The build puts the machines at the beacon (stacked, or in a ring around the optimizers when
+   the player must reach them). Same rules as the other builds: it writes into the save (with a backup first), so the game must be at the main menu. *@
 <div class="bt">
     <p class="hint">
-        Place a <strong>beacon</strong> where the booster should stand, named <code>Heat</code> (eight T5 heaters, <code>Heater5</code>) or <code>Pressure</code> (eight T5 drills,
-        <code>Drill4</code>), turned to point the way the optimizer should stand. Save, then pick it here: the machines are written at the beacon's own spot and height (one
-        on top of the other, as in your test), and an optimizer 2 @BaseBuildingEngine.BoosterOptimizerDistance.ToString("0") m on, filled with the stat's fuses.
-        A beacon named <code>Butterflies</code> is different, because a farm's larvae slots have to stay reachable: the optimizer (with insect fuses) goes on the beacon itself, and
-        eight T2 butterfly farms, each with its own empty larvae inventory, in a ring around it, as tight as the spacing below. <code>Bees</code> is the same with eight T2 beehives
-        (each supplying honey and bee larvae to the drones, as yours did). The beacon is left as it is.
-        Building writes into the save (with a backup first), so do it with the game at the main menu. <strong>Nothing is checked for room, and neither is the ground.</strong>
+        Place a <strong>beacon</strong> where the booster should stand and save. Any name will do: if it holds a word like <code>heat</code>, <code>pressure</code>, <code>butterfly</code>,
+        <code>bees</code>, <code>eco</code>, <code>frog</code> or <code>tree</code> the booster is picked for you, otherwise pick it here. <strong>Heat</strong> and <strong>Pressure</strong> stack eight T5
+        machines at the beacon's own spot and height (one on top of the other) with the optimizers @BaseBuildingEngine.BoosterOptimizerDistance.ToString("0") m on, turned the way the beacon
+        points. The others hold things you must reach (larvae, honey, eggs, seeds), so nothing is stacked: the optimizers (one per fuse, side by side) stand on the beacon and eight machines
+        surround them in a ring, each with its own inventory, as tight as the spacing below. Each part can be changed below. The beacon is left as it is. Building writes into the save
+        (with a backup first), so do it with the game at the main menu. <strong>Nothing is checked for room, and neither is the ground.</strong>
     </p>
 
     @if (string.IsNullOrEmpty(SavePath))
@@ -27,14 +26,15 @@
     }
     else
     {
-        <h3>Booster beacons in this save</h3>
+        <h3>Beacons in this save</h3>
         @if (_beacons.Count == 0)
         {
-            <p class="hint">No beacon named <code>Heat</code> or <code>Pressure</code> found (any name starting with it works, like <code>Heat North</code>).</p>
+            <p class="hint">No beacon found. Place one where the booster should stand, save, and come back.</p>
         }
 
         @foreach (var b in _beacons)
         {
+            var guess = BaseBuildingEngine.BoosterFor(b.Text);
             <div class="bb-card @(b.Id == _beaconId ? "is-picked" : "")" @key="b.Id">
                 <div class="bb-card-head">
                     <label class="bb-pick">
@@ -45,7 +45,7 @@
                             <span class="bb-planet">@planet</span>
                         }
                     </label>
-                    <span class="bb-muted">points @Compass(b)</span>
+                    <span class="bb-muted">@(guess is null ? "pick a booster below" : "looks like: " + guess.Name) · points @Compass(b)</span>
                 </div>
                 <div class="bb-muted">north @b.X.ToString("0.#") · east @((-b.Z).ToString("0.#")) · height @b.Y.ToString("0.##")</div>
             </div>
@@ -53,16 +53,88 @@
 
         @if (_beaconId != 0)
         {
+            var chosen = BaseBuildingEngine.BoosterByKey(_kindKey);
             <h3>Plan</h3>
 
-            @if (_plan?.Kind is { Ring: true } ringKind)
+            <div class="bb-controls">
+                <label>Booster
+                    <select @onchange="OnKind">
+                        <option value="" selected="@(_kindKey is null)">(pick one)</option>
+                        @foreach (var k in BaseBuildingEngine.Boosters)
+                        {
+                            <option value="@k.Key" selected="@(string.Equals(_kindKey, k.Key, StringComparison.OrdinalIgnoreCase))">@k.Name@(k.Machines.Count > 1 ? "" : " (" + k.MachineName + ")")</option>
+                        }
+                    </select>
+                </label>
+
+                @if (chosen is { Machines.Count: > 1 })
+                {
+                    <label>Machine
+                        <select @onchange="OnMachine">
+                            @foreach (var m in chosen.Machines)
+                            {
+                                <option value="@m.GId" selected="@((_machine ?? chosen.DefaultMachineChoice.GId) == m.GId)">@m.Label</option>
+                            }
+                        </select>
+                    </label>
+                }
+
+                @if (chosen?.PopulateOptions is { } seeds)
+                {
+                    <label>Fill with
+                        <select @onchange="OnPopulate">
+                            @foreach (var s in seeds)
+                            {
+                                <option value="@s.GId" selected="@((_populate ?? chosen.PopulateDefault ?? "") == s.GId)">@s.Label</option>
+                            }
+                        </select>
+                    </label>
+                }
+
+                @if (chosen is { Ring: true })
+                {
+                    <label>Spacing (m)
+                        <input class="bt-name bt-num" type="number" min="2" max="30" step="0.1" value="@SpacingText" @onchange="OnSpacing" />
+                    </label>
+                }
+            </div>
+
+            @if (chosen is not null)
             {
                 <div class="bb-controls">
-                    <label>Spacing (m)
-                        <input class="bt-name bt-num" type="number" min="2" max="20" step="0.1" value="@SpacingText" @onchange="OnSpacing" />
-                    </label>
-                    <span class="bb-muted">between neighbouring @ringKind.MachineName.ToLowerInvariant()s, centre to centre. Too tight and they overlap, so set it before you build: building again with another spacing adds a second ring, it does not move the first.</span>
+                    <label><input type="checkbox" checked="@_optimizers" @onchange="OnOptimizers" /> Build optimizers</label>
+                    @if (_optimizers)
+                    {
+                        <label>Optimizer
+                            <select @onchange="OnOptimizerTier">
+                                @foreach (var t in BaseBuildingEngine.OptimizerTiers)
+                                {
+                                    <option value="@t.Choice.GId" selected="@((_optimizerGId ?? BaseBuildingEngine.OptimizerGId) == t.Choice.GId)">@t.Choice.Label</option>
+                                }
+                            </select>
+                        </label>
+                        <span class="bb-muted">fuses, one optimizer each, filled:</span>
+                        @foreach (var f in BaseBuildingEngine.Fuses)
+                        {
+                            <label class="bb-fuse"><input type="checkbox" checked="@_fuses.Contains(f.GId)" @onchange="e => OnFuse(f.GId, e)" /> @f.Label</label>
+                        }
+                    }
                 </div>
+            }
+
+            @if (_plan?.Kind is { Ring: true })
+            {
+                <p class="bb-muted">
+                    Spacing is between neighbouring machines, centre to centre. Too tight and they overlap, so set it before you build: building again with another spacing adds a second ring,
+                    it does not move the first.
+                </p>
+                @if (_plan.Spacing * Math.Sqrt(2) > BaseBuildingEngine.OptimizerRange && _plan.Optimizers.Count > 0)
+                {
+                    <p class="bb-problem">
+                        At @_plan.Spacing.ToString("0.#") m the corner machines stand @((_plan.Spacing * Math.Sqrt(2)).ToString("0.#")) m from the optimizers, past the @BaseBuildingEngine.OptimizerRange.ToString("0") m
+                        an optimizer reaches (the game's default; a T2 may reach further), so they would not be boosted.
+                    </p>
+                }
             }
 
             @if (_plan is null)
@@ -73,28 +145,43 @@
             {
                 @foreach (var p in _plan.Problems)
                 {
-                    <p class="bb-problem">@p</p>
+                    <p class="@(_plan.Kind is null ? "bb-muted" : "bb-problem")">@p</p>
                 }
             }
             else
             {
                 var kind = _plan.Kind!;
+                var machine = _plan.Machine!;
+                var toAdd = _plan.Optimizers.Where(o => !o.Exists).ToList();
                 <p class="bb-summary">
                     @if (_plan.MachinesToAdd > 0)
                     {
-                        <span><strong>@_plan.MachinesToAdd</strong> @kind.MachineName @(kind.Ring ? $"in a ring {_plan.Spacing.ToString("0.#")} m apart around the beacon" : "at the beacon")@(_plan.MachinesFound > 0 ? $" ({_plan.MachinesFound} already there, to make {kind.Machines})" : "")</span>
+                        <span><strong>@_plan.MachinesToAdd</strong> @machine.Label @(kind.Ring ? $"in a ring {_plan.Spacing.ToString("0.#")} m apart around the beacon" : "at the beacon")@(_plan.Populate is not null ? $", each filled with {_plan.Populate.Label}" : "")@(_plan.MachinesFound > 0 ? $" ({_plan.MachinesFound} already there, to make {kind.Count})" : "")</span>
                     }
                     else
                     {
-                        <span>All @kind.Machines @kind.MachineName already stand @(kind.Ring ? "around" : "at") the beacon.</span>
+                        <span>All @kind.Count @machine.Label already stand @(kind.Ring ? "around" : "at") the beacon.</span>
                     }
-                    @if (_plan.OptimizerExists)
+
+                    @if (_plan.Optimizers.Count == 0)
                     {
-                        <span>, and the optimizer is already beside them.</span>
+                        <span>, and no optimizers.</span>
+                    }
+                    else if (toAdd.Count == 0)
+                    {
+                        <span>, and @(_plan.Optimizers.Count == 1 ? "the optimizer is" : "the optimizers are") already there.</span>
                     }
                     else
                     {
-                        <span>, and an <strong>Optimizer 2</strong> @(kind.Ring ? "on the beacon" : $"{BaseBuildingEngine.BoosterOptimizerDistance.ToString("0")} m {Compass(_plan.Beacon!)} of it"), holding <strong>@BaseBuildingEngine.BoosterSlots @kind.FuseName</strong>s.</span>
+                        <span>, and @(toAdd.Count == 1 ? "a" : toAdd.Count.ToString())
+                            <strong>@(toAdd[0].GId == "Optimizer1" ? "T1" : "T2") optimizer@(toAdd.Count == 1 ? "" : "s")</strong>
+                            @(kind.Ring ? "on the beacon" : $"{BaseBuildingEngine.BoosterOptimizerDistance.ToString("0")} m {Compass(_plan.Beacon!)} of it"),
+                            holding @string.Join(" and ", toAdd.Select(o => $"{o.Slots} {o.Fuse.Label} Fuse{(o.Slots == 1 ? "" : "s")}")).</span>
+                    }
+
+                    @if (kind.SupplyEverything && _plan.MachinesToAdd > 0)
+                    {
+                        <span> Each @machine.Label.ToLowerInvariant() supplies everything to the drones.</span>
                     }
                 </p>
 
@@ -130,13 +217,60 @@
     private string? _error;
     private IReadOnlyList<BuildBeacon> _beacons = Array.Empty<BuildBeacon>();
     private long _beaconId;
+    private string? _kindKey;               // the booster picked for the beacon (its name's guess to begin with)
+    private string? _machine;               // a tier of its machine; null is the preset's
+    private string? _populate;              // what fills each machine; null is the preset's
+    private double? _spacing;               // for a ring; null uses the kind's own
+    private bool _optimizers = true;
+    private string? _optimizerGId;          // null is the T2
+    private HashSet<string> _fuses = new(StringComparer.Ordinal);
     private BoosterPlan? _plan;
-    private double? _spacing; // for a ring; null uses the kind's own
+    private int _rev; // bumped on every replan, so only the newest answer is kept
     private bool _busy;
     private string? _message;
     private bool _ok;
 
     private string SpacingText => (_spacing ?? _plan?.Kind?.Spacing ?? 0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    private BoosterOptions Options() => new(_kindKey, _spacing, _machine, _populate, _optimizers, _optimizerGId,
+        BaseBuildingEngine.Fuses.Where(f => _fuses.Contains(f.GId)).Select(f => f.GId).ToList());
+
+    // A different booster starts from its own preset: its machine, fill, spacing and fuses.
+    private void ResetChoices()
+    {
+        _machine = null;
+        _populate = null;
+        _spacing = null;
+        _optimizers = true;
+        _optimizerGId = null;
+        _fuses = new HashSet<string>(BaseBuildingEngine.BoosterByKey(_kindKey)?.DefaultFuses ?? Array.Empty<string>(), StringComparer.Ordinal);
+    }
+
+    private async Task OnKind(ChangeEventArgs e)
+    {
+        _kindKey = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString();
+        ResetChoices();
+        _message = null;
+        await Replan();
+    }
+
+    private async Task OnMachine(ChangeEventArgs e) { _machine = e.Value?.ToString(); await Replan(); }
+
+    private async Task OnPopulate(ChangeEventArgs e) { _populate = e.Value?.ToString(); await Replan(); }
+
+    private async Task OnOptimizers(ChangeEventArgs e) { _optimizers = e.Value is true; await Replan(); }
+
+    private async Task OnOptimizerTier(ChangeEventArgs e) { _optimizerGId = e.Value?.ToString(); await Replan(); }
+
+    private async Task OnFuse(string gId, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+            _fuses.Add(gId);
+        else
+            _fuses.Remove(gId);
+
+        await Replan();
+    }
 
     private async Task OnSpacing(ChangeEventArgs e)
     {
@@ -149,11 +283,10 @@
         if (_beaconId == 0)
             return;
 
-        var beacon = _beaconId;
-        var spacing = _spacing;
-        var plan = await Building.PlanBoosterAsync(SavePath, beacon, spacing);
+        var rev = ++_rev;
+        var plan = await Building.PlanBoosterAsync(SavePath, _beaconId, Options());
 
-        if (beacon == _beaconId && spacing == _spacing)
+        if (rev == _rev)
             _plan = plan;
     }
 
@@ -178,11 +311,11 @@
         var (beacons, error) = await Building.ScanAsync(SavePath);
         _error = error;
 
-        // Only beacons named for a booster: "Heat", "Pressure 2", ... (not a warehouse row's beacon).
-        _beacons = beacons.Where(b => BaseBuildingEngine.BoosterFor(b.Text) is not null).ToList();
+        // Every beacon is offered, the ones whose name suggests a booster first: the name no longer has to be exact.
+        _beacons = beacons.OrderBy(b => BaseBuildingEngine.BoosterFor(b.Text) is null ? 1 : 0).ThenBy(b => b.Text, StringComparer.CurrentCultureIgnoreCase).ToList();
 
-        if (_beacons.Count == 1)
-            await PickBeacon(_beacons[0]);
+        if (_beacons.Count(b => BaseBuildingEngine.BoosterFor(b.Text) is not null) == 1)
+            await PickBeacon(_beacons.First(b => BaseBuildingEngine.BoosterFor(b.Text) is not null));
     }
 
     private async Task PickBeacon(BuildBeacon b)
@@ -190,18 +323,25 @@
         _beaconId = b.Id;
         _plan = null;
         _message = null;
-        _spacing = null; // each beacon starts from its kind's own spacing
+        _kindKey = BaseBuildingEngine.BoosterFor(b.Text)?.Key;
+        ResetChoices();
         await Replan();
     }
 
     private async Task Build()
     {
-        if (!CanBuild || _plan?.Kind is not { } kind)
+        if (!CanBuild || _plan?.Kind is not { } kind || _plan.Machine is not { } machine)
             return;
+
+        var adds = new List<string>();
+        if (_plan.MachinesToAdd > 0)
+            adds.Add($"{_plan.MachinesToAdd} {machine.Label}");
+        foreach (var o in _plan.Optimizers.Where(o => !o.Exists))
+            adds.Add($"a {(o.GId == "Optimizer1" ? "T1" : "T2")} optimizer with {o.Slots} {o.Fuse.Label} Fuse{(o.Slots == 1 ? "" : "s")}");
 
         var confirmed = await JS.InvokeAsync<bool>(
             "confirm",
-            $"Have you exited to the Main Menu?\n\nBUILD {kind.Name.ToUpperInvariant()} BOOSTER adds {(_plan.MachinesToAdd > 0 ? $"{_plan.MachinesToAdd} {kind.MachineName}" : "")}{(_plan.MachinesToAdd > 0 && !_plan.OptimizerExists ? " and " : "")}{(_plan.OptimizerExists ? "" : $"an Optimizer 2 with {BaseBuildingEngine.BoosterSlots} {kind.FuseName}s")} to your save file. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
+            $"Have you exited to the Main Menu?\n\nBUILD {kind.Name.ToUpperInvariant()} BOOSTER adds {string.Join(" and ", adds)} to your save file. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
 
         if (!confirmed)
             return;
@@ -212,7 +352,7 @@
 
         try
         {
-            var edit = await Building.BuildBoosterAsync(SavePath, _beaconId, _spacing);
+            var edit = await Building.BuildBoosterAsync(SavePath, _beaconId, Options());
 
             if (!edit.Success || edit.Result is null)
             {
@@ -223,7 +363,7 @@
             else
             {
                 _ok = true;
-                _message = $"Built: {edit.Result.Machines} {kind.MachineName}{(edit.Result.Optimizers > 0 ? $" and an Optimizer 2 with {edit.Result.Fuses} {kind.FuseName}s" : "")}. Backup: {edit.BackupPath}";
+                _message = $"Built: {edit.Result.Machines} {machine.Label}{(edit.Result.Optimizers > 0 ? $" and {edit.Result.Optimizers} optimizer{(edit.Result.Optimizers == 1 ? "" : "s")} ({edit.Result.Fuses} fuses)" : "")}. Backup: {edit.BackupPath}";
                 Toasts.Show("Built the " + kind.Name.ToLowerInvariant() + " booster", ToastKind.Success);
             }
 
@@ -231,9 +371,27 @@
             var keep = _message;
             var keepOk = _ok;
             var keepBeacon = _beaconId;
+            var keepKind = _kindKey;
+            var keepMachine = _machine;
+            var keepPopulate = _populate;
+            var keepSpacing = _spacing;
+            var keepOptimizers = _optimizers;
+            var keepTier = _optimizerGId;
+            var keepFuses = new HashSet<string>(_fuses, StringComparer.Ordinal);
             await OnParametersSetAsync();
             if (_beacons.Any(b => b.Id == keepBeacon))
+            {
                 await PickBeacon(_beacons.First(b => b.Id == keepBeacon));
+                _kindKey = keepKind;
+                _machine = keepMachine;
+                _populate = keepPopulate;
+                _spacing = keepSpacing;
+                _optimizers = keepOptimizers;
+                _optimizerGId = keepTier;
+                _fuses = keepFuses;
+                await Replan();
+            }
+
             _message = keep;
             _ok = keepOk;
         }
