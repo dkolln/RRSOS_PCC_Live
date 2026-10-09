@@ -85,6 +85,15 @@
     min-width: 0;
 }
 
+.power-meter.is-clickable {
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.power-meter.is-clickable:hover {
+    background: rgba(122, 184, 255, 0.07);
+}
+
 .tox-gauge.is-clickable {
     cursor: pointer;
     border-radius: 6px;
@@ -189,17 +198,40 @@
     min-width: 0;
 }
 
-.power-icons {
+.power-types {
     grid-column: 2 / 4;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, 28px);
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
     gap: 3px;
     align-content: start;
+    min-width: 0;
 }
 
-.power-icons :global(.pi) {
-    width: 28px !important;
-    height: 28px !important;
+.power-type {
+    display: grid;
+    grid-template-columns: 1.9rem 3rem minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #cfe4ff;
+}
+
+.power-type :global(.pi) {
+    width: 1.7rem !important;
+    height: 1.7rem !important;
+}
+
+.pt-count {
+    color: #7f9db9;
+    font-variant-numeric: tabular-nums;
+}
+
+.pt-kw {
+    text-align: right;
+    color: #4fd18b;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .power-figure {

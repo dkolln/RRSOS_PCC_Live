@@ -48,7 +48,13 @@ namespace RRSOS.PCC.Dashboard
         private const int NewIdMin = 200_000_000;
         private const int NewIdMax = 210_000_000;
 
-        private sealed record Rec(int Start, int Length, string Raw, long Id, string? GId, string? Text, int? LiId, string? WoIds, int? Size, int Planet = 0)
+        // The kinds of storage that is filled by what it demands (see Apply's demandItem): chests, lockers, vaults, fridges and counters.
+        private static readonly Regex DemandFillStorage = new(@"^(Container\d+|Vault\d*|Locker\d*|Fridge\d*|Counter\d*)$", RegexOptions.Compiled);
+
+        // Never filled from a demand: these are held in the base's DNA and Genetics tanks, not stocked.
+        private static readonly HashSet<string> NeverFilledFromDemand = new(StringComparer.OrdinalIgnoreCase) { "DNASequence", "GeneticTrait" };
+
+        private sealed record Rec(int Start, int Length, string Raw, long Id, string? GId, string? Text, int? LiId, string? WoIds, int? Size, int Planet = 0, string? DemandGrps = null)
         {
             public bool IsInventory => WoIds != null;
         }
@@ -72,6 +78,13 @@ namespace RRSOS.PCC.Dashboard
         /// as well, after the configured ones, and never one a config already handled. It says what item a label names,
         /// or null. Such containers are only topped up (their empty slots filled) unless <paramref name="autoReplaceAll"/>.
         /// </param>
+        /// <param name="demandItem">
+        /// When given, a container of a storage kind (Container1 to 3, vault, locker, fridge, counter) that demands exactly one item is filled with that
+        /// item, as the label-named ones are: <paramref name="autoReplaceAll"/> says whether what it already holds is replaced. It has no label, or a
+        /// label that is no item id ("chocolate", "Pantry"); a label that is an item id, or one a config names, always wins over the demand. It says
+        /// what item an id names, or null (a machine, a building, ...). DNA and Genetic Traits are never filled this way, and a container that demands
+        /// several things is left alone.
+        /// </param>
         /// <param name="planetHash">
         /// Only containers on this planet are filled, by label or by auto-item; everything else in the save is invisible,
         /// as if it did not exist. Null looks at the whole save, every planet pooled together — the same behaviour as
@@ -80,7 +93,8 @@ namespace RRSOS.PCC.Dashboard
         /// </param>
         public static ResupplyOutcome Apply(
             string text, IReadOnlyList<ResupplyConfig> configs, Random? random = null,
-            Func<string, (string GId, string Name)?>? autoItem = null, bool autoReplaceAll = false, int? planetHash = null)
+            Func<string, (string GId, string Name)?>? autoItem = null, bool autoReplaceAll = false, int? planetHash = null,
+            Func<string, (string GId, string Name)?>? demandItem = null)
         {
             random ??= Random.Shared;
 
@@ -115,7 +129,10 @@ namespace RRSOS.PCC.Dashboard
             var touched = new List<TouchedInventory>();
 
             // The configured ones first, then a container labelled with an item id (unless a config already names that label).
-            var work = configs.ToList();
+            var work = configs.Select(c => (Config: c, Explicit: (List<Rec>?)null)).ToList();
+            var configuredLabels = new HashSet<string>(
+                configs.Select(c => c.ContainerLabel?.Trim() ?? "").Where(l => l.Length > 0),
+                StringComparer.OrdinalIgnoreCase);
 
             if (autoItem is not null)
             {
@@ -130,11 +147,42 @@ namespace RRSOS.PCC.Dashboard
                     .OrderBy(l => l, StringComparer.OrdinalIgnoreCase))
                 {
                     if (!configured.Contains(label) && autoItem(label) is { } item)
-                        work.Add(new ResupplyConfig("item-id:" + label, label, item.GId, item.Name, autoReplaceAll));
+                        work.Add((new ResupplyConfig("item-id:" + label, label, item.GId, item.Name, autoReplaceAll), null));
                 }
             }
 
-            foreach (var config in work)
+            if (demandItem is not null)
+            {
+                // Storage that demands exactly one item and whose label (if any) is no item id and no configured label, grouped by that item (one line each in the report).
+                var byDemand = new Dictionary<string, (string Name, List<Rec> Containers)>(StringComparer.Ordinal);
+
+                bool LabelYieldsToDemand(string? label) =>
+                    string.IsNullOrWhiteSpace(label) || (!configuredLabels.Contains(label.Trim()) && demandItem(label.Trim()) is null);
+
+                foreach (var container in records.Where(r => !r.IsInventory && r.LiId is not null && OnPlanet(r) && LabelYieldsToDemand(r.Text)
+                                                             && r.GId is not null && DemandFillStorage.IsMatch(r.GId)))
+                {
+                    if (!inventories.TryGetValue(container.LiId!.Value, out var inventory))
+                        continue;
+
+                    var wanted = inventory.DemandGrps?.Trim() ?? "";
+                    if (wanted.Length == 0 || wanted.Contains(',') || NeverFilledFromDemand.Contains(wanted))
+                        continue;
+
+                    if (demandItem(wanted) is not { } item || NeverFilledFromDemand.Contains(item.GId))
+                        continue;
+
+                    if (!byDemand.TryGetValue(item.GId, out var group))
+                        byDemand[item.GId] = group = (item.Name, new List<Rec>());
+
+                    group.Containers.Add(container);
+                }
+
+                foreach (var (gId, group) in byDemand.OrderBy(p => p.Key, StringComparer.Ordinal))
+                    work.Add((new ResupplyConfig("demand:" + gId, "Demanding " + group.Name, gId, group.Name, autoReplaceAll), group.Containers));
+            }
+
+            foreach (var (config, explicitContainers) in work)
             {
                 var label = config.ContainerLabel?.Trim() ?? "";
 
@@ -144,7 +192,7 @@ namespace RRSOS.PCC.Dashboard
                     continue;
                 }
 
-                var containers = records
+                var containers = explicitContainers ?? records
                     .Where(r => !r.IsInventory && r.LiId is not null && OnPlanet(r)
                                 && string.Equals(r.Text?.Trim(), label, StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -286,7 +334,7 @@ namespace RRSOS.PCC.Dashboard
                     string? Str(string name) => root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
                     int? Int(string name) => root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number && e.TryGetInt32(out var v) ? v : null;
 
-                    records.Add(new Rec(match.Index, match.Length, match.Value, id, Str("gId"), Str("text"), Int("liId"), Str("woIds"), Int("size"), Int("planet") ?? 0));
+                    records.Add(new Rec(match.Index, match.Length, match.Value, id, Str("gId"), Str("text"), Int("liId"), Str("woIds"), Int("size"), Int("planet") ?? 0, Str("demandGrps")));
                 }
                 catch (JsonException ex)
                 {

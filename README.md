@@ -38,6 +38,11 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
   stat, strongest first: how many you have built, what one makes, and what they make together right now (each machine's own
   figure, boosts included). Buildings you have not unlocked yet are shown in grey with a lock, and a tick hides them;
   you can sort by what they make now or by what one makes. (Plugin 0.13.0, `terraformers.json`.)
+- The **power card** lists one row per kind of generator (wind, solar T1/T2, nuclear T1/T2, fusion; only those you have): its icon, how many
+  are built and what they make together. Optimizers make single machines differ, so there is no per-machine figure.
+- **Click the power gauge** to see what makes the power and what uses it: producing (weakest generator to strongest) and using
+  (hungriest machine to least), each with how many are built, what one makes or draws, what they do together right now and
+  their share. A button on each list flips its order. The using list needs plugin 0.16.0.
 - **Phases**: the current planet's own named terraformation milestones (the game's "progress" screen â€” Lakes, Animals,
   Complete Transformation, ...; not every one lines up with a gauge), each planet with its own list: solid once
   complete, flashing for the one in progress, plain for the rest, with a live percentage toward the next one.
@@ -101,6 +106,10 @@ backup first, writes atomically, and is refused unless undoing it would give bac
 - **Resupply**: a configurable list of items to top up in your inventories. With a save that has labelled containers
   on more than one planet, a **Planet** picker scopes RESUPPLY to the one chosen (does not depend on a warehouse beacon
   â€” a planet with none named "All" still works).
+  Containers labelled with an item id are filled with that item. A chest, locker, vault, fridge or counter that demands **exactly one**
+  item is filled with it too when it has **no label**, or a label that is **not an item id** (like `chocolate`); tick on the tab, on by
+  default; never DNA or Genetic Traits. A label that is an item id (or one of your configs) always wins over a demand, and a container
+  that demands several things is left alone.
 - **Drone Network**: sets which containers supply and which demand, so drones move things without hand setup. A
   container is either a demand sink or a supply source; producers supply what they hold, extractors and ecosystems
   supply everything. Pick which producers and consumers to switch on, and choose the item a container demands. Same
@@ -136,12 +145,12 @@ backup first, writes atomically, and is refused unless undoing it would give bac
 - **Base Building** has a sub-menu of templates: **Warehouse** (below), **Main Base** and **Teleporter**. **Main Base** builds the whole base the owner designed
   (695 objects: 387 foundations, pods and domes, power, crafting, farms, drone stations, signs, and the ten ore crates of the disposal room, each labelled and set to demand its ore...) from a beacon named `Base` on a foundation (or, early in a game before beacons exist, an **outdoor lamp** on a foundation: the foundation under it is the start and its facing the direction), turned to whichever of the four
   directions the beacon points, with a preview drawing. Heights follow the beacon's foundation; only buildings are checked for room, not the ground (it is about 114 m by 162 m).
-  One tick, **Pre-fill the base** (on by default), stocks the drone stations with T3 drones, the optimizers with their fuses, every crate that is for a real item completely full (crates for no item, such as Supplier, Misc, the egg and larvae crates and the mixed Seeds crate, are always empty; `tools/fill-crates.py` applies that rule to a template and the capture does it itself) and each food grower with the seed it held
+  One tick, **Pre-fill the base** (on by default), stocks the drone stations with T3 drones, the optimizers with their fuses, every crate that is for a real item completely full (crates for no item, such as Supplier, Misc, the egg and larvae crates and the mixed Seeds crate, are always empty; `tools/fill-crates.py` applies that rule to a template and the capture does it itself) each food grower with the seed it held and every vegetube with a tuska seed
   of their ore (800 items). Suppliers and machines start empty and fill up on their own. The drone supply settings come along: storage
   crates supply everything only on the one labelled `Supplier`, the `Misc` crates supply nothing, beehives supply honey and bee larvae. The layout is in
   `src/Dashboard/Assets/main-base-template.json`, made from a save by `python tools/capture-main-base.py <save.json>`.
   **Tiers**: the page has a **Which base** picker with **Tier 1 base**, **Tier 2 base** (583 objects: the tier-1 base with T1 solar panels instead of the wind turbines, T1 lockers (Container2), more extractors, growers, heaters and furnishing; `main-base-tier2.json`,
-  captured the same way with `capture-tier.py <save.json> 2`) **Tier 3 base** (601 objects: T2 solar panels, a second heater block, the advanced craft station, a launch platform and a dome; `main-base-tier3.json`) **Tier 4 base** (526 objects: 20 T1 nuclear reactors instead of the solar panels, Heater3 and outdoor vegetubes; `main-base-tier4.json`) and the **Full base**. **Tier 1 base** (521 objects: the same pods and foundations, wind turbines, Container1 crates, T1 machines, no drone network; its ten
+  captured the same way with `capture-tier.py <save.json> 2`) **Tier 3 base** (601 objects: T2 solar panels, a second heater block, the advanced craft station, a launch platform and a dome; `main-base-tier3.json`) **Tier 4 base** (558 objects: 24 T1 nuclear reactors, centred on their foundations, instead of the solar panels, T2 ore extractors, Heater3, outdoor vegetubes, the Biolab, water collector, two gas extractors, the vehicle station with a rover carrying the highest tier of every vehicle upgrade, and the extra domes and displays; `main-base-tier4.json`) and the **Full base**. **Tier 1 base** (521 objects: the same pods and foundations, wind turbines, Container1 crates, T1 machines, no drone network; its ten
   ore crates can be pre-filled) is `src/Dashboard/Assets/main-base-tier1.json`, made by `python tools/capture-tier.py <save.json> 1` from a base built around an outdoor lamp. Every tier is
   built in one shared frame (the anchor foundation is the origin and the pods and foundations stand at the same offsets), so a lower tier is found already there when a higher one is built over
   it. A piece that is already standing in the same spot is kept as it is, label and contents included, so a crate relabelled or restocked in a higher tier keeps the lower tier's label until it is changed by hand. Building a tier over another is an **upgrade**: the pieces another tier placed (exactly where it placed them) that the picked tier does not have are taken out first, with what is in them (the

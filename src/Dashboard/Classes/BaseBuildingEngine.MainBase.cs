@@ -29,6 +29,9 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>What it always holds: an optimizer's fuses are its setup, not a product.</summary>
         public Dictionary<string, int>? Keep { get; set; }
+
+        /// <summary>What it always holds, with or without pre-fill: the upgrades fitted to a vehicle (speed, lights, oxygen, jetpack...) are part of the vehicle.</summary>
+        public Dictionary<string, int>? Gear { get; set; }
     }
 
     /// <summary>One object of the captured base: where it stands from the beacon's own foundation, and everything the save wrote about it.</summary>
@@ -47,6 +50,9 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>The sizes of its secondary inventories (farms and growers keep their plants there).</summary>
         public List<int>? Sec { get; set; }
+
+        /// <summary>What each secondary inventory (in the order of <see cref="Sec"/>) holds from the start: a vehicle's fitted upgrades.</summary>
+        public List<Dictionary<string, int>>? SecGear { get; set; }
     }
 
     public sealed class MainBaseBeacon
@@ -326,6 +332,8 @@ namespace RRSOS.PCC.Dashboard
 
                 var held = new List<long>();
                 var wanted = new List<(string GId, int Count)>();
+                if (spec?.Gear is { } gear)
+                    wanted.AddRange(gear.Select(p => (p.Key, p.Value)));
                 if (spec?.Keep is { } keep && prefill)
                     wanted.AddRange(keep.Select(p => (p.Key, p.Value)));
                 if (spec?.Fill is { } fill && prefill)
@@ -376,7 +384,7 @@ namespace RRSOS.PCC.Dashboard
                     sb.Append(",\"liGrps\":").Append(Q(t.LiGrps));
 
                 if (t.Sec is { Count: > 0 } sec)
-                    sb.Append(",\"siIds\":").Append(Q(string.Join(",", sec.Select(size => AddInventory(null, size, false)))));
+                    sb.Append(",\"siIds\":").Append(Q(string.Join(",", sec.Select((size, i) => AddInventory(t.SecGear is { } fitted && i < fitted.Count ? new MainBaseInventory { Gear = fitted[i] } : null, size, false)))));
 
                 sb.Append(",\"pos\":\"").Append(Pos(p.X, p.Y, p.Z)).Append("\",\"rot\":").Append(Q(p.Rot)).Append(",\"planet\":").Append(planet);
 

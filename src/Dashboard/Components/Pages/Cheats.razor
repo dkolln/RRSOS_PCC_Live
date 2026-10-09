@@ -462,6 +462,10 @@
                     <input type="checkbox" checked="@_autoReplace" disabled="@(!_autoFill)" @onchange="e => SetAutoReplace(e.Value is true)" />
                     Replace what is already in those containers (unticked: only empty slots are filled)
                 </label>
+                <label>
+                    <input type="checkbox" checked="@_autoDemand" @onchange="e => SetAutoDemand(e.Value is true)" />
+                    Also fill a chest, locker, vault, fridge or counter that demands exactly one item and has no label, or a label that is not an item id like <code>chocolate</code> (never DNA or Genetic Traits)
+                </label>
             </div>
         </section>
 
@@ -514,6 +518,7 @@
     private string _selectedSave = "";
     private bool _autoFill = true;
     private bool _autoReplace;
+    private bool _autoDemand = true;
     private string _saveFolder = "";
     private IReadOnlyList<string> _saveFiles = Array.Empty<string>();
     private bool _busy;
@@ -533,6 +538,7 @@
         _selectedSave = file.SelectedSaveFile ?? "";
         _autoFill = file.AutoFillByGId;
         _autoReplace = file.AutoFillReplaceAll;
+        _autoDemand = file.AutoFillDemanded;
         _rows = file.Configs.Select(c => new ConfigRow
         {
             Id = c.Id,
@@ -571,7 +577,7 @@
     private bool CanResupply =>
         !_busy && Live.Status != LiveStatus.Live && !HasDuplicates
         && !string.IsNullOrEmpty(_selectedSave)
-        && (_autoFill || _rows.Any(r => r.ContainerLabel.Trim().Length > 0 && r.ProductGId.Length > 0));
+        && (_autoFill || _autoDemand || _rows.Any(r => r.ContainerLabel.Trim().Length > 0 && r.ProductGId.Length > 0));
 
     private void GoHome() => Nav.NavigateTo("/");
 
@@ -1015,6 +1021,12 @@
         await Persist();
     }
 
+    private async Task SetAutoDemand(bool value)
+    {
+        _autoDemand = value;
+        await Persist();
+    }
+
     private async Task SetReplaceAll(ConfigRow row, bool value)
     {
         row.ReplaceAll = value;
@@ -1068,6 +1080,7 @@
             SelectedSaveFile = _selectedSave,
             AutoFillByGId = _autoFill,
             AutoFillReplaceAll = _autoReplace,
+            AutoFillDemanded = _autoDemand,
             Configs = _rows.Select(r => r.ToConfig()).ToList()
         };
 
@@ -1100,7 +1113,7 @@
                 .ToList();
 
             var planetHash = _resupplyPlanets.Count > 1 ? _selectedResupplyPlanet : null;
-            ShowToasts(await Resupply.ResupplyAsync(path, configs, new ResupplyOptions(_autoFill, _autoReplace), planetHash));
+            ShowToasts(await Resupply.ResupplyAsync(path, configs, new ResupplyOptions(_autoFill, _autoReplace, _autoDemand), planetHash));
         }
         finally
         {

@@ -88,9 +88,12 @@ namespace RRSOS.PCC.Dashboard
                 var hasBom = original.Length >= 3 && original[0] == 0xEF && original[1] == 0xBB && original[2] == 0xBF;
                 var text = Encoding.UTF8.GetString(original, hasBom ? 3 : 0, original.Length - (hasBom ? 3 : 0));
 
-                var outcome = options is { AutoFillByGId: true }
-                    ? SaveResupplyEngine.Apply(text, configs, autoItem: _catalog.ResolveItemLabel, autoReplaceAll: options.AutoFillReplaceAll, planetHash: planetHash)
-                    : SaveResupplyEngine.Apply(text, configs, planetHash: planetHash);
+                var outcome = SaveResupplyEngine.Apply(
+                    text, configs,
+                    autoItem: options is { AutoFillByGId: true } ? _catalog.ResolveItemLabel : null,
+                    autoReplaceAll: options?.AutoFillReplaceAll ?? false,
+                    planetHash: planetHash,
+                    demandItem: options is { AutoFillDemanded: true } ? _catalog.ResolveItemLabel : null);
 
                 if (outcome.Failed)
                     return new ResupplyReport(false, "Nothing was changed. " + string.Join(" ", outcome.Problems), outcome.Lines, null, at);

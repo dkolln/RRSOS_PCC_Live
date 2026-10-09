@@ -110,7 +110,19 @@
                         <rect x="@Sx(o.Z + Half)" y="@Sy(o.X + Half)" width="@Num(Spacing)" height="@Num(Spacing)" class="bb-found @(o.Exists ? "is-there" : "is-new")" />
                     }
 
-                    @* The big pieces (pods, domes, platforms) are drawn with a pretend foundation under them, roughly their size, so the plan has no black gaps. Drawing only. *@
+                    @* The decks of the launch platform and the vehicle station are 6 m tiles on the foundation grid; they are drawn as foundations, from where the game measured them. Drawing only. *@
+                    @foreach (var o in _plan.Objects.Where(o => Decks.ContainsKey(o.Source.G)))
+                    {
+                        // Where the base already has a foundation on the deck (the platform's north-west corner is cut out for one) it is drawn once, as that foundation.
+                        foreach (var t in PlatformTiles(o).Where(t => !_plan.Objects.Any(f => f.Source.G.StartsWith("Foundation", StringComparison.Ordinal) && Math.Abs(f.X - t.X) < 1 && Math.Abs(f.Z - t.Z) < 1)))
+                        {
+                            <rect x="@Sx(t.Z + Half)" y="@Sy(t.X + Half)" width="@Num(Spacing)" height="@Num(Spacing)" class="bb-found is-platform" />
+                        }
+
+                        <polygon points="@ApronPoints(o)" class="bb-pad" />
+                    }
+
+                    @* The other big pieces (pods, domes, platforms) are drawn with a pretend foundation under them, roughly their size, so the plan has no black gaps. Drawing only. *@
                     @foreach (var o in _plan.Objects)
                     {
                         if (Pad(o) is { } pad)
@@ -270,7 +282,7 @@
             var parts = new List<string>();
             if (DroneCount > 0) parts.Add($"{DroneCount} T3 drones in the drone stations");
             if (FuseCount > 0) parts.Add($"{FuseCount} fuses in the optimizers");
-            if (StockCount > 0) parts.Add($"{StockCount} items in the crates and food growers");
+            if (StockCount > 0) parts.Add($"{StockCount} items in the crates, food growers and vegetubes");
             return string.Join(", ", parts);
         }
     }
@@ -468,9 +480,40 @@
     {
         ["pod"] = (8.5, 8.5), ["podAngle"] = (8.3, 8.3), ["Pod4x"] = (17, 16.5), ["Pod9xA"] = (24, 24), ["Pod9xB"] = (24, 24), ["Pod9xC"] = (24.5, 24.5),
         ["Biolab"] = (16.5, 16.5), ["biodome"] = (24, 20), ["Biodome2"] = (32, 27), ["ButterflyDome1"] = (32, 27), ["Aquarium2"] = (32, 26),
-        ["LaunchPlatform"] = (48, 31), ["DeparturePlatform"] = (36, 24), ["TradePlatform1"] = (12, 12), ["InterplanetaryExchangePlatform1"] = (12, 12),
-        ["PortalGenerator1"] = (12, 12), ["VehicleCrafter1"] = (12, 12), ["PlanetaryDeliveryDepot1"] = (6, 6), ["RocketTravel1"] = (8, 8)
+        ["DeparturePlatform"] = (36, 24), ["TradePlatform1"] = (12, 12), ["InterplanetaryExchangePlatform1"] = (12, 12),
+        ["PortalGenerator1"] = (12, 12), ["PlanetaryDeliveryDepot1"] = (6, 6), ["RocketTravel1"] = (8, 8)
     };
+
+    // What the game measured of the pieces that have a deck (plugin boxes and the owner standing on their corner tiles, 2026-10-09). A deck is tiles of 6 m on the foundation
+    // grid, given as the tile centres in the piece's own frame (along x, then along z); the rest of the piece's box (a lip, an assembly arm) is drawn as one outline.
+    //   Launch platform: 8 by 4 tiles, with a 7 m lip beside the deck.
+    //   Vehicle station: 3 by 3 tiles (its south-east corner tile is a triangle foundation), with the assembly part beside the deck.
+    private sealed record Deck(double[] Along, double[] Across, (double X0, double X1, double Z0, double Z1) Extra);
+
+    private static readonly Dictionary<string, Deck> Decks = new(StringComparer.Ordinal)
+    {
+        ["LaunchPlatform"] = new(new double[] { -18, -12, -6, 0, 6, 12, 18, 24 }, new double[] { -25, -19, -13, -7 }, (-21, 27, -4, 3.25)),
+        ["VehicleCrafter1"] = new(new[] { -8.95, -2.95, 3.05 }, new[] { -7.2, -1.2, 4.8 }, (-12.72, 5.95, 8.56, 19.78))
+    };
+
+    // A point of the platform's own frame, turned the way the platform stands (a quarter turn at most in the templates), in the plan's x and z.
+    private static (double X, double Z) AtLocal(PlacedObject o, double along, double across)
+    {
+        var yaw = BaseBuildingEngine.YawOf(o.Rot) * Math.PI / 180;
+        double cs = Math.Round(Math.Cos(yaw)), sn = Math.Round(Math.Sin(yaw));
+        return (o.X + along * cs + across * sn, o.Z - along * sn + across * cs);
+    }
+
+    private static IEnumerable<(double X, double Z)> PlatformTiles(PlacedObject o) =>
+        Decks.TryGetValue(o.Source.G, out var deck) ? deck.Along.SelectMany(a => deck.Across.Select(c => AtLocal(o, a, c))) : Enumerable.Empty<(double X, double Z)>();
+
+    private static string ApronPoints(PlacedObject o)
+    {
+        var e = Decks[o.Source.G].Extra;
+        return string.Join(" ", new[] { (e.X0, e.Z0), (e.X1, e.Z0), (e.X1, e.Z1), (e.X0, e.Z1) }
+            .Select(p => AtLocal(o, p.Item1, p.Item2))
+            .Select(p => Sx(p.Z) + "," + Sy(p.X)));
+    }
 
     private static (double W, double D)? Pad(PlacedObject o)
     {
@@ -489,8 +532,9 @@
 
     private static string ViewBox(MainBasePlan plan)
     {
-        var xs = plan.Objects.Select(o => o.X).Append(plan.Beacon!.X).ToList();
-        var zs = plan.Objects.Select(o => o.Z).Append(plan.Beacon!.Z).ToList();
+        var tiles = plan.Objects.Where(o => Decks.ContainsKey(o.Source.G)).SelectMany(PlatformTiles).ToList();
+        var xs = plan.Objects.Select(o => o.X).Concat(tiles.Select(t => t.X)).Append(plan.Beacon!.X).ToList();
+        var zs = plan.Objects.Select(o => o.Z).Concat(tiles.Select(t => t.Z)).Append(plan.Beacon!.Z).ToList();
         double left = -(zs.Max() + Half) - 1, right = -(zs.Min() - Half) + 1;
         double top = -(xs.Max() + Half) - 1, bottom = -(xs.Min() - Half) + 1;
         return $"{Num(left)} {Num(top)} {Num(right - left)} {Num(bottom - top)}";

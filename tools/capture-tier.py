@@ -14,8 +14,10 @@ Rules of this capture (the owner's decisions, 2026-10-08):
   - what is in the save is what is captured: no drone settings are added (Tier 1 has no drone network), no machine holds anything
   - loose items lying about (ore, seeds, bottles) are not part of the base: anything the game lists as an item (plugin 0.15's unlocks.json) is left out
   - a labelled crate that holds items, and a food grower holding its seed, are "stocked" with them; the build puts them in when asked to pre-fill the base
+  - every vegetube holds its tuska seed (Seed4), whether or not the save had it in
   - then every crate for a real item is filled to its size (tools/fill-crates.py), so a base is built with those crates completely full
   - the escape pod and the anchor lamp itself are left out
+  - a vehicle standing in the base (the rover) is part of it, built with the highest tier of every vehicle upgrade (speed 4, lights 2, inventory 3, equipment 2, oxygen, jetpack, beacon, logistics)
 """
 import json
 import math
@@ -89,6 +91,15 @@ def off(v, origin_v):
     return float(round(v - origin_v, 5))
 
 
+# the highest tier of each vehicle upgrade family in the game data (VehicleSpeed1..4 -> VehicleSpeed4, ...)
+_families = {}
+for _id, _kind in kinds.items():
+    _m = re.match(r'^(Vehicle.*?)(\d+)$', _id)
+    if _kind == 'item' and _m and _id != 'VehicleTruck':
+        _families.setdefault(_m.group(1), []).append((int(_m.group(2)), _id))
+MAX_VEHICLE_GEAR = {max(v)[1]: 1 for v in _families.values()}
+
+
 def csv(s):
     return [x for x in str(s or '').split(',') if x]
 
@@ -103,7 +114,8 @@ for o in objs.values():
     # only the base itself: the save may hold other things elsewhere
     if not (ox - 30 <= x <= ox + 200 and oz - 60 <= z <= oz + 200):
         continue
-    if kinds.get(g) == 'item':
+    # a vehicle standing in the base (the rover) is part of it, with the upgrades fitted to it; every other item lying about is not
+    if kinds.get(g) == 'item' and not g.startswith('Vehicle'):
         skipped[g] = skipped.get(g, 0) + 1
         continue
     t = {'g': g, 'dx': off(x, ox), 'dy': off(y, oy), 'dz': off(z, oz), 'rot': o['rot']}
@@ -127,9 +139,15 @@ for o in objs.values():
                 spec['stock'] = held
             else:
                 spec['held'] = held
+        if g.startswith('Vegetube'):
+            spec['stock'] = {'Seed4': inv['size']}   # every vegetube is built with its tuska seed
+            spec.pop('held', None)
         t['inv'] = spec
     if 'siIds' in o:
         t['sec'] = [invs[int(s)]['size'] for s in csv(o['siIds'])]
+        if g.startswith('Vehicle'):
+            # a vehicle is built with the highest tier of every upgrade the game has for it (owner's rule), whatever was fitted when it was captured
+            t['secGear'] = [dict(MAX_VEHICLE_GEAR) for s in csv(o['siIds'])]
     template_objects.append(t)
 
 template_objects.sort(key=lambda t: (t['g'], t['dx'], t['dz'], t['dy']))
