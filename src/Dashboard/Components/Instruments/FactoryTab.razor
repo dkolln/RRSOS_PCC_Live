@@ -1,0 +1,71 @@
+@inject ItemCatalog Catalog
+
+@* The Factory tab of the Planet card: a summary of the factory the player is at: the cluster of autocrafters nearest to them. Click it for the details window (FactoryDetails).
+   Everything is worked out by FactoryReport; this only draws it. *@
+<div class="fac">
+    @if (Factory.Count == 0)
+    {
+        <div class="power-empty">no autocrafters on this planet</div>
+    }
+    else
+    {
+        var report = Report;
+        var unsupplied = report.Unsupplied.OrderByDescending(r => r.Crafters.Count).ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+
+        <button type="button" class="fac-open" @onclick="() => OnOpen.InvokeAsync()" title="Click for the details: every missing ingredient, and each empty and full crafter.">
+            <span class="fac-sum">
+                <span class="fac-chip @(unsupplied.Count > 0 ? "is-bad" : "is-good")" title="Ingredients with no supply at all: no crafter makes them, no extractor is set to them, and they are not grown or delivered by the depot.">
+                    @unsupplied.Count no supply
+                </span>
+                <span class="fac-chip @(report.Dry.Any() ? "is-warn" : "is-good")" title="Ingredients that have a supply but are short in this base's storage right now.">
+                    @report.Dry.Count() short
+                </span>
+                <span class="fac-chip" title="Crafters with nothing in their output slots">@report.Empty empty</span>
+                <span class="fac-chip" title="Crafters with every output slot taken: they stop until the product is taken away">@report.Full full</span>
+                <span class="fac-chip" title="Crafters with some output">@report.Working working</span>
+            </span>
+
+            @if (report.NoRecipeBook)
+            {
+                <span class="fac-verdict">No recipe list yet (start the game once with plugin 0.9.0 or later).</span>
+            }
+            else if (report.ZeroSum)
+            {
+                <span class="fac-verdict is-good">Every ingredient has a supply.</span>
+            }
+            else
+            {
+                <span class="fac-verdict is-bad">Not zero-sum yet: nothing supplies @string.Join(", ", unsupplied.Take(MaxNamed).Select(r => r.Name))@(unsupplied.Count > MaxNamed ? $" and {unsupplied.Count - MaxNamed} more" : "").</span>
+            }
+
+            <span class="fac-more">Details ▸</span>
+        </button>
+    }
+</div>
+
+@code {
+    private const int MaxNamed = 4;
+
+    /// <summary>What the plugin reported for this planet: the autocrafters and every container they can reach.</summary>
+    [Parameter]
+    public WorldData? World { get; set; }
+
+    /// <summary>Where the player is, to pick the nearest factory.</summary>
+    [Parameter]
+    public Vec3? Player { get; set; }
+
+    /// <summary>Every extractor and collector on the planet: drones carry from anywhere.</summary>
+    [Parameter]
+    public IReadOnlyList<ExtractorData> Extractors { get; set; } = Array.Empty<ExtractorData>();
+
+    [Parameter]
+    public RecipeBook? Book { get; set; }
+
+    /// <summary>Raised when the summary is clicked: the page opens the details window.</summary>
+    [Parameter]
+    public EventCallback OnOpen { get; set; }
+
+    private IReadOnlyList<ContainerData> Factory => FactoryReport.FindFactory(World, Player);
+
+    private FactoryReport Report => FactoryReport.Build(Factory, World!.Containers, Book, Extractors, Catalog);
+}

@@ -1,0 +1,23 @@
+.bt { display: flex; flex-direction: column; gap: 10px; }
+
+.bt h3 { margin: 6px 0 2px; font-size: 0.85rem; letter-spacing: 1.5px; text-transform: uppercase; color: #9ac7ff; }
+
+.bb-card { padding: 8px 10px; background: #0f141f; border: 1px solid #1a2a3a; border-radius: 6px; font-size: 0.8rem; color: #9ac7ff; }
+.bb-card.is-picked { border-color: #7ab8ff; }
+.bb-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bb-card-head strong { color: #e6f2ff; }
+.bb-pick { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.bb-pick input { accent-color: #7ab8ff; }
+.bb-muted { color: #5f7d99; font-size: 0.78rem; }
+.bb-planet { color: #9fd6a8; font-size: 0.72rem; border: 1px solid #2a4a35; border-radius: 4px; padding: 1px 6px; }
+
+.bb-controls { display: flex; gap: 16px; flex-wrap: wrap; color: #7f9db9; font-size: 0.8rem; }
+.bb-controls select,
+.bt-name { margin-left: 6px; padding: 4px 8px; background: #0b0f17; border: 1px solid #24384d; border-radius: 4px; color: #cfe4ff; font: inherit; }
+.bt-name { width: 14rem; }
+
+.bb-summary { margin: 4px 0; color: #cfe4ff; font-size: 0.9rem; }
+.bb-summary strong { color: #ffd86b; }
+.bb-problem { color: #ff9a6b; font-size: 0.85rem; margin: 2px 0; }
+.bb-ok { color: #4fd18b; font-size: 0.85rem; margin: 2px 0; }
+.bt-num { width: 5rem; }

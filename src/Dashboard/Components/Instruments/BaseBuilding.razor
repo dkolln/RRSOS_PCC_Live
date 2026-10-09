@@ -14,9 +14,14 @@
         <button class="bb-sub-btn @(_sub == Sub.Warehouse ? "is-active" : "")" @onclick="() => _sub = Sub.Warehouse">Warehouse</button>
         <button class="bb-sub-btn @(_sub == Sub.MainBase ? "is-active" : "")" @onclick="() => _sub = Sub.MainBase">Main Base</button>
         <button class="bb-sub-btn @(_sub == Sub.Teleporter ? "is-active" : "")" @onclick="() => _sub = Sub.Teleporter">Teleporter</button>
+        <button class="bb-sub-btn @(_sub == Sub.Boosters ? "is-active" : "")" @onclick="() => _sub = Sub.Boosters">Boosters</button>
     </nav>
 
-    @if (_sub == Sub.Teleporter)
+    @if (_sub == Sub.Boosters)
+    {
+        <BaseBuildingBooster SavePath="@SavePath" GameLive="@GameLive" />
+    }
+    else if (_sub == Sub.Teleporter)
     {
         <BaseBuildingTeleport SavePath="@SavePath" GameLive="@GameLive" />
     }
@@ -285,7 +290,7 @@
 </section>
 
 @code {
-    private enum Sub { Warehouse, MainBase, Teleporter }
+    private enum Sub { Warehouse, MainBase, Teleporter, Boosters }
 
     private Sub _sub = Sub.Warehouse;
 

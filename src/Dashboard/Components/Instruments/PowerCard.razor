@@ -9,15 +9,20 @@
         {
             <button type="button" class="power-tab @(ShowToxicity ? "is-on" : "")" @onclick="() => ChooseTab(Tab.Toxicity)">Toxicity</button>
         }
+        @if (HasFactory)
+        {
+            <button type="button" class="power-tab @(ShowFactory ? "is-on" : "")" @onclick="() => ChooseTab(Tab.Factory)"
+                    title="The autocrafters nearest to you: what they are missing, which are empty, which are full">Factory</button>
+        }
 
         @* The other tab's headline, so it never goes out of sight. *@
-        @if (ShowToxicity && Data is not null)
+        @if ((ShowToxicity || ShowFactory) && Data is not null)
         {
             <button type="button" class="power-aside power-figure @FigureClass" @onclick="() => ChooseTab(Tab.Power)" title="Power: @FigureLabel. Click to show Power.">
                 <span class="lbl">@FigureLabel</span> <span class="num">@Kw(Math.Abs(Data.ProducedKw - Data.UsedKw))</span>
             </button>
         }
-        else if (!ShowToxicity && NeedsPurification)
+        else if (!ShowToxicity && !ShowFactory && NeedsPurification)
         {
             <button type="button" class="power-aside" @onclick="() => ChooseTab(Tab.Toxicity)" title="Purification. Click to show Toxicity.">
                 <span class="lbl">Purification</span> <span class="num">@Compass.Abbreviate(Purification!.Value)</span>
@@ -25,7 +30,11 @@
         }
     </div>
 
-    @if (ShowToxicity)
+    @if (ShowFactory)
+    {
+        <FactoryTab World="@World" Player="@Player" Extractors="@Extractors" Book="@Book" OnOpen="OnOpenFactory" />
+    }
+    else if (ShowToxicity)
     {
         <div class="tox-main">
             @if (PurificationCategory is { } category)
@@ -140,7 +149,27 @@
     [Parameter]
     public bool Dim { get; set; }
 
-    private enum Tab { Power, Toxicity }
+    /// <summary>What the plugin reported for this planet. The Factory tab shows the autocrafters nearest to the player, and only appears once there are any.</summary>
+    [Parameter]
+    public WorldData? World { get; set; }
+
+    /// <summary>Where the player is.</summary>
+    [Parameter]
+    public Vec3? Player { get; set; }
+
+    /// <summary>Every extractor and collector on the planet, for working out what the factory's ingredients can come from.</summary>
+    [Parameter]
+    public IReadOnlyList<ExtractorData> Extractors { get; set; } = Array.Empty<ExtractorData>();
+
+    /// <summary>The game's recipes (plugin 0.9.0's recipes.json); null before it is written.</summary>
+    [Parameter]
+    public RecipeBook? Book { get; set; }
+
+    /// <summary>Raised when the Factory tab's summary is clicked: the page opens the factory details window.</summary>
+    [Parameter]
+    public EventCallback OnOpenFactory { get; set; }
+
+    private enum Tab { Power, Toxicity, Factory }
 
     private const string TabKey = "pcc.powerCardTab";
 
@@ -154,9 +183,10 @@
 
         try
         {
-            if (await JS.InvokeAsync<string?>("localStorage.getItem", TabKey) == "toxicity")
+            var saved = await JS.InvokeAsync<string?>("localStorage.getItem", TabKey);
+            if (saved is "toxicity" or "factory")
             {
-                _tab = Tab.Toxicity;
+                _tab = saved == "factory" ? Tab.Factory : Tab.Toxicity;
                 StateHasChanged();
             }
         }
@@ -172,7 +202,7 @@
 
         try
         {
-            await JS.InvokeVoidAsync("localStorage.setItem", TabKey, tab == Tab.Toxicity ? "toxicity" : "power");
+            await JS.InvokeVoidAsync("localStorage.setItem", TabKey, tab == Tab.Factory ? "factory" : tab == Tab.Toxicity ? "toxicity" : "power");
         }
         catch (Exception)
         {
@@ -194,6 +224,11 @@
     private bool HasToxicity => NeedsPurification || Toxicity is { TotalAreas: > 0 };
 
     private bool ShowToxicity => _tab == Tab.Toxicity && HasToxicity;
+
+    // Only a planet with autocrafters has a factory to show.
+    private bool HasFactory => World is not null && FactoryReport.FindFactory(World, Player).Count > 0;
+
+    private bool ShowFactory => _tab == Tab.Factory && HasFactory;
 
     // Purification is one of the stats Terraformation adds up, so it is balanced against the others like they are.
     private TiCategory? PurificationCategory => TiBalance.ForPlanet(Planet).FirstOrDefault(c => c.Name == "Purification");

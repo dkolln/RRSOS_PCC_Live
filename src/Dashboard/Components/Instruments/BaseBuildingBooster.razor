@@ -1,0 +1,254 @@
+@inject BaseBuildingService Building
+@inject ToastService Toasts
+@inject PlanetNames Planets
+@inject IJSRuntime JS
+
+@* The Boosters template: a beacon named for a planet stat (Heat, Pressure) where the stack should stand. The build puts the stat's best machine there, eight
+   of them one on top of the other, and an optimizer 2 beside them holding the stat's fuses. Same rules as the other builds: it writes into the save (with a
+   backup first), so the game must be at the main menu. *@
+<div class="bt">
+    <p class="hint">
+        Place a <strong>beacon</strong> where the booster should stand, named <code>Heat</code> (eight T5 heaters, <code>Heater5</code>) or <code>Pressure</code> (eight T5 drills,
+        <code>Drill4</code>), turned to point the way the optimizer should stand. Save, then pick it here: the machines are written at the beacon's own spot and height (one
+        on top of the other, as in your test), and an optimizer 2 @BaseBuildingEngine.BoosterOptimizerDistance.ToString("0") m on, filled with the stat's fuses.
+        A beacon named <code>Butterflies</code> is different, because a farm's larvae slots have to stay reachable: the optimizer (with insect fuses) goes on the beacon itself, and
+        eight T2 butterfly farms, each with its own empty larvae inventory, in a ring around it, as tight as the spacing below. <code>Bees</code> is the same with eight T2 beehives
+        (each supplying honey and bee larvae to the drones, as yours did). The beacon is left as it is.
+        Building writes into the save (with a backup first), so do it with the game at the main menu. <strong>Nothing is checked for room, and neither is the ground.</strong>
+    </p>
+
+    @if (string.IsNullOrEmpty(SavePath))
+    {
+        <p class="hint">Choose a save above.</p>
+    }
+    else if (_error is not null)
+    {
+        <p class="bb-problem">@_error</p>
+    }
+    else
+    {
+        <h3>Booster beacons in this save</h3>
+        @if (_beacons.Count == 0)
+        {
+            <p class="hint">No beacon named <code>Heat</code> or <code>Pressure</code> found (any name starting with it works, like <code>Heat North</code>).</p>
+        }
+
+        @foreach (var b in _beacons)
+        {
+            <div class="bb-card @(b.Id == _beaconId ? "is-picked" : "")" @key="b.Id">
+                <div class="bb-card-head">
+                    <label class="bb-pick">
+                        <input type="radio" name="booster-beacon" checked="@(b.Id == _beaconId)" @onchange="() => PickBeacon(b)" />
+                        <strong>@b.Text</strong>
+                        @if (Planets.NameOf(b.PlanetHash) is { Length: > 0 } planet)
+                        {
+                            <span class="bb-planet">@planet</span>
+                        }
+                    </label>
+                    <span class="bb-muted">points @Compass(b)</span>
+                </div>
+                <div class="bb-muted">north @b.X.ToString("0.#") · east @((-b.Z).ToString("0.#")) · height @b.Y.ToString("0.##")</div>
+            </div>
+        }
+
+        @if (_beaconId != 0)
+        {
+            <h3>Plan</h3>
+
+            @if (_plan?.Kind is { Ring: true } ringKind)
+            {
+                <div class="bb-controls">
+                    <label>Spacing (m)
+                        <input class="bt-name bt-num" type="number" min="2" max="20" step="0.1" value="@SpacingText" @onchange="OnSpacing" />
+                    </label>
+                    <span class="bb-muted">between neighbouring @ringKind.MachineName.ToLowerInvariant()s, centre to centre. Too tight and they overlap, so set it before you build: building again with another spacing adds a second ring, it does not move the first.</span>
+                </div>
+            }
+
+            @if (_plan is null)
+            {
+                <p class="hint">Working out the plan…</p>
+            }
+            else if (_plan.Problems.Count > 0)
+            {
+                @foreach (var p in _plan.Problems)
+                {
+                    <p class="bb-problem">@p</p>
+                }
+            }
+            else
+            {
+                var kind = _plan.Kind!;
+                <p class="bb-summary">
+                    @if (_plan.MachinesToAdd > 0)
+                    {
+                        <span><strong>@_plan.MachinesToAdd</strong> @kind.MachineName @(kind.Ring ? $"in a ring {_plan.Spacing.ToString("0.#")} m apart around the beacon" : "at the beacon")@(_plan.MachinesFound > 0 ? $" ({_plan.MachinesFound} already there, to make {kind.Machines})" : "")</span>
+                    }
+                    else
+                    {
+                        <span>All @kind.Machines @kind.MachineName already stand @(kind.Ring ? "around" : "at") the beacon.</span>
+                    }
+                    @if (_plan.OptimizerExists)
+                    {
+                        <span>, and the optimizer is already beside them.</span>
+                    }
+                    else
+                    {
+                        <span>, and an <strong>Optimizer 2</strong> @(kind.Ring ? "on the beacon" : $"{BaseBuildingEngine.BoosterOptimizerDistance.ToString("0")} m {Compass(_plan.Beacon!)} of it"), holding <strong>@BaseBuildingEngine.BoosterSlots @kind.FuseName</strong>s.</span>
+                    }
+                </p>
+
+                @if (_plan.AlreadyBuilt)
+                {
+                    <p class="bb-muted">There is nothing left to build here.</p>
+                }
+
+                <button class="resupply-btn" disabled="@(!CanBuild)" @onclick="Build">
+                    @(_busy ? "BUILDING..." : "BUILD " + kind.Name.ToUpperInvariant() + " BOOSTER")
+                </button>
+                @if (GameLive)
+                {
+                    <p class="bb-problem">The game is running a world. Exit to the main menu first.</p>
+                }
+            }
+
+            @if (_message is not null)
+            {
+                <p class="@(_ok ? "bb-ok" : "bb-problem")">@_message</p>
+            }
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string SavePath { get; set; } = "";
+
+    /// <summary>True while the game has a world loaded: the save would only be overwritten.</summary>
+    [Parameter] public bool GameLive { get; set; }
+
+    private string _loadedFor = "";
+    private string? _error;
+    private IReadOnlyList<BuildBeacon> _beacons = Array.Empty<BuildBeacon>();
+    private long _beaconId;
+    private BoosterPlan? _plan;
+    private double? _spacing; // for a ring; null uses the kind's own
+    private bool _busy;
+    private string? _message;
+    private bool _ok;
+
+    private string SpacingText => (_spacing ?? _plan?.Kind?.Spacing ?? 0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    private async Task OnSpacing(ChangeEventArgs e)
+    {
+        _spacing = double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) && v > 0 ? v : null;
+        await Replan();
+    }
+
+    private async Task Replan()
+    {
+        if (_beaconId == 0)
+            return;
+
+        var beacon = _beaconId;
+        var spacing = _spacing;
+        var plan = await Building.PlanBoosterAsync(SavePath, beacon, spacing);
+
+        if (beacon == _beaconId && spacing == _spacing)
+            _plan = plan;
+    }
+
+    private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SavePath == _loadedFor)
+            return;
+
+        _loadedFor = SavePath;
+        _beaconId = 0;
+        _plan = null;
+        _error = null;
+
+        if (string.IsNullOrEmpty(SavePath) || !File.Exists(SavePath))
+        {
+            _beacons = Array.Empty<BuildBeacon>();
+            return;
+        }
+
+        var (beacons, error) = await Building.ScanAsync(SavePath);
+        _error = error;
+
+        // Only beacons named for a booster: "Heat", "Pressure 2", ... (not a warehouse row's beacon).
+        _beacons = beacons.Where(b => BaseBuildingEngine.BoosterFor(b.Text) is not null).ToList();
+
+        if (_beacons.Count == 1)
+            await PickBeacon(_beacons[0]);
+    }
+
+    private async Task PickBeacon(BuildBeacon b)
+    {
+        _beaconId = b.Id;
+        _plan = null;
+        _message = null;
+        _spacing = null; // each beacon starts from its kind's own spacing
+        await Replan();
+    }
+
+    private async Task Build()
+    {
+        if (!CanBuild || _plan?.Kind is not { } kind)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Have you exited to the Main Menu?\n\nBUILD {kind.Name.ToUpperInvariant()} BOOSTER adds {(_plan.MachinesToAdd > 0 ? $"{_plan.MachinesToAdd} {kind.MachineName}" : "")}{(_plan.MachinesToAdd > 0 && !_plan.OptimizerExists ? " and " : "")}{(_plan.OptimizerExists ? "" : $"an Optimizer 2 with {BaseBuildingEngine.BoosterSlots} {kind.FuseName}s")} to your save file. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
+
+        if (!confirmed)
+            return;
+
+        _busy = true;
+        _message = null;
+        StateHasChanged();
+
+        try
+        {
+            var edit = await Building.BuildBoosterAsync(SavePath, _beaconId, _spacing);
+
+            if (!edit.Success || edit.Result is null)
+            {
+                _ok = false;
+                _message = edit.Error ?? "The build failed.";
+                Toasts.Show("Building the booster failed. " + _message, ToastKind.Error, TimeSpan.FromSeconds(9));
+            }
+            else
+            {
+                _ok = true;
+                _message = $"Built: {edit.Result.Machines} {kind.MachineName}{(edit.Result.Optimizers > 0 ? $" and an Optimizer 2 with {edit.Result.Fuses} {kind.FuseName}s" : "")}. Backup: {edit.BackupPath}";
+                Toasts.Show("Built the " + kind.Name.ToLowerInvariant() + " booster", ToastKind.Success);
+            }
+
+            _loadedFor = ""; // read the save again: the booster is in it now
+            var keep = _message;
+            var keepOk = _ok;
+            var keepBeacon = _beaconId;
+            await OnParametersSetAsync();
+            if (_beacons.Any(b => b.Id == keepBeacon))
+                await PickBeacon(_beacons.First(b => b.Id == keepBeacon));
+            _message = keep;
+            _ok = keepOk;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // North is +x and east is -z in the save; a beacon pointing +x points north.
+    private static string Compass(BuildBeacon b) => (b.DirX, b.DirZ) switch
+    {
+        (1, _) => "north",
+        (-1, _) => "south",
+        (_, 1) => "west",
+        _ => "east"
+    };
+}

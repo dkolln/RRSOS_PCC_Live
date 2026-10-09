@@ -34,6 +34,12 @@ One page, laid out for a 2560 x 1440 monitor, three columns.
   planet that has purification or toxic goo) has the **Purification** dial, balanced against the other stats like they are and counted in
   the total TI, and two **progress bars**, red under a fifth, yellow under half, green from half up (the gauges' own zones): goo collected (with the goo icon) and toxic areas cleaned (plugin 0.14.0). The tab you pick is remembered. The other tab's headline
   (surplus or deficit, or the purification total) sits at the right of the card header. Under it, a notes card.
+- The **Factory** tab (third tab of that card, shown once the planet has autocrafters) summarises the factory you are at: the cluster of autocrafters nearest to you (each within 15 m of another).
+  It counts the ingredients with **no supply** (no crafter in the factory makes them, no extractor or collector on the planet is set to them, and they are not delivered or grown), the ones that are
+  **short** (a crafter finds less than one craft's worth in the containers within its own 20 m reach), and the crafters that are **empty**, **full** (all 8 output slots taken) or working. A zero-sum
+  factory has no ingredient without a supply. Click the summary for the details window: each missing ingredient with its supply, how many crafters are short of it and where the stock is (for example
+  "90 in storage, but not within reach": it needs a demand chest near the crafters), then the empty crafters (and what each is waiting on), the full ones and the working ones. One crafter's product counts as
+  supply for another. The rocket depot's Selenium, Phosphorus, Tungsten and Amber, and grown things (crops, algae, honey, silk) are assumed supplied (`FactoryReport`). Needs the recipe list (plugin 0.9.0, `recipes.json`).
 - **Click a gauge** (oxygen, heat, pressure, plants, insects, animals, purification) to see every building the game has that makes that
   stat, strongest first: how many you have built, what one makes, and what they make together right now (each machine's own
   figure, boosts included). Buildings you have not unlocked yet are shown in grey with a lock, and a tick hides them;
@@ -142,12 +148,12 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   written until **TRANSFER**, which applies everything as one edit, backed up first, and refuses to write unless the
   result is exactly the original save with only those units' item lists changed and the trashed items' and crates'
   records gone.
-- **Base Building** has a sub-menu of templates: **Warehouse** (below), **Main Base** and **Teleporter**. **Main Base** builds the whole base the owner designed
+- **Base Building** has a sub-menu of templates: **Warehouse** (below), **Main Base**, **Teleporter** and **Boosters**. **Main Base** builds the whole base the owner designed
   (695 objects: 387 foundations, pods and domes, power, crafting, farms, drone stations, signs, and the ten ore crates of the disposal room, each labelled and set to demand its ore...) from a beacon named `Base` on a foundation (or, early in a game before beacons exist, an **outdoor lamp** on a foundation: the foundation under it is the start and its facing the direction), turned to whichever of the four
   directions the beacon points, with a preview drawing. Heights follow the beacon's foundation; only buildings are checked for room, not the ground (it is about 114 m by 162 m).
   One tick, **Pre-fill the base** (on by default), stocks the drone stations with T3 drones, the optimizers with their fuses, every crate that is for a real item completely full (crates for no item, such as Supplier, Misc, the egg and larvae crates and the mixed Seeds crate, are always empty; `tools/fill-crates.py` applies that rule to a template and the capture does it itself) each food grower with the seed it held and every vegetube with a tuska seed
   of their ore (800 items). Suppliers and machines start empty and fill up on their own. The drone supply settings come along: storage
-  crates supply everything only on the one labelled `Supplier`, the `Misc` crates supply nothing, beehives supply honey and bee larvae. The layout is in
+  crates supply everything only on the one labelled `Supplier`, the `Misc` crates supply nothing. Butterfly farms and beehives are not part of any base: the Boosters page builds them. The layout is in
   `src/Dashboard/Assets/main-base-template.json`, made from a save by `python tools/capture-main-base.py <save.json>`.
   **Tiers**: the page has a **Which base** picker with **Tier 1 base**, **Tier 2 base** (583 objects: the tier-1 base with T1 solar panels instead of the wind turbines, T1 lockers (Container2), more extractors, growers, heaters and furnishing; `main-base-tier2.json`,
   captured the same way with `capture-tier.py <save.json> 2`) **Tier 3 base** (601 objects: T2 solar panels, a second heater block, the advanced craft station, a launch platform and a dome; `main-base-tier3.json`) **Tier 4 base** (558 objects: 24 T1 nuclear reactors, centred on their foundations, instead of the solar panels, T2 ore extractors, Heater3, outdoor vegetubes, the Biolab, water collector, two gas extractors, the vehicle station with a rover carrying the highest tier of every vehicle upgrade, and the extra domes and displays; `main-base-tier4.json`) and the **Full base**. **Tier 1 base** (521 objects: the same pods and foundations, wind turbines, Container1 crates, T1 machines, no drone network; its ten
@@ -165,6 +171,13 @@ backup first, writes atomically, and is refused unless undoing it would give bac
 - **Base Building, Teleporter**: put a foundation with a beacon named
   `Teleport` on it, pointing the way the teleporter should go; the build adds a foundation behind it and a teleporter on it facing away
   from the beacon (or toward it, your choice), with an optional name (the teleporter stands a metre further along the way it faces, so its back does not overhang the beacon's foundation). Only buildings are checked for room, not the ground.
+- **Base Building, Boosters**: lay a beacon where the stack should stand, named `Heat` or `Pressure` (any name starting with it), pointing the way the optimizer should stand.
+  The build writes, at the beacon's own spot and height, eight of the stat's best machine one on top of the other (T5 heaters, `Heater5`, or T5 drills, `Drill4`: the game lets them
+  overlap and each makes its own share) and an Optimizer 2 3 m on, filled with three of the stat's fuses (`FuseHeat1`, `FusePressure1`). A hand-placed machine already at the spot counts
+  towards the eight; running it again adds only what is missing, and says so when nothing is. The beacon is left as it is. Nothing is checked for room, and neither is the ground.
+  A beacon named `Butterflies` is built as a ring instead, because a farm's larvae slots must stay reachable: the Optimizer 2 (with three `FuseInsects1`) stands on the beacon itself and eight
+  `ButterflyFarm2` (T2), each with its own empty 3-slot inventory, in a 3 by 3 block around it, 6.6 m apart by default (a setting on the page; set it before building). `Bees` is the same with eight `Beehive2` (four slots each, set to supply
+  honey and bee larvae like the owner's own), 3.3 m apart by default.
 - **Base Building, Warehouse**: builds a whole row of storage.
   1. Place a foundation with a **beacon** whose text names the job (for example "Fish"); the way the beacon faces is
      the way the row grows.
