@@ -65,6 +65,44 @@ namespace RRSOS.PCC.Dashboard
             minX -= ClearMargin; maxX += ClearMargin; minZ -= ClearMargin; maxZ += ClearMargin;
             double minY = anchor.FoundationY + minDy - ClearBelow, maxY = anchor.FoundationY + ClearHeight;
 
+            var kept = new List<string>();
+            var doomed = new List<Obj>();
+            foreach (var o in world.Objects)
+            {
+                if (o.X < minX || o.X > maxX || o.Z < minZ || o.Z > maxZ || o.Y < minY || o.Y > maxY)
+                    continue;
+
+                if (anchor.PlanetHash != 0 && o.Planet != anchor.PlanetHash)
+                    continue;
+
+                if (o.Id == anchor.Id || o.Id == anchor.FoundationId)
+                {
+                    kept.Add(o.Id == anchor.Id ? o.GId : "the foundation under it");
+                    continue;
+                }
+
+                if (o.GId == "EscapePod")
+                {
+                    kept.Add(o.GId);
+                    continue;
+                }
+
+                doomed.Add(o);
+            }
+
+            var (objectIds, inventoryIds, itemCount) = CollectWithInventories(text, doomed.Select(o => o.Id));
+
+            var shown = doomed.Select(o => new RemovedObject(o.GId, o.X, o.Y, o.Z)).ToList();
+            return new MainBaseRemovalPlan(anchor, minX, maxX, minZ, maxZ, minY, maxY, shown, inventoryIds.Count, itemCount,
+                kept.Distinct().ToList(), objectIds.ToList(), inventoryIds.ToList(), Array.Empty<string>());
+        }
+
+        /// <summary>
+        /// The given objects together with everything they own: each one's inventories (liId, siIds), the items in those, and whatever inventories those items own in turn.
+        /// What a removal has to take so that no inventory or item is left without its owner.
+        /// </summary>
+        internal static (HashSet<long> ObjectIds, HashSet<long> InventoryIds, int Items) CollectWithInventories(string text, IEnumerable<long> rootIds)
+        {
             // What every record owns: an object's inventories (liId, siIds) and an inventory's items (woIds), which may own inventories of their own.
             var owns = new Dictionary<long, List<long>>();
             var holds = new Dictionary<long, List<long>>();
@@ -102,35 +140,10 @@ namespace RRSOS.PCC.Dashboard
                 }
             }
 
-            var kept = new List<string>();
-            var doomed = new List<Obj>();
-            foreach (var o in world.Objects)
-            {
-                if (o.X < minX || o.X > maxX || o.Z < minZ || o.Z > maxZ || o.Y < minY || o.Y > maxY)
-                    continue;
-
-                if (anchor.PlanetHash != 0 && o.Planet != anchor.PlanetHash)
-                    continue;
-
-                if (o.Id == anchor.Id || o.Id == anchor.FoundationId)
-                {
-                    kept.Add(o.Id == anchor.Id ? o.GId : "the foundation under it");
-                    continue;
-                }
-
-                if (o.GId == "EscapePod")
-                {
-                    kept.Add(o.GId);
-                    continue;
-                }
-
-                doomed.Add(o);
-            }
-
-            var objectIds = new HashSet<long>(doomed.Select(o => o.Id));
+            var objectIds = new HashSet<long>(rootIds);
             var inventoryIds = new HashSet<long>();
             var itemCount = 0;
-            var queue = new Queue<long>(doomed.Select(o => o.Id));
+            var queue = new Queue<long>(objectIds);
             while (queue.Count > 0)
             {
                 var id = queue.Dequeue();
@@ -150,9 +163,7 @@ namespace RRSOS.PCC.Dashboard
                 }
             }
 
-            var shown = doomed.Select(o => new RemovedObject(o.GId, o.X, o.Y, o.Z)).ToList();
-            return new MainBaseRemovalPlan(anchor, minX, maxX, minZ, maxZ, minY, maxY, shown, inventoryIds.Count, itemCount,
-                kept.Distinct().ToList(), objectIds.ToList(), inventoryIds.ToList(), Array.Empty<string>());
+            return (objectIds, inventoryIds, itemCount);
         }
 
         /// <summary>

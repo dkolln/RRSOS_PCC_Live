@@ -169,7 +169,7 @@ for t in template_objects:
 
 doc = {
     'schema': 1,
-    'name': 'Main Base',
+    'name': 'Full base',
     'capturedFrom': 'Creative-1.json, 2026-10-08, beacon "Base" on Prime',
     'beacon': {'text': 'Base', 'dirX': dir_x, 'dirZ': dir_z},
     'excluded': 'EscapePod, and %d objects far from the base (the heater field)' % len(excluded),

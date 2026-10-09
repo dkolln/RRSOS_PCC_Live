@@ -70,14 +70,20 @@ namespace RRSOS.PCC.Dashboard
     /// <summary>One object of a plan: the template's object placed at a world position, turned to the beacon's direction.</summary>
     public sealed record PlacedObject(MainBaseObject Source, double X, double Y, double Z, string Rot, bool Exists);
 
-    public sealed record MainBasePlan(BuildBeacon? Beacon, int Turn, IReadOnlyList<PlacedObject> Objects, IReadOnlyList<string> Conflicts, IReadOnlyList<string> Problems)
+    /// <summary>A piece standing in the save that belongs to another tier's base but not to the one being built: an upgrade takes it away (with what is in it) before it builds.</summary>
+    public sealed record ObsoleteObject(long Id, string G, double X, double Y, double Z);
+
+    public sealed record MainBasePlan(BuildBeacon? Beacon, int Turn, IReadOnlyList<PlacedObject> Objects, IReadOnlyList<string> Conflicts, IReadOnlyList<string> Problems,
+        IReadOnlyList<ObsoleteObject>? Obsolete = null)
     {
+        public IReadOnlyList<ObsoleteObject> ObsoleteObjects => Obsolete ?? Array.Empty<ObsoleteObject>();
+
         public int NewCount => Objects.Count(o => !o.Exists);
         public int ExistingCount => Objects.Count(o => o.Exists);
         public bool Ok => Beacon is not null && Problems.Count == 0 && Conflicts.Count == 0;
     }
 
-    public sealed record MainBaseOutcome(string? NewText, int Objects, int Inventories, int Items, IReadOnlyList<string> Problems)
+    public sealed record MainBaseOutcome(string? NewText, int Objects, int Inventories, int Items, IReadOnlyList<string> Problems, int Removed = 0)
     {
         public bool Failed => Problems.Count > 0;
     }
@@ -141,7 +147,14 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>How close an existing object's position may be to a new one's before the two are said to be in each other's way.</summary>
         private const double SamePlace = 0.6;
 
-        public static MainBasePlan PlanMainBase(string text, long beaconId, MainBaseTemplate template, Func<string, bool> isBuilding)
+        /// <summary>How close counts as "exactly there" when telling one tier's piece from another's (the captures are written to five decimals, so a piece built from a template is within a hair of it).</summary>
+        private const double ExactPlace = 0.05;
+
+        /// <param name="others">
+        /// The other tiers' templates, for an upgrade: a piece in the save that one of them places (same kind, same spot) but the template being built does not is obsolete, and goes
+        /// before the new pieces are built. Only pieces a template placed are ever taken: anything else standing there (the owner's own) is left, and blocks the build if it is in the way.
+        /// </param>
+        public static MainBasePlan PlanMainBase(string text, long beaconId, MainBaseTemplate template, Func<string, bool> isBuilding, IReadOnlyList<MainBaseTemplate>? others = null)
         {
             MainBasePlan Problem(string message) => new(null, 0, Array.Empty<PlacedObject>(), Array.Empty<string>(), new[] { message });
 
@@ -158,19 +171,56 @@ namespace RRSOS.PCC.Dashboard
             var placed = new List<PlacedObject>(template.Objects.Count);
             var conflicts = new List<string>();
 
+            // Where each piece a tier places lands from this anchor.
+            (double X, double Y, double Z) Place(MainBaseObject t) =>
+                (Math.Round(beacon.FoundationX + t.Dx * cs + t.Dz * sn, 5), Math.Round(beacon.FoundationY + t.Dy, 5), Math.Round(beacon.FoundationZ + (-t.Dx * sn + t.Dz * cs), 5));
+
+            var byKind = world.Objects.GroupBy(o => o.GId).ToDictionary(g => g.Key, g => g.ToList());
+            IEnumerable<Obj> Standing(string g, double x, double y, double z, double within = SamePlace) =>
+                byKind.TryGetValue(g, out var list)
+                    ? list.Where(o => Math.Abs(o.X - x) < within && Math.Abs(o.Z - z) < within && Math.Abs(o.Y - y) < within)
+                    : Enumerable.Empty<Obj>();
+
+            // What the template being built already has standing exactly where it puts it, and, for an upgrade, what the other tiers have standing exactly where they put it that
+            // this one does not: those go, and this one's own piece is built where it wants it. A piece the owner moved by hand matches neither exactly, so it stays.
+            var wanted = new HashSet<long>();
+            var scheduled = new Dictionary<long, ObsoleteObject>();
             foreach (var t in template.Objects)
             {
-                var ox = t.Dx * cs + t.Dz * sn;
-                var oz = -t.Dx * sn + t.Dz * cs;
-                double x = Math.Round(beacon.FoundationX + ox, 5), y = Math.Round(beacon.FoundationY + t.Dy, 5), z = Math.Round(beacon.FoundationZ + oz, 5);
+                var (x, y, z) = Place(t);
+                foreach (var o in Standing(t.G, x, y, z, ExactPlace))
+                    wanted.Add(o.Id);
+            }
+
+            if (others is not null)
+            {
+                foreach (var other in others)
+                {
+                    foreach (var t in other.Objects)
+                    {
+                        var (x, y, z) = Place(t);
+                        foreach (var o in Standing(t.G, x, y, z, ExactPlace))
+                        {
+                            if (wanted.Contains(o.Id) || o.Id == beacon.Id || o.Id == beacon.FoundationId || o.GId == "EscapePod" || scheduled.ContainsKey(o.Id))
+                                continue;
+
+                            scheduled[o.Id] = new ObsoleteObject(o.Id, o.GId, o.X, o.Y, o.Z);
+                        }
+                    }
+                }
+            }
+
+            foreach (var t in template.Objects)
+            {
+                var (x, y, z) = Place(t);
 
                 // Something of the same kind already stands exactly there: this part of the base is already built (a foundation under the beacon always is).
-                var twin = world.Objects.Any(o => o.GId == t.G && Math.Abs(o.X - x) < SamePlace && Math.Abs(o.Z - z) < SamePlace && Math.Abs(o.Y - y) < SamePlace);
+                var twin = Standing(t.G, x, y, z).Any(o => !scheduled.ContainsKey(o.Id));
 
                 if (!twin && conflicts.Count < 4)
                 {
-                    // A different building in the same spot would be built through.
-                    var other = world.Objects.FirstOrDefault(o => o.Id != beacon.Id && o.GId != t.G && isBuilding(o.GId)
+                    // A different building in the same spot would be built through (unless it is a piece of another tier that is being taken away).
+                    var other = world.Objects.FirstOrDefault(o => o.Id != beacon.Id && o.GId != t.G && isBuilding(o.GId) && !scheduled.ContainsKey(o.Id)
                                                                   && Math.Abs(o.X - x) < SamePlace && Math.Abs(o.Z - z) < SamePlace && Math.Abs(o.Y - y) < SamePlace);
                     if (other is not null)
                         conflicts.Add($"{other.GId} at ({other.X:0.#}, {other.Z:0.#}) is where a {t.G} goes");
@@ -179,7 +229,7 @@ namespace RRSOS.PCC.Dashboard
                 placed.Add(new PlacedObject(t, x, y, z, TurnRot(t.Rot, turn), twin));
             }
 
-            return new MainBasePlan(beacon, turn, placed, conflicts, Array.Empty<string>());
+            return new MainBasePlan(beacon, turn, placed, conflicts, Array.Empty<string>(), scheduled.Values.ToList());
         }
 
         /// <param name="prefill">Pre-fill the base: the drone stations get their drones, the optimizers their fuses and the disposal-room ore crates their ore. Everything else (suppliers, machines) starts empty and fills up on its own.</param>
@@ -195,6 +245,20 @@ namespace RRSOS.PCC.Dashboard
 
             if (plan.Conflicts.Count > 0)
                 return Fail(new[] { $"Something is in the way ({string.Join("; ", plan.Conflicts)}), so nothing was built." });
+
+            // An upgrade: the pieces of another tier that this one does not have go first, with their inventories and what is in them. The records that remain are checked
+            // to be exactly the original ones minus these (RemoveByIds), and the build after that is checked against the text as it is then.
+            var removedCount = 0;
+            if (plan.ObsoleteObjects.Count > 0)
+            {
+                var (objectsOut, inventoriesOut, _) = CollectWithInventories(text, plan.ObsoleteObjects.Select(o => o.Id));
+                var (cleared, clearProblems) = RemoveByIds(text, objectsOut.ToList(), inventoriesOut.ToList());
+                if (cleared is null)
+                    return Fail(clearProblems);
+
+                text = cleared;
+                removedCount = plan.ObsoleteObjects.Count;
+            }
 
             var records = new List<(int Start, string Raw, long Id, bool IsInventory)>();
             foreach (Match match in RecordPattern.Matches(text))
@@ -327,6 +391,9 @@ namespace RRSOS.PCC.Dashboard
                 newObjects.Add(sb.ToString());
             }
 
+            if (objectCount == 0 && removedCount > 0)
+                return new MainBaseOutcome(text, 0, 0, 0, Array.Empty<string>(), removedCount);
+
             if (objectCount == 0)
                 return Fail(new[] { "Everything of the base is already there, so there is nothing to build." });
 
@@ -338,7 +405,7 @@ namespace RRSOS.PCC.Dashboard
             var newText = text.Insert(lastInventory.Start, inventoryText).Insert(beacon.Start, objectText);
 
             var problems = VerifyBuild(text, newText, objectText, inventoryText, objectIds, inventoryIds, links);
-            return problems.Count > 0 ? Fail(problems) : new MainBaseOutcome(newText, objectCount, newInventories.Count, items, Array.Empty<string>());
+            return problems.Count > 0 ? Fail(problems) : new MainBaseOutcome(newText, objectCount, newInventories.Count, items, Array.Empty<string>(), removedCount);
         }
 
         // A JSON string the way the game's save writes it: only quotes, backslashes and control characters are escaped (an "&" stays an "&").

@@ -34,4 +34,7 @@
 .bb-box { fill: rgba(255, 107, 107, 0.05); stroke: #ff6b6b; stroke-width: 0.5; stroke-dasharray: 3 2; }
 .bb-gone { fill: rgba(255, 107, 107, 0.22); stroke: #8f2d2d; stroke-width: 0.15; }
 .bb-gone-dot { fill: #ff9a6b; }
+.mb-tiers { display: flex; gap: 12px; flex-wrap: wrap; }
+.mb-tier { padding: 6px 12px; background: #0f141f; border: 1px solid #1a2a3a; border-radius: 6px; color: #9ac7ff; }
+.mb-tier.is-picked { border-color: #7ab8ff; }
 .mb-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 2px 12px; margin-top: 4px; }

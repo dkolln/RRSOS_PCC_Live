@@ -187,6 +187,21 @@ Two things used to pool every planet in a save together, which only mattered onc
   that finish a recipe by growth (the incubator).
 - Read by the game's own groups (`GroupsHandler.GetAllGroups()`, each `GetRecipe()`), so it covers every planet's items the running game has.
 
+## The unlock thresholds (`unlocks.json`, added in plugin 0.15.0)
+
+- Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\unlocks.json`. Written **once per game session** (when a world has loaded). One entry for every object the game knows, items and
+  buildings alike, so a reader can tell what a save has unlocked without the game running (the dashboard compares it with the world unit levels and `unlockedGroups`
+  that every save carries). The game's thresholds live in its assets, so reading the running game is the only way to know them.
+- Shape: `{ "schema": 1, "groups": [ { "id": "Farm1", "name": "Vegetable Farm", "kind": "building", "unit": "Oxygen", "value": 500000, "planets": [], "viaBlueprint": false, "stage": "...", "usage": "...", "unlockedNow": true } ] }`.
+  - `unit` and `value`: the world unit (`Oxygen`, `Heat`, `Pressure`, `Biomass`, `Plants`, `Insects`, `Animals`, `Terraformation`, `SystemTerraformation`, `Purification`) and the level that
+    unlocks it. When the game unlocks on a terraform stage, `value` is the stage's start value and `stage` is the stage's id. `Terraformation` at 0 means there from the start; `Null` means
+    not on a world unit at all (a blueprint chip, a message or the story).
+  - `planets`: the planet ids it only unlocks on (empty means any planet). `usage` is the game's planet usage type (whether it can be used on every planet).
+  - `viaBlueprint`: it has to be unlocked with a blueprint chip or a message (the tier lists are in `blueprints.json`).
+  - `unlockedNow`: whether the world the plugin is in has it unlocked right now (the game's own check).
+  - `inventory` and `secondary`: the slots of its own inventory and of its secondary inventories (only when it has any), so a reader can write a new one into a save.
+  - `category` only on items.
+
 ## The pinned recipes (`pins.json`, added in plugin 0.11.0)
 
 - Path: `%LOCALAPPDATA%\RRSOS-PCC-Live\pins.json`. The recipes pinned to the top right of the screen with the Blueprint pinning microchip. Written when the pins
@@ -223,6 +238,7 @@ Two things used to pool every planet in a save together, which only mattered onc
 ## Changes
 
 - **Plugin 0.14.0**: new `planet.toxicity` in `live.json`, and Toxic Water Collectors in `extractors[]` (kind `toxicwater`). See above.
+- **Plugin 0.15.0**: new file `unlocks.json` (see above).
 - **Plugin 0.13.0**: new file `terraformers.json` (see above). Nothing in the other files changes.
 - **Plugin 0.12.0**: the item icons, as PNG files (see above). Nothing in `live.json` or `live-world.json` changes.
 - **Plugin 0.11.0**: new file `pins.json` (see above).

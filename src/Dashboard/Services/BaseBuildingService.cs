@@ -344,31 +344,68 @@ namespace RRSOS.PCC.Dashboard
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "building the teleporter");
 
-        private MainBaseTemplate? _mainBase;
-        private string? _mainBaseError;
+        /// <summary>One base the Main Base page can build: a tier, with the captured template that holds it. Every tier is built in the same frame (the anchor foundation is the origin), so a lower tier is found already there when a higher one is built over it.</summary>
+        public sealed record MainBaseTier(string Key, string Label, string File);
 
-        /// <summary>The captured Main Base (Assets/main-base-template.json, made by tools/capture-main-base.py), read once. Null with an error when it cannot be read.</summary>
-        public (MainBaseTemplate? Template, string? Error) MainBase()
+        /// <summary>The tiers, lowest first. Add a tier by capturing it into Assets and listing it here.</summary>
+        public static readonly IReadOnlyList<MainBaseTier> MainBaseTiers = new[]
         {
-            if (_mainBase is not null || _mainBaseError is not null)
-                return (_mainBase, _mainBaseError);
+            new MainBaseTier("tier1", "Tier 1 base", "main-base-tier1.json"),
+            new MainBaseTier("full", "Full base", "main-base-template.json")
+        };
 
-            try
+        public const string DefaultMainBaseTier = "tier1";
+
+        private readonly Dictionary<string, (MainBaseTemplate? Template, string? Error)> _mainBases = new();
+
+        /// <summary>A captured Main Base (Assets/main-base-*.json, made by the tools/capture-*.py scripts), read once. Null with an error when it cannot be read.</summary>
+        public (MainBaseTemplate? Template, string? Error) MainBase(string? tier = null)
+        {
+            var entry = MainBaseTiers.FirstOrDefault(t => t.Key == tier) ?? MainBaseTiers.First(t => t.Key == DefaultMainBaseTier);
+
+            lock (_mainBases)
             {
-                var path = Path.Combine(_env.ContentRootPath, "Assets", "main-base-template.json");
-                _mainBase = System.Text.Json.JsonSerializer.Deserialize<MainBaseTemplate>(File.ReadAllText(path), BaseBuildingEngine.TemplateJson);
-                if (_mainBase is null || _mainBase.Objects.Count == 0)
+                if (_mainBases.TryGetValue(entry.Key, out var known))
+                    return known;
+
+                MainBaseTemplate? template = null;
+                string? error = null;
+
+                try
                 {
-                    _mainBase = null;
-                    _mainBaseError = "The Main Base template file is empty.";
+                    var path = Path.Combine(_env.ContentRootPath, "Assets", entry.File);
+                    template = System.Text.Json.JsonSerializer.Deserialize<MainBaseTemplate>(File.ReadAllText(path), BaseBuildingEngine.TemplateJson);
+                    if (template is null || template.Objects.Count == 0)
+                    {
+                        template = null;
+                        error = $"The {entry.Label} template file is empty.";
+                    }
                 }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
-            {
-                _mainBaseError = "Could not read the Main Base template: " + ex.Message;
-            }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+                {
+                    error = $"Could not read the {entry.Label} template: " + ex.Message;
+                }
 
-            return (_mainBase, _mainBaseError);
+                return _mainBases[entry.Key] = (template, error);
+            }
+        }
+
+        /// <summary>The templates of every tier but this one: what an upgrade to this tier takes out of the save (the pieces they place that this one does not).</summary>
+        private IReadOnlyList<MainBaseTemplate> OtherTiers(string? tier)
+        {
+            var key = (MainBaseTiers.FirstOrDefault(t => t.Key == tier) ?? MainBaseTiers.First(t => t.Key == DefaultMainBaseTier)).Key;
+            return MainBaseTiers.Where(t => t.Key != key).Select(t => MainBase(t.Key).Template).Where(t => t is not null).Select(t => t!).ToList();
+        }
+
+        /// <summary>Every tier's objects together: the area a removal clears, so it takes any tier's base away, not only the one picked.</summary>
+        public (MainBaseTemplate? Template, string? Error) MainBaseFootprint()
+        {
+            var all = MainBaseTiers.Select(t => MainBase(t.Key)).ToList();
+            var first = all.FirstOrDefault(a => a.Template is not null).Template;
+            if (first is null)
+                return (null, all.Select(a => a.Error).FirstOrDefault(e => e is not null) ?? "No Main Base template.");
+
+            return (new MainBaseTemplate { Name = "all tiers", Beacon = first.Beacon, Objects = all.Where(a => a.Template is not null).SelectMany(a => a.Template!.Objects).ToList() }, null);
         }
 
         /// <summary>Where a Main Base can be built from in this save: the beacons named Base, and outdoor lamps on a foundation.</summary>
@@ -381,25 +418,25 @@ namespace RRSOS.PCC.Dashboard
         });
 
         /// <summary>The Main Base as this beacon would get it (read-only; null when the save or the template cannot be read).</summary>
-        public Task<MainBasePlan?> PlanMainBaseAsync(string savePath, long beaconId) => Task.Run(() =>
+        public Task<MainBasePlan?> PlanMainBaseAsync(string savePath, long beaconId, string? tier = null) => Task.Run(() =>
         {
-            var (template, _) = MainBase();
+            var (template, _) = MainBase(tier);
             var text = ReadText(savePath, out _);
-            return template is null || text is null ? (MainBasePlan?)null : BaseBuildingEngine.PlanMainBase(text, beaconId, template, IsBuilding);
+            return template is null || text is null ? (MainBasePlan?)null : BaseBuildingEngine.PlanMainBase(text, beaconId, template, IsBuilding, OtherTiers(tier));
         });
 
         /// <summary>
         /// Builds the Main Base into the save: the plan is worked out again from the file as it is right now, then written with a backup
         /// (see <see cref="SaveResupplyService.EditAsync{T}"/>). The game must be at its main menu.
         /// </summary>
-        public Task<SaveEdit<MainBaseOutcome>> BuildMainBaseAsync(string savePath, long beaconId, bool prefill) =>
+        public Task<SaveEdit<MainBaseOutcome>> BuildMainBaseAsync(string savePath, long beaconId, bool prefill, string? tier = null) =>
             _saves.EditAsync<MainBaseOutcome>(savePath, text =>
             {
-                var (template, error) = MainBase();
+                var (template, error) = MainBase(tier);
                 if (template is null)
                     return ((string?)null, new MainBaseOutcome(null, 0, 0, 0, new[] { error ?? "No template." }), (string?)("Nothing was built. " + error));
 
-                var plan = BaseBuildingEngine.PlanMainBase(text, beaconId, template, IsBuilding);
+                var plan = BaseBuildingEngine.PlanMainBase(text, beaconId, template, IsBuilding, OtherTiers(tier));
                 var outcome = BaseBuildingEngine.ApplyMainBase(text, plan, prefill);
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "building the main base");
@@ -407,7 +444,7 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>What removing the Main Base around this anchor would take (read-only; null when the save or the template cannot be read).</summary>
         public Task<MainBaseRemovalPlan?> PlanRemoveMainBaseAsync(string savePath, long anchorId) => Task.Run(() =>
         {
-            var (template, _) = MainBase();
+            var (template, _) = MainBaseFootprint();
             var text = ReadText(savePath, out _);
             return template is null || text is null ? (MainBaseRemovalPlan?)null : BaseBuildingEngine.PlanRemoveMainBase(text, anchorId, template);
         });
@@ -419,7 +456,7 @@ namespace RRSOS.PCC.Dashboard
         public Task<SaveEdit<MainBaseRemovalOutcome>> RemoveMainBaseAsync(string savePath, long anchorId) =>
             _saves.EditAsync<MainBaseRemovalOutcome>(savePath, text =>
             {
-                var (template, error) = MainBase();
+                var (template, error) = MainBaseFootprint();
                 if (template is null)
                 {
                     var none = new MainBaseRemovalPlan(null, 0, 0, 0, 0, 0, 0, Array.Empty<RemovedObject>(), 0, 0, Array.Empty<string>(), Array.Empty<long>(), Array.Empty<long>(), new[] { error ?? "No template." });
