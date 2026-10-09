@@ -1,0 +1,136 @@
+@inject ItemCatalog Catalog
+
+@* The Factory tab's details, opened by clicking its summary: every ingredient the base's autocrafters are missing (and why), then the empty, full and working
+   crafters. Everything is worked out by FactoryReport; this only draws it. *@
+<div class="fd-backdrop" @onclick="OnClose">
+    <div class="fd-panel" role="dialog" aria-label="Factory" @onclick:stopPropagation="true">
+        <div class="fd-head">
+            <span class="fd-title">Factory</span>
+            @if (Crafters.Count > 0)
+            {
+                <span class="fd-rate">@Crafters.Count crafter@(Crafters.Count == 1 ? "" : "s")</span>
+            }
+            <button class="fd-close" title="Close" @onclick="OnClose">✕</button>
+        </div>
+
+        @if (Crafters.Count == 0)
+        {
+            <p class="fd-hint">No autocrafters on this planet.</p>
+        }
+        else
+        {
+            var report = FactoryReport.Build(Crafters, World!.Containers, Book, Extractors, Catalog);
+            var missing = report.Unsupplied.Concat(report.Dry)
+                .OrderByDescending(r => r.State).ThenByDescending(r => r.Crafters.Count).ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+
+            <div class="fd-list">
+                @if (report.NoRecipeBook)
+                {
+                    <p class="fd-hint">No recipe list yet: start the game once with plugin 0.9.0 or later, and the ingredients can be worked out.</p>
+                }
+
+                <div class="fd-section">
+                    <div class="fd-section-head">
+                        <span>MISSING INGREDIENTS</span>
+                        <span class="@(report.ZeroSum ? "is-good" : "is-bad")">@(report.ZeroSum ? "every ingredient has a supply" : report.Unsupplied.Count() + " with no supply")</span>
+                    </div>
+
+                    @if (missing.Count == 0)
+                    {
+                        <p class="fd-hint">Nothing is missing: every ingredient has a supply and every crafter finds enough within its reach.</p>
+                    }
+                    else
+                    {
+                        <div class="fd-row fd-row-head"><span>Ingredient</span><span>Supply</span><span class="fd-num">Short at</span><span>Needed by</span></div>
+                        @foreach (var row in missing)
+                        {
+                            <div class="fd-row" @key="row.Id" title="@row.Id">
+                                <span class="fd-name @(row.State == IngredientState.Unsupplied ? "is-bad" : "is-warn")"><Icon Id="@row.Id" Size="1.4rem" /> @row.Name</span>
+                                <span class="@(row.State == IngredientState.Unsupplied ? "is-bad" : "")">@(row.State == IngredientState.Unsupplied ? "none" : row.SupplyNote)</span>
+                                <span class="fd-num" title="@string.Join(", ", row.Short)">@row.Short.Count of @row.Crafters.Count</span>
+                                <span class="fd-by">@string.Join(", ", row.Crafters)</span>
+                                @if (row.Fix.Length > 0)
+                                {
+                                    <span class="fd-fix">@row.Fix</span>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="fd-section">
+                    <div class="fd-section-head"><span>EMPTY CRAFTERS</span><span>@report.Empty</span></div>
+                    @if (report.Empty == 0)
+                    {
+                        <p class="fd-hint">None: every crafter has some product.</p>
+                    }
+                    @foreach (var crafter in report.Crafters.Where(c => c.State == CrafterState.Empty))
+                    {
+                        <div class="fd-line" @key="crafter.Id">
+                            <span class="fd-name">@crafter.ProductName</span>
+                            <span class="@(crafter.WaitingOn.Count > 0 ? "is-warn" : "fd-quiet")">
+                                @(crafter.WaitingOn.Count > 0 ? "waiting on " + string.Join(", ", crafter.WaitingOn) : "has what it needs")
+                            </span>
+                        </div>
+                    }
+                </div>
+
+                <div class="fd-section">
+                    <div class="fd-section-head"><span>FULL CRAFTERS</span><span>@report.Full</span></div>
+                    @if (report.Full == 0)
+                    {
+                        <p class="fd-hint">None.</p>
+                    }
+                    @foreach (var crafter in report.Crafters.Where(c => c.State == CrafterState.Full))
+                    {
+                        <div class="fd-line" @key="crafter.Id">
+                            <span class="fd-name">@crafter.ProductName</span>
+                            <span class="fd-quiet">@crafter.Held / @crafter.Capacity: stopped until something takes the product away</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="fd-section">
+                    <div class="fd-section-head"><span>WORKING</span><span>@report.Working</span></div>
+                    @foreach (var crafter in report.Crafters.Where(c => c.State == CrafterState.Working))
+                    {
+                        <div class="fd-line" @key="crafter.Id">
+                            <span class="fd-name">@crafter.ProductName</span>
+                            <span class="fd-quiet">@crafter.Held / @crafter.Capacity</span>
+                        </div>
+                    }
+                </div>
+
+                @if (report.NoRecipe > 0)
+                {
+                    <p class="fd-hint">@report.NoRecipe crafter@(report.NoRecipe == 1 ? " has" : "s have") no recipe set.</p>
+                }
+            </div>
+
+            <div class="fd-foot">
+                Supply means something can bring the ingredient: another crafter here makes it, an extractor or collector on this planet is set to it, the rocket depot
+                delivers it (assumed for @string.Join(", ", FactoryReport.DepotItems.Select(Catalog.NameOf).OrderBy(n => n))), or it is grown (crops, algae, honey, silk; assumed).
+                "Short at" counts the crafters that find less than one craft's worth in the containers within their own reach (20 m).
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public WorldData? World { get; set; }
+
+    [Parameter]
+    public Vec3? Player { get; set; }
+
+    private IReadOnlyList<ContainerData> Crafters => FactoryReport.FindFactory(World, Player);
+
+    [Parameter]
+    public IReadOnlyList<ExtractorData> Extractors { get; set; } = Array.Empty<ExtractorData>();
+
+    [Parameter]
+    public RecipeBook? Book { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+}

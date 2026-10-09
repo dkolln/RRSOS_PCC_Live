@@ -344,6 +344,25 @@ namespace RRSOS.PCC.Dashboard
                 return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
             }, "building the teleporter");
 
+        /// <summary>The booster (heat, pressure) this beacon would get (read-only; null when the save cannot be read).</summary>
+        public Task<BoosterPlan?> PlanBoosterAsync(string savePath, long beaconId, double? spacing = null) => Task.Run(() =>
+        {
+            var text = ReadText(savePath, out _);
+            return text is null ? (BoosterPlan?)null : BaseBuildingEngine.PlanBooster(text, beaconId, spacing);
+        });
+
+        /// <summary>
+        /// Builds the booster into the save: the plan is worked out again from the file as it is right now, then written with a backup
+        /// (see <see cref="SaveResupplyService.EditAsync{T}"/>). The game must be at its main menu.
+        /// </summary>
+        public Task<SaveEdit<BoosterOutcome>> BuildBoosterAsync(string savePath, long beaconId, double? spacing = null) =>
+            _saves.EditAsync<BoosterOutcome>(savePath, text =>
+            {
+                var plan = BaseBuildingEngine.PlanBooster(text, beaconId, spacing);
+                var outcome = BaseBuildingEngine.ApplyBooster(text, plan);
+                return outcome.Failed ? ((string?)null, outcome, (string?)("Nothing was built. " + string.Join(" ", outcome.Problems))) : (outcome.NewText, outcome, (string?)null);
+            }, "building the booster");
+
         /// <summary>One base the Main Base page can build: a tier, with the captured template that holds it. Every tier is built in the same frame (the anchor foundation is the origin), so a lower tier is found already there when a higher one is built over it.</summary>
         public sealed record MainBaseTier(string Key, string Label, string File);
 

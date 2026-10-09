@@ -1,0 +1,79 @@
+.fac {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.fac-open {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 4px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #cfe4ff;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.fac-open:hover {
+    background: rgba(122, 184, 255, 0.07);
+}
+
+.fac-sum {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.fac-chip {
+    padding: 1px 7px;
+    border-radius: 10px;
+    border: 1px solid #1a2a3a;
+    background: #0d1620;
+    color: #9ac7ff;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.fac-chip.is-good {
+    color: #4fd18b;
+    border-color: rgba(79, 209, 139, 0.4);
+}
+
+.fac-chip.is-warn {
+    color: #ffd86b;
+    border-color: rgba(255, 216, 107, 0.4);
+    background: rgba(255, 216, 107, 0.1);
+}
+
+.fac-chip.is-bad {
+    color: #ff6b6b;
+    border-color: rgba(255, 107, 107, 0.4);
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.fac-verdict {
+    font-size: 0.8rem;
+    color: #7f9db9;
+}
+
+.fac-verdict.is-good {
+    color: #4fd18b;
+}
+
+.fac-verdict.is-bad {
+    color: #ff9a6b;
+}
+
+.fac-more {
+    align-self: flex-end;
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #5f7d99;
+}

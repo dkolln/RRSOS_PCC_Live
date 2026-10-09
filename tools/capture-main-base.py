@@ -10,7 +10,8 @@ Rules of this capture (the owner's decisions, 2026-10-08):
   - leave out the escape pod and everything far from the base (the heater field: 8 Heater5 and an Optimizer2)
   - the "supply everything" list (211 items) is written as "*" and expanded at build time
   - the disposal-room ore crates (labelled, demanding one ore, supplying nothing) get a "stock": that ore, filling the crate
-  - crates labelled Misc* supply nothing; Beehive2 supply only honey and Bee1Larvae
+  - crates labelled Misc* supply nothing
+  - butterfly farms and beehives are left out: Base Building > Boosters builds them (owner's decision, 2026-10-09)
   - every DroneStation1 is filled with T3 drones (Drone3), 25 each; an Optimizer keeps its fuses ("keep", always built)
   - a Teleporter1's "set" (its number in the game's list) is dropped: the game gives it one
 """
@@ -102,12 +103,15 @@ def csv_count(csv):
 # the items the disposal-room crates are for (the game's own ids: Uranim, Aluminium), so other labelled crates (quartz, fuses...) are not stocked
 ORES = {'Iron', 'Silicon', 'Titanium', 'Magnesium', 'Cobalt', 'Alloy', 'Uranim', 'Iridium', 'Aluminium', 'Sulfur', 'Osmium', 'Obsidian', 'Aluminum'}
 
+# built by the Boosters page instead (a ring around an optimizer), never part of a base template
+BOOSTER_MACHINES = ('ButterflyFarm1', 'ButterflyFarm2', 'ButterflyFarm3', 'Beehive1', 'Beehive2')
+
 excluded = []
 template_objects = []
 li_owner = {}
 for o in objs.values():
     g = o['gId']
-    if g in ('Beacon', 'EscapePod'):
+    if g in ('Beacon', 'EscapePod') or g in BOOSTER_MACHINES:
         continue
     if is_far(o):
         excluded.append((g, o['pos']))
@@ -129,16 +133,9 @@ for o in objs.values():
             # the owner's rules
             if g in ('Container2', 'Container3') and label.lower().startswith('misc'):
                 supply = ''
-            if g == 'Beehive2':
-                supply = 'honey,Bee1Larvae'
             spec['demand'] = demand
             spec['supply'] = supply
             spec['priority'] = inv['priority']
-        # beehives always supply honey and bee larvae (the owner's rule), even when the saved hive had no drone settings at all
-        if g == 'Beehive2' and 'demand' not in spec:
-            spec['demand'] = ''
-            spec['supply'] = 'honey,Bee1Larvae'
-            spec['priority'] = 0
         held = {}
         for wid in csv_count(inv['woIds']):
             r = allrec.get(int(wid))
