@@ -352,6 +352,7 @@ namespace RRSOS.PCC.Dashboard
         {
             new MainBaseTier("tier1", "Tier 1 base", "main-base-tier1.json"),
             new MainBaseTier("tier2", "Tier 2 base", "main-base-tier2.json"),
+            new MainBaseTier("tier3", "Tier 3 base", "main-base-tier3.json"),
             new MainBaseTier("full", "Full base", "main-base-template.json")
         };
 
