@@ -351,6 +351,7 @@ namespace RRSOS.PCC.Dashboard
         public static readonly IReadOnlyList<MainBaseTier> MainBaseTiers = new[]
         {
             new MainBaseTier("tier1", "Tier 1 base", "main-base-tier1.json"),
+            new MainBaseTier("tier2", "Tier 2 base", "main-base-tier2.json"),
             new MainBaseTier("full", "Full base", "main-base-template.json")
         };
 
