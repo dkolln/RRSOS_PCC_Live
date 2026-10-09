@@ -11,7 +11,7 @@
         captured, turned to that direction), and save. Early in a game, before you have beacons, an <strong>outdoor lamp</strong> on a foundation works the same way:
         the foundation under it is where the base starts and the way the lamp faces is the way the base goes. Then pick it here. Building writes the whole base into the save (with a backup first), so do it with the
         game at the main menu. Heights follow the beacon's foundation, and <strong>only buildings are checked for room, not the ground</strong>: pick a flat,
-        clear area (the base is about 114 m by 162 m).
+        clear area (the full base is about 114 m by 162 m).
     </p>
 
     @if (_templateError is not null)
@@ -54,14 +54,28 @@
 
         @if (_beaconId != 0)
         {
+            <h3>Which base</h3>
+            <div class="mb-tiers">
+                @foreach (var t in BaseBuildingService.MainBaseTiers)
+                {
+                    <label class="bb-pick mb-tier @(t.Key == _tier ? "is-picked" : "")" @key="t.Key">
+                        <input type="radio" name="base-tier" checked="@(t.Key == _tier)" @onchange="() => PickTier(t.Key)" />
+                        <strong>@t.Label</strong>
+                    </label>
+                }
+            </div>
+            <p class="bb-muted">Every tier is built in the same place around the foundation, so a lower tier is found already there when a higher one is built over it.</p>
+
             <h3>@_template!.Name</h3>
             <p class="bb-muted">@_template.CapturedFrom. Left out: @_template.Excluded.</p>
 
-            <label class="bb-option">
-                <input type="checkbox" checked="@_prefill" @onchange="e => _prefill = e.Value is true" />
-                Pre-fill the base: @DroneCount T3 drones in the drone stations, @FuseCount fuses in the optimizers and @StockCount ore in the disposal-room crates.
-                Suppliers and machines start empty and fill up on their own as the game goes.
-            </label>
+            @if (PrefillText is { Length: > 0 } prefillText)
+            {
+                <label class="bb-option">
+                    <input type="checkbox" checked="@_prefill" @onchange="e => _prefill = e.Value is true" />
+                    Pre-fill the base: @prefillText. Suppliers and machines start empty and fill up on their own as the game goes.
+                </label>
+            }
 
             @if (_plan is null)
             {
@@ -79,6 +93,10 @@
                 <p class="bb-summary">
                     <strong>@_plan.NewCount</strong> objects to build@(_plan.ExistingCount > 0 ? $", {_plan.ExistingCount} already there" : ""),
                     going @Compass(_plan.Beacon!)@(_plan.Turn == 0 ? "" : $" (turned {(_plan.Turn + 360) % 360}° from the captured layout)").
+                    @if (_plan.ObsoleteObjects.Count > 0)
+                    {
+                        <span>This is an <strong>upgrade</strong>: <strong>@_plan.ObsoleteObjects.Count</strong> pieces of another tier that this one does not have are taken away first, with what is in them.</span>
+                    }
                 </p>
 
                 @foreach (var c in _plan.Conflicts)
@@ -109,6 +127,19 @@
                     <circle cx="@Sx(_plan.Beacon!.Z)" cy="@Sy(_plan.Beacon.X)" r="1" class="bb-beacon" />
                 </svg>
 
+                @if (_plan.ObsoleteObjects.Count > 0)
+                {
+                    <details class="bb-labels">
+                        <summary>What it takes away, by kind</summary>
+                        <div class="mb-kinds">
+                            @foreach (var g in _plan.ObsoleteObjects.GroupBy(o => o.G).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal))
+                            {
+                                <div class="bb-muted">@g.Count() × @g.Key</div>
+                            }
+                        </div>
+                    </details>
+                }
+
                 <details class="bb-labels">
                     <summary>What it builds, by kind</summary>
                     <div class="mb-kinds">
@@ -120,7 +151,7 @@
                 </details>
 
                 <button class="resupply-btn" disabled="@(!CanBuild)" @onclick="Build">
-                    @(_busy ? "BUILDING..." : $"BUILD MAIN BASE ({_plan.NewCount} OBJECTS)")
+                    @(_busy ? "BUILDING..." : $"{(_plan.ObsoleteObjects.Count > 0 ? "UPGRADE TO" : "BUILD")} {_template!.Name.ToUpperInvariant()} ({_plan.NewCount} OBJECTS{(_plan.ObsoleteObjects.Count > 0 ? $", {_plan.ObsoleteObjects.Count} REMOVED" : "")})")
                 </button>
                 @if (GameLive)
                 {
@@ -215,6 +246,7 @@
     private IReadOnlyList<BuildBeacon> _beacons = Array.Empty<BuildBeacon>();
     private long _beaconId;
     private bool _prefill = true;
+    private string _tier = BaseBuildingService.DefaultMainBaseTier;
     private MainBasePlan? _plan;
     private bool _busy;
     private string? _message;
@@ -226,9 +258,22 @@
 
     private bool CanRemove => !_busy && !GameLive && _removal is { Ok: true, Any: true };
 
-    private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true, NewCount: > 0 };
+    private bool CanBuild => !_busy && !GameLive && _plan is { Ok: true } && (_plan.NewCount > 0 || _plan.ObsoleteObjects.Count > 0);
 
     private int StockCount => _template?.Objects.Where(o => o.Inv?.Stock is not null).Sum(o => o.Inv!.Stock!.Values.Sum()) ?? 0;
+
+    // What the picked tier's pre-fill puts in, as a phrase; empty when it has nothing to put in.
+    private string PrefillText
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (DroneCount > 0) parts.Add($"{DroneCount} T3 drones in the drone stations");
+            if (FuseCount > 0) parts.Add($"{FuseCount} fuses in the optimizers");
+            if (StockCount > 0) parts.Add($"{StockCount} ore in the disposal-room crates");
+            return string.Join(", ", parts);
+        }
+    }
 
     private int FuseCount => _template?.Objects.Where(o => o.Inv?.Keep is not null).Sum(o => o.Inv!.Keep!.Values.Sum()) ?? 0;
 
@@ -237,7 +282,7 @@
     protected override async Task OnParametersSetAsync()
     {
         if (_template is null && _templateError is null)
-            (_template, _templateError) = Building.MainBase();
+            (_template, _templateError) = Building.MainBase(_tier);
 
         if (SavePath == _loadedFor)
             return;
@@ -274,7 +319,7 @@
         _removeMessage = null;
 
         var beacon = b.Id;
-        var plan = await Building.PlanMainBaseAsync(SavePath, beacon);
+        var plan = await Building.PlanMainBaseAsync(SavePath, beacon, _tier);
 
         if (beacon == _beaconId)
             _plan = plan;
@@ -283,6 +328,26 @@
 
         if (beacon == _beaconId)
             _removal = removal;
+    }
+
+    private async Task PickTier(string tier)
+    {
+        if (tier == _tier)
+            return;
+
+        _tier = tier;
+        (_template, _templateError) = Building.MainBase(_tier);
+        _message = null;
+
+        if (_beaconId != 0)
+        {
+            _plan = null;
+            var beacon = _beaconId;
+            var plan = await Building.PlanMainBaseAsync(SavePath, beacon, _tier);
+
+            if (beacon == _beaconId && tier == _tier)
+                _plan = plan;
+        }
     }
 
     private async Task Remove()
@@ -344,7 +409,7 @@
 
         var confirmed = await JS.InvokeAsync<bool>(
             "confirm",
-            $"Have you exited to the Main Menu?\n\nBUILD MAIN BASE adds {_plan.NewCount} objects{(_prefill ? $" (and {DroneCount} drones, {FuseCount} fuses and {StockCount} ore)" : "")} to your save file. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
+            $"Have you exited to the Main Menu?\n\n{(_plan.ObsoleteObjects.Count > 0 ? "UPGRADE" : "BUILD")} {_template!.Name.ToUpperInvariant()} adds {_plan.NewCount} objects{(_prefill && PrefillText.Length > 0 ? $" (and {PrefillText})" : "")} to your save file{(_plan.ObsoleteObjects.Count > 0 ? $" after DELETING {_plan.ObsoleteObjects.Count} pieces of another tier (and what is in them)" : "")}. A backup is made first. If a world is still loaded, the game will overwrite the change at its next autosave.");
 
         if (!confirmed)
             return;
@@ -355,7 +420,7 @@
 
         try
         {
-            var edit = await Building.BuildMainBaseAsync(SavePath, _beaconId, _prefill);
+            var edit = await Building.BuildMainBaseAsync(SavePath, _beaconId, _prefill, _tier);
 
             if (!edit.Success || edit.Result is null)
             {
@@ -366,7 +431,7 @@
             else
             {
                 _ok = true;
-                _message = $"Built {edit.Result.Objects} objects with {edit.Result.Inventories} inventories{(edit.Result.Items > 0 ? $" and {edit.Result.Items} items" : "")}. Backup: {edit.BackupPath}";
+                _message = $"Built {edit.Result.Objects} objects with {edit.Result.Inventories} inventories{(edit.Result.Items > 0 ? $" and {edit.Result.Items} items" : "")}{(edit.Result.Removed > 0 ? $", after removing {edit.Result.Removed} pieces of another tier" : "")}. Backup: {edit.BackupPath}";
                 Toasts.Show($"Built {edit.Result.Objects} objects", ToastKind.Success);
             }
 

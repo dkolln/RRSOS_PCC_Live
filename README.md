@@ -140,6 +140,14 @@ backup first, writes atomically, and is refused unless undoing it would give bac
   of their ore (800 items). Suppliers and machines start empty and fill up on their own. The drone supply settings come along: storage
   crates supply everything only on the one labelled `Supplier`, the `Misc` crates supply nothing, beehives supply honey and bee larvae. The layout is in
   `src/Dashboard/Assets/main-base-template.json`, made from a save by `python tools/capture-main-base.py <save.json>`.
+  **Tiers**: the page has a **Which base** picker. **Tier 1 base** (531 objects: the same pods and foundations, wind turbines, Container1 crates, T1 machines, no drone network; its ten
+  ore crates can be pre-filled) is `src/Dashboard/Assets/main-base-tier1.json`, made by `python tools/capture-tier.py <save.json> 1` from a base built around an outdoor lamp. Every tier is
+  built in one shared frame (the anchor foundation is the origin and the pods and foundations stand at the same offsets), so a lower tier is found already there when a higher one is built over
+  it. Building a tier over another is an **upgrade**: the pieces another tier placed (exactly where it placed them) that the picked tier does not have are taken out first, with what is in them (the
+  wind turbines when the next tier puts solar panels, say), the rest is kept, and the picked tier's own pieces are added where they belong. The page lists what is taken away; the records that remain are
+  proved to be the originals minus those. Anything that no tier placed (your own additions) is never touched, and blocks the build only if it stands where a piece goes. Going to a lower tier works the same way.
+  More tiers are one captured file and one line in `BaseBuildingService.MainBaseTiers`.
+  **Remove main base** clears the footprint of every tier, so it takes either base away.
   **Remove main base** (same page, same anchor) takes it out again: it clears the base's whole area (the template's footprint turned the way the anchor points, plus a margin,
   and up to 60 m above its foundation) of **everything standing there, whether or not the template put it there**, with the inventories and items in them. The beacon or
   lamp, the foundation under it and the escape pod stay. A preview shows what goes, by kind; it asks first, makes a backup, and proves the records left are exactly the
