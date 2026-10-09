@@ -275,6 +275,10 @@
                        RatePerSec="@(data?.Planet?.Units.TryGetValue(_statUnit.ToLowerInvariant(), out var statUnit) == true ? statUnit.IncreasePerSec : null)"
                        OnClose="CloseStat" />
     }
+    else if (_powerOpen)
+    {
+        <PowerEquipment Data="@data?.Planet?.Power" OnClose="CloseStat" />
+    }
 </div>
 
 @code {
@@ -596,9 +600,22 @@
     // The stat whose gauge was clicked ("Oxygen"): its equipment list is open over the page.
     private string? _statUnit;
 
-    private void OpenStat(string name) => _statUnit = name;
+    private bool _powerOpen;
 
-    private void CloseStat() => _statUnit = null;
+    private void OpenStat(string name)
+    {
+        // The power gauge has its own list (producers and consumers); the others list the equipment that makes their stat.
+        if (name == PowerCard.PowerStat)
+            _powerOpen = true;
+        else
+            _statUnit = name;
+    }
+
+    private void CloseStat()
+    {
+        _statUnit = null;
+        _powerOpen = false;
+    }
 
     // Live only: nothing is read from a save file while playing (no boneyard), in case the page stalls when the game autosaves. Remembered between runs.
     private void ToggleLiveOnly() => Settings.SetLiveOnly(!Settings.LiveOnly);

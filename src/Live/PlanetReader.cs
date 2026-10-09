@@ -183,16 +183,19 @@ namespace RRSOS.PCC.Live
         {
             public int Count;
             public double Kw;
+            public string Name;
         }
 
-        // Totals from the game, plus what each kind of generator is producing right now (each machine's own
-        // live output, optimizer boosts included), so a reader can draw the generators without calculating.
+        // Totals from the game, plus what each kind of machine is producing (generators) or drawing (consumers) right now (each machine's own
+        // live figure, optimizer boosts and the machine's energy level included), so a reader can draw them without calculating. The game adds
+        // up its own totals the same way: a positive figure is produced, a negative one used.
         private static string PowerFragment(double produced, double used)
         {
-            var json = new Json().Begin().Num("producedKw", produced).Num("usedKw", used).BeginArray("generators");
+            var json = new Json().Begin().Num("producedKw", produced).Num("usedKw", used);
 
             var constructed = WorldObjectsHandler.Instance == null ? null : WorldObjectsHandler.Instance.GetConstructedWorldObjects();
-            var byId = new Dictionary<string, Generator>();
+            var makers = new Dictionary<string, Generator>();
+            var drawers = new Dictionary<string, Generator>();
             var planetHash = PlanetHash();
 
             if (constructed != null)
@@ -203,25 +206,47 @@ namespace RRSOS.PCC.Live
                         continue;
 
                     var kw = worldObject.GetUnitGeneration(DataConfig.WorldUnitType.Energy);
-                    if (kw <= 0f)
+                    if (kw == 0f)
                         continue;
 
-                    var id = worldObject.GetGroup() == null ? null : worldObject.GetGroup().GetId();
+                    var group = worldObject.GetGroup();
+                    var id = group == null ? null : group.GetId();
                     if (id == null)
                         continue;
 
-                    if (!byId.TryGetValue(id, out var generator))
-                        byId[id] = generator = new Generator();
+                    var into = kw > 0f ? makers : drawers;
+                    if (!into.TryGetValue(id, out var generator))
+                        into[id] = generator = new Generator { Name = NameOf(group) };
 
                     generator.Count++;
-                    generator.Kw += kw;
+                    generator.Kw += Math.Abs(kw);
                 }
             }
 
-            foreach (var pair in byId)
-                json.Begin().Str("id", pair.Key).Int("count", pair.Value.Count).Num("kw", pair.Value.Kw).End();
+            WriteKinds(json, "generators", makers);
+            WriteKinds(json, "consumers", drawers);
+            return json.End().ToString();
+        }
 
-            return json.EndArray().End().ToString();
+        private static void WriteKinds(Json json, string key, Dictionary<string, Generator> kinds)
+        {
+            json.BeginArray(key);
+            foreach (var pair in kinds)
+                json.Begin().Str("id", pair.Key).Str("name", pair.Value.Name).Int("count", pair.Value.Count).Num("kw", pair.Value.Kw).End();
+            json.EndArray();
+        }
+
+        private static string NameOf(Group group)
+        {
+            try
+            {
+                var name = Readable.GetGroupName(group);
+                return string.IsNullOrEmpty(name) ? group.GetId() : name;
+            }
+            catch (Exception)
+            {
+                return group.GetId();
+            }
         }
 
         // Launched rockets sit in hidden "space" storage objects (one per stat). The game adds up their

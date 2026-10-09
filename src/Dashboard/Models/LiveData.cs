@@ -120,11 +120,17 @@ namespace RRSOS.PCC.Dashboard
         public double ProducedKw { get; set; }
         public double UsedKw { get; set; }
         public List<GeneratorData> Generators { get; set; } = new();
+
+        /// <summary>The machines drawing power, by kind (plugin 0.16.0 and later; null before, which is different from an empty list).</summary>
+        public List<GeneratorData>? Consumers { get; set; }
     }
 
     public sealed class GeneratorData
     {
         public string Id { get; set; } = "";
+
+        /// <summary>The game's name for the machine (plugin 0.16.0 and later; empty before).</summary>
+        public string Name { get; set; } = "";
         public int Count { get; set; }
         public double Kw { get; set; }
     }

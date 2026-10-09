@@ -1,7 +1,7 @@
 @inject IconCatalog Icons
 @inject IJSRuntime JS
 
-@* Power straight from the game: what is produced and used, with a picture per generator. *@
+@* Power straight from the game: what is produced and used, and one row per kind of generator (picture, how many, what they make together). *@
 <div class="power @(Dim ? "is-dim" : "")">
     <div class="power-title">
         <button type="button" class="power-tab @(ShowToxicity ? "" : "is-on")" @onclick="() => ChooseTab(Tab.Power)">Power</button>
@@ -75,7 +75,8 @@
     else
     {
         <div class="power-main">
-            <div class="power-meter">
+            <div class="power-meter is-clickable" title="Click to see what makes the power and what uses it."
+                 @onclick="() => OnSelect.InvokeAsync(PowerStat)">
                 <Gauge Label="Power load"
                        Value="@Load"
                        Unknown="@(Data.ProducedKw <= 0)"
@@ -96,18 +97,24 @@
                 </div>
             </div>
 
-            <div class="power-icons" title="@IconsTitle">
-                @foreach (var (icon, id, idx) in SortedIcons)
+            @* One row per kind of generator, not one picture per machine: what it is, how many, what they make together. (Each machine's own
+               figure is not shown: optimizers make them differ. The gauge opens the full breakdown.) *@
+            <div class="power-types">
+                @foreach (var row in SortedGroups)
                 {
-                    @* The machine's own icon from the game when the plugin has written it; the drawn picture otherwise. *@
-                    @if (Icons.Has(id))
-                    {
-                        <Icon Id="@id" Size="1.9rem" />
-                    }
-                    else
-                    {
-                        <PowerIcon Kind="@icon" Index="@idx" />
-                    }
+                    <div class="power-type" title="@row.Title">
+                        @* The machine's own icon from the game when the plugin has written it; the drawn picture otherwise. *@
+                        @if (Icons.Has(row.Id))
+                        {
+                            <Icon Id="@row.Id" Size="1.7rem" />
+                        }
+                        else
+                        {
+                            <PowerIcon Kind="@row.Icon" Index="0" />
+                        }
+                        <span class="pt-count">×@row.Count</span>
+                        <span class="pt-kw">@Kw(row.Kw)</span>
+                    </div>
                 }
             </div>
         </div>
@@ -115,8 +122,6 @@
 </div>
 
 @code {
-    private const int MaxIconsPerGroup = 40;
-
     private static readonly Dictionary<string, (string Icon, string Name)> Known = new(StringComparer.OrdinalIgnoreCase)
     {
         ["EnergyGenerator1"] = ("windmill", "Wind Turbine"),
@@ -193,7 +198,10 @@
     // Purification is one of the stats Terraformation adds up, so it is balanced against the others like they are.
     private TiCategory? PurificationCategory => TiBalance.ForPlanet(Planet).FirstOrDefault(c => c.Name == "Purification");
 
-    /// <summary>Raised with the stat's name ("Purification") when its dial is clicked.</summary>
+    /// <summary>What <see cref="OnSelect"/> is raised with when the power gauge is clicked (the dials raise their stat's name instead).</summary>
+    public const string PowerStat = "Power";
+
+    /// <summary>Raised with the stat's name ("Purification") when its dial is clicked, or <see cref="PowerStat"/> for the power gauge.</summary>
     [Parameter]
     public EventCallback<string> OnSelect { get; set; }
 
@@ -221,29 +229,20 @@
     private string FigureClass => Short ? "deficit" : Load >= 0.75f ? "reserve" : "surplus";
     private string FigureLabel => Short ? "Deficit" : Load >= 0.75f ? "Reserve" : "Surplus";
 
-    private sealed record Group(string Id, string Icon, int Count, string Title);
+    private sealed record Group(string Id, string Icon, int Count, double Kw, string Title);
 
     private IEnumerable<Group> Groups => Data is null
         ? Enumerable.Empty<Group>()
         : Data.Generators.Select(g =>
         {
             var known = Known.TryGetValue(g.Id, out var k);
-            return new Group(g.Id, known ? k.Icon : "bolt", g.Count, $"{(known ? k.Name : g.Id)} ×{g.Count}: {Kw(g.Kw)}");
+            var name = !string.IsNullOrEmpty(g.Name) ? g.Name : known ? k.Name : g.Id;
+            return new Group(g.Id, known ? k.Icon : "bolt", g.Count, g.Kw, $"{name} ×{g.Count}: {Kw(g.Kw)}");
         });
 
     // Weakest generator first, as before; a kind the table does not know goes last.
-    private IEnumerable<(string Icon, string Id, int Index)> SortedIcons
-    {
-        get
-        {
-            var idx = 0;
-            foreach (var group in Groups.OrderBy(g => Array.IndexOf(TypeOrder, g.Icon)).ThenBy(g => g.Id, StringComparer.Ordinal))
-                for (var i = 0; i < Math.Min(group.Count, MaxIconsPerGroup); i++)
-                    yield return (group.Icon, group.Id, idx++);
-        }
-    }
-
-    private string IconsTitle => string.Join(", ", Groups.Select(g => g.Title));
+    private IEnumerable<Group> SortedGroups =>
+        Groups.OrderBy(g => { var at = Array.IndexOf(TypeOrder, g.Icon); return at < 0 ? int.MaxValue : at; }).ThenBy(g => g.Id, StringComparer.Ordinal);
 
     private static string Kw(double kw) => $"{kw:N1} kW";
 }

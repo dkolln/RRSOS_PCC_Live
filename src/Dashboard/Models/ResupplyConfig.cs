@@ -19,8 +19,11 @@ namespace RRSOS.PCC.Dashboard
 
         /// <summary>For those containers: also replace what is already in them. Off: only their empty slots are filled.</summary>
         public bool AutoFillReplaceAll { get; set; }
+
+        /// <summary>Also fill a storage container that demands exactly one item and has no label, or a label that is no item id (never DNA or Genetic Traits). On unless turned off.</summary>
+        public bool AutoFillDemanded { get; set; } = true;
     }
 
     /// <summary>What a Resupply run does beyond the configured rows (see <see cref="ResupplyConfigFile"/>).</summary>
-    public sealed record ResupplyOptions(bool AutoFillByGId, bool AutoFillReplaceAll);
+    public sealed record ResupplyOptions(bool AutoFillByGId, bool AutoFillReplaceAll, bool AutoFillDemanded = false);
 }

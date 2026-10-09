@@ -43,7 +43,8 @@ dashboard in this repo reads exactly this.
     "power": {
       "producedKw": 0,
       "usedKw": 0,
-      "generators": [ { "id": "EnergyGenerator2", "count": 24, "kw": 1720 } ]
+      "generators": [ { "id": "EnergyGenerator2", "name": "Solar Panel T1", "count": 24, "kw": 1720 } ],
+      "consumers": [ { "id": "OreExtractor2", "name": "Ore Extractor", "count": 8, "kw": 400 } ]
     },
     "rockets": { "heat": { "count": 3, "multiplier": 30 } },
     "phases": [
@@ -76,7 +77,7 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
 | `*.items` | Contents grouped by kind: `id` is the game's group id, `name` its localized display name, `count` how many. `size` is the number of slots |
 | `planet.units.<stat>` | The game's own world unit: `value` is the running total, `increasePerSec` what is being gained per second, `decreasePerSec` what is being lost (a negative number). Rates already include every machine, optimizer and rocket |
 | `planet.units.energy` | The same numbers for power, in kW: increase is produced, decrease is used |
-| `planet.power` | Produced and used in kW, and each kind of generator with its count and current combined output (optimizer boosts included) |
+| `planet.power` | Produced and used in kW, and each kind of generator (`generators`) and of machine drawing power (`consumers`, plugin 0.16.0) with its name, count and current combined kW (optimizer boosts included; a consumer's kW is positive) |
 | `planet.rockets.<stat>` | Present only for stats that have launched rockets: how many, and the multiplier the game applies (a Tier 1 rocket is 10, so three Heat rockets are 30) |
 | `planet.units.purification` | Same shape as the other stats. The game parks `value` at -1 on a planet that does not need purification |
 | `planet.toxicity` | The game's Toxicity screen (plugin 0.14.0): `cleanedObjects` of `totalObjects` toxic goo objects cleaned, `cleanedAreas` of `totalAreas` toxic areas fully clean. Summed from the game's toxic areas handler; null when it is not there |
@@ -237,6 +238,7 @@ Two things used to pool every planet in a save together, which only mattered onc
 
 ## Changes
 
+- **Plugin 0.16.0**: `planet.power` gains `consumers[]` (what draws power, by kind) and a `name` on each generator and consumer. The dashboard shows both when the power gauge is clicked.
 - **Plugin 0.14.0**: new `planet.toxicity` in `live.json`, and Toxic Water Collectors in `extractors[]` (kind `toxicwater`). See above.
 - **Plugin 0.15.0**: new file `unlocks.json` (see above).
 - **Plugin 0.13.0**: new file `terraformers.json` (see above). Nothing in the other files changes.

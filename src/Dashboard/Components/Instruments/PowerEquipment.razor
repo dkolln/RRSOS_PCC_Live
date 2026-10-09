@@ -1,0 +1,145 @@
+@* What makes and what uses the power, opened by clicking the power gauge. Two lists, one per side, each by kind of machine with how many there are, what one makes
+   or draws on average, and what they do together right now (the plugin sums each machine's own live figure). Producers run weakest to strongest; consumers,
+   hungriest to least. A button on each list flips it. *@
+<div class="se-backdrop" @onclick="OnClose">
+    <div class="se-panel" role="dialog" aria-label="Power" @onclick:stopPropagation="true">
+        <div class="se-head">
+            <span class="se-title">Power · what makes it and what uses it</span>
+            @if (Data is not null)
+            {
+                <span class="se-rate" title="Produced and used, as the game reports them">▲ @Kw(Data.ProducedKw) · ▼ @Kw(Data.UsedKw)</span>
+            }
+            <button class="se-close" title="Close" @onclick="OnClose">✕</button>
+        </div>
+
+        @if (Data is null)
+        {
+            <p class="se-hint">No power reading yet. Load a world with the plugin running, then click the gauge again.</p>
+        }
+        else
+        {
+            <div class="se-list">
+                <div class="pe-section">
+                    <div class="pe-section-head">
+                        <span>PRODUCING</span>
+                        <span class="pe-produced">@Kw(Producers.Sum(e => e.Kw))</span>
+                        <button class="se-toggle" title="Flip the order" @onclick="() => _producersLowFirst = !_producersLowFirst">@(_producersLowFirst ? "lowest first ▲" : "highest first ▼")</button>
+                    </div>
+                    @if (Producers.Count == 0)
+                    {
+                        <p class="se-hint">Nothing is producing power.</p>
+                    }
+                    else
+                    {
+                        <div class="se-row pe-row se-row-head">
+                            <span class="se-name">Generator</span><span class="se-num">Built</span><span class="se-num">Each</span><span class="se-num">Total now</span><span class="se-num">Share</span>
+                        </div>
+                        @foreach (var row in Producers)
+                        {
+                            <div class="se-row pe-row" @key="row.Id" title="@row.Id">
+                                <span class="se-name"><Icon Id="@row.Id" Size="1.5rem" /> @LabelOf(row)</span>
+                                <span class="se-num">×@row.Count</span>
+                                <span class="se-num">@Kw(row.Kw / Math.Max(row.Count, 1))</span>
+                                <span class="se-num se-total pe-produced">@Kw(row.Kw)</span>
+                                <span class="se-num">@Share(row.Kw, Producers)</span>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="pe-section">
+                    <div class="pe-section-head">
+                        <span>USING</span>
+                        @if (Consumers is not null)
+                        {
+                            <span class="pe-used">@Kw(Consumers.Sum(e => e.Kw))</span>
+                            <button class="se-toggle" title="Flip the order" @onclick="() => _consumersHighFirst = !_consumersHighFirst">@(_consumersHighFirst ? "highest first ▼" : "lowest first ▲")</button>
+                        }
+                    </div>
+                    @if (Consumers is null)
+                    {
+                        <p class="se-hint">What uses the power needs plugin 0.16.0: start the game with it and load a world.</p>
+                    }
+                    else if (Consumers.Count == 0)
+                    {
+                        <p class="se-hint">Nothing is using power.</p>
+                    }
+                    else
+                    {
+                        <div class="se-row pe-row se-row-head">
+                            <span class="se-name">Machine</span><span class="se-num">Built</span><span class="se-num">Each</span><span class="se-num">Total now</span><span class="se-num">Share</span>
+                        </div>
+                        @foreach (var row in Consumers)
+                        {
+                            <div class="se-row pe-row" @key="row.Id" title="@row.Id">
+                                <span class="se-name"><Icon Id="@row.Id" Size="1.5rem" /> @LabelOf(row)</span>
+                                <span class="se-num">×@row.Count</span>
+                                <span class="se-num">@Kw(row.Kw / Math.Max(row.Count, 1))</span>
+                                <span class="se-num se-total pe-used">@Kw(row.Kw)</span>
+                                <span class="se-num">@Share(row.Kw, Consumers)</span>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="se-foot">
+                Each machine's live figure, optimizer boosts included. The game's own totals above can differ a little: its production is multiplied by anything that boosts the whole grid.
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly Dictionary<string, string> Known = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["EnergyGenerator1"] = "Wind Turbine",
+        ["EnergyGenerator2"] = "Solar Panel T1",
+        ["EnergyGenerator3"] = "Solar Panel T2",
+        ["EnergyGenerator4"] = "Nuclear Reactor T1",
+        ["EnergyGenerator5"] = "Nuclear Reactor T2",
+        ["EnergyGenerator6"] = "Fusion Generator"
+    };
+
+    [Parameter]
+    public PowerData? Data { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private bool _producersLowFirst = true;
+    private bool _consumersHighFirst = true;
+
+    private List<GeneratorData> Producers
+    {
+        get
+        {
+            var rows = Data?.Generators ?? new List<GeneratorData>();
+            return (_producersLowFirst ? rows.OrderBy(e => e.Kw) : rows.OrderByDescending(e => e.Kw))
+                .ThenBy(e => LabelOf(e), StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+    }
+
+    private List<GeneratorData>? Consumers
+    {
+        get
+        {
+            if (Data?.Consumers is not { } rows)
+                return null;
+
+            return (_consumersHighFirst ? rows.OrderByDescending(e => e.Kw) : rows.OrderBy(e => e.Kw))
+                .ThenBy(e => LabelOf(e), StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+    }
+
+    private static string LabelOf(GeneratorData e) =>
+        !string.IsNullOrEmpty(e.Name) ? e.Name : Known.TryGetValue(e.Id, out var name) ? name : e.Id;
+
+    private static string Kw(double kw) => $"{kw:N1} kW";
+
+    private static string Share(double kw, List<GeneratorData> all)
+    {
+        var sum = all.Sum(e => e.Kw);
+        return sum <= 0 ? "" : $"{kw / sum:P0}";
+    }
+}
