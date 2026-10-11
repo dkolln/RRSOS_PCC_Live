@@ -36,8 +36,9 @@ namespace RRSOS.PCC.Dashboard
     /// <param name="Optimizers">Build optimizers at all (default yes).</param>
     /// <param name="Optimizer">Optimizer1 (T1, one fuse slot) or Optimizer2 (T2, three).</param>
     /// <param name="Fuses">The fuse ids, one optimizer each.</param>
+    /// <param name="Count">How many machines a stack holds (only for a kind that stacks; a ring is always its eight places).</param>
     public sealed record BoosterOptions(string? Kind = null, double? Spacing = null, string? Machine = null, string? Populate = null, bool Optimizers = true, string? Optimizer = null,
-        IReadOnlyList<string>? Fuses = null);
+        IReadOnlyList<string>? Fuses = null, int? Count = null);
 
     /// <param name="Exists">An optimizer already stands where this one goes, so it is not added again.</param>
     /// <param name="GId">Optimizer1 or Optimizer2.</param>
@@ -50,9 +51,11 @@ namespace RRSOS.PCC.Dashboard
     /// <param name="Spacing">The distance between a ring's neighbours (0 for a stack).</param>
     /// <param name="Machine">The machine being built (a tier of the kind's machine).</param>
     /// <param name="Populate">What each machine's inventory is filled with, or null.</param>
+    /// <param name="Count">How many machines the build should end with (a stack's chosen size, or a ring's eight).</param>
     public sealed record BoosterPlan(
         BuildBeacon? Beacon, BoosterKind? Kind, double X, double Y, double Z, int MachinesFound, IReadOnlyList<(double X, double Z)> Spots,
-        IReadOnlyList<BoosterOptimizer> Optimizers, IReadOnlyList<string> Problems, double Spacing = 0, int Slots = 0, BoosterChoice? Machine = null, BoosterChoice? Populate = null)
+        IReadOnlyList<BoosterOptimizer> Optimizers, IReadOnlyList<string> Problems, double Spacing = 0, int Slots = 0, BoosterChoice? Machine = null, BoosterChoice? Populate = null,
+        int Count = 0)
     {
         public int MachinesToAdd => Spots.Count;
 
@@ -94,6 +97,14 @@ namespace RRSOS.PCC.Dashboard
         public const double OptimizerRange = 15;
 
         public const string OptimizerGId = "Optimizer2";
+
+        /// <summary>The most machines a stack may hold (they all stand on one spot, so this is only a sanity limit).</summary>
+        public const int MaxStack = 10;
+
+        /// <summary>How many machines a stack holds to begin with: what the optimizer can boost (each fuse boosts up to 5 machines; the T1 holds one fuse, the T2 holds three but the
+        /// owner stacks eight), or just one when there is no optimizer.</summary>
+        public static int DefaultStack(bool optimizers, string? optimizerGId) =>
+            !optimizers ? 1 : optimizerGId == "Optimizer1" ? 5 : 8;
 
         /// <summary>The optimizers: id and fuse slots (read from the owner's saves).</summary>
         public static readonly IReadOnlyList<(BoosterChoice Choice, int Slots)> OptimizerTiers = new[]
@@ -147,8 +158,14 @@ namespace RRSOS.PCC.Dashboard
 
         public static readonly IReadOnlyList<BoosterKind> Boosters = new[]
         {
-            new BoosterKind("Heat", "Heat", new[] { "heat", "heater", "hot", "warm" }, One("Heater5", "Heater T5"), 0, new[] { "FuseHeat1" }, 8),
-            new BoosterKind("Pressure", "Pressure", new[] { "pressure", "drill" }, One("Drill4", "Drill T5"), 0, new[] { "FusePressure1" }, 8),
+            new BoosterKind("Heat", "Heat", new[] { "heat", "heater", "hot", "warm" },
+                new[] { new BoosterChoice("Heater1", "Heater T1"), new BoosterChoice("Heater2", "Heater T2"), new BoosterChoice("Heater3", "Heater T3"), new BoosterChoice("Heater4", "Heater T4"), new BoosterChoice("Heater5", "Heater T5") },
+                4, new[] { "FuseHeat1" }, 8),
+
+            // The drill's ids run one behind its tiers: the T5 drill is Drill4.
+            new BoosterKind("Pressure", "Pressure", new[] { "pressure", "drill" },
+                new[] { new BoosterChoice("Drill0", "Drill T1"), new BoosterChoice("Drill1", "Drill T2"), new BoosterChoice("Drill2", "Drill T3"), new BoosterChoice("Drill3", "Drill T4"), new BoosterChoice("Drill4", "Drill T5") },
+                4, new[] { "FusePressure1" }, 8),
 
             // The farms are the T2 (ButterflyFarm3 exists but is not unlocked yet). The ring spacing is a guess from how close the owner placed his own: 6.57 to 7 m.
             // The T1 farm's slot count is in no save of the owner's, so it is read from one in the save (the T3 is locked).
@@ -257,6 +274,7 @@ namespace RRSOS.PCC.Dashboard
             var optimizers = new List<BoosterOptimizer>();
             double step = 0;
             int found;
+            var count = kind.Ring ? kind.Count : Math.Clamp(options.Count ?? DefaultStack(fuses.Count > 0, tier.Choice.GId), 1, MaxStack);
 
             if (kind.Ring)
             {
@@ -285,7 +303,7 @@ namespace RRSOS.PCC.Dashboard
                 double bx = beacon.X + beacon.DirX * BoosterOptimizerDistance, bz = beacon.Z + beacon.DirZ * BoosterOptimizerDistance;
                 double px = Math.Abs(beacon.DirZ), pz = Math.Abs(beacon.DirX); // across the way it points
                 found = world.Objects.Count(o => At(o, machine.GId, beacon.X, beacon.Z));
-                for (var i = found; i < kind.Count; i++)
+                for (var i = found; i < count; i++)
                     spots.Add((beacon.X, beacon.Z));
 
                 for (var i = 0; i < fuses.Count; i++)
@@ -296,7 +314,7 @@ namespace RRSOS.PCC.Dashboard
                 }
             }
 
-            return new BoosterPlan(beacon, kind, beacon.X, beacon.Y, beacon.Z, found, spots, optimizers, Array.Empty<string>(), step, slots, machine, populate);
+            return new BoosterPlan(beacon, kind, beacon.X, beacon.Y, beacon.Z, found, spots, optimizers, Array.Empty<string>(), step, slots, machine, populate, count);
         }
 
         /// <summary>

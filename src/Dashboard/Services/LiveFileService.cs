@@ -32,6 +32,7 @@ namespace RRSOS.PCC.Dashboard
         /// the same idea).</summary>
         private const double PhaseAlertVolume = 0.9;
         private static readonly TimeSpan PhaseAlertCooldown = TimeSpan.FromSeconds(20);
+        private static readonly TimeSpan PhaseSettleTime = TimeSpan.FromSeconds(20);
 
         private readonly ILogger<LiveFileService> _log;
         private readonly PCLauncherService _launcher;
@@ -44,6 +45,10 @@ namespace RRSOS.PCC.Dashboard
         // (by id) was the in-progress one for a planet, so a change can be told apart from "first time we've looked".
         private readonly Dictionary<string, bool> _phaseComplete = new();
         private readonly Dictionary<string, string?> _phaseInProgress = new();
+
+        // The planet the phase memory above belongs to (null at the menu) and when it stops just re-learning after a load.
+        private string? _phaseWorldId;
+        private DateTime _phaseSettledAt = DateTime.MinValue;
 
         public LiveFileService(ILogger<LiveFileService> log, IConfiguration config, PCLauncherService launcher, SpeechService speech)
         {
@@ -119,16 +124,41 @@ namespace RRSOS.PCC.Dashboard
         /// (see <see cref="PhaseData"/>): "Phase X is complete", "Phase Y now in progress". When the very last phase
         /// finishes, that is the one exception: just "Terraformation is complete congratulations planet crafter", not
         /// also that phase's own "is complete" (the owner asked for one sentence there, not two). Each planet's phases are
-        /// kept apart by planet id, so switching planets never looks like a phase un-completing. Known only once this has
-        /// read a planet's phases twice; the first reading just remembers where things stand, and a planet whose phases
-        /// are not (yet) in the file is simply left alone.
+        /// kept apart by planet id, so switching planets never looks like a phase un-completing. Nothing is spoken for the
+        /// first <see cref="PhaseSettleTime"/> after a world loads (or the planet changes): that stretch only learns where
+        /// things stand, so phases already finished are never announced again. A planet whose phases are not (yet) in the
+        /// file is simply left alone.
         /// </summary>
         private void AnnouncePhases(LiveData data)
         {
-            if (!data.InWorld || data.Planet?.Phases is not { Count: > 0 } phases)
+            if (!data.InWorld)
+            {
+                // Back at the menu: whatever loads next is a different session (maybe another save), so what was remembered
+                // here must not be compared against it.
+                _phaseComplete.Clear();
+                _phaseInProgress.Clear();
+                _phaseWorldId = null;
+                return;
+            }
+
+            if (data.Planet?.Phases is not { Count: > 0 } phases)
                 return;
 
             var planetId = data.PlanetId ?? "";
+            var now = DateTime.UtcNow;
+
+            // A freshly loaded world's first readings can have the units still filling in (Terraformation briefly reads low,
+            // then jumps to the real value), which looks exactly like every finished phase completing just now. So after a
+            // load, a planet change, or this service starting, only re-learn where things stand until it has settled.
+            if (_phaseWorldId != planetId)
+            {
+                _phaseWorldId = planetId;
+                _phaseSettledAt = now + PhaseSettleTime;
+                _phaseComplete.Clear();
+                _phaseInProgress.Clear();
+            }
+
+            var settling = now < _phaseSettledAt;
             string? firstIncomplete = null;
             var newlyDone = new List<PhaseData>();
 
@@ -138,7 +168,7 @@ namespace RRSOS.PCC.Dashboard
                     continue;
 
                 var key = planetId + ":" + phase.Id;
-                if (_phaseComplete.TryGetValue(key, out var was) && !was && phase.Complete)
+                if (!settling && _phaseComplete.TryGetValue(key, out var was) && !was && phase.Complete)
                     newlyDone.Add(phase);
 
                 _phaseComplete[key] = phase.Complete;
@@ -147,7 +177,7 @@ namespace RRSOS.PCC.Dashboard
                     firstIncomplete = phase.Id;
             }
 
-            var hasPrior = _phaseInProgress.TryGetValue(planetId, out var wasInProgress);
+            var hasPrior = _phaseInProgress.TryGetValue(planetId, out var wasInProgress) && !settling;
             var allDone = hasPrior && wasInProgress is not null && firstIncomplete is null;
 
             if (allDone)
