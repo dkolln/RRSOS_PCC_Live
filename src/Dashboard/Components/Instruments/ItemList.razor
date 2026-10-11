@@ -1,5 +1,6 @@
 @* A titled list of items and counts, packed into columns so a big backpack still fits on screen. Click the title to fold
    it away (when Collapsible); with MaxRows it stops growing after that many rows and scrolls instead. *@
+@inject FoldState Folds
 <div class="items @(Dim ? "is-dim" : "")">
     <div class="items-title @(Collapsible ? "is-clickable" : "")" @onclick="Toggle" title="@(Collapsible ? (_open ? "Click to fold" : "Click to unfold") : "")">
         <span>@if (Collapsible){ <span class="items-caret">@(_open ? "▼" : "▶")</span> }@Title</span>
@@ -61,7 +62,7 @@
     [Parameter]
     public bool Collapsible { get; set; }
 
-    /// <summary>With Collapsible, starts folded. Only read once, when the list first appears.</summary>
+    /// <summary>With Collapsible, starts folded (until the user has clicked it).</summary>
     [Parameter]
     public bool StartCollapsed { get; set; }
 
@@ -73,14 +74,19 @@
     // cap when the list is meant to scroll. A row is 1.08rem: 0.8rem text at line-height 1.35.
     private string ColumnStyle => (Columns > 1 ? $"column-count: {Columns};" : "") + (MaxRows is { } rows ? $" max-height: calc({rows} * 1.08rem);" : "");
 
-    private bool _open = true;
+    /// <summary>What the fold is remembered under, when the title is not enough (the title changes, or another list has the same one). Defaults to the title.</summary>
+    [Parameter]
+    public string? FoldKey { get; set; }
 
-    protected override void OnInitialized() => _open = !(Collapsible && StartCollapsed);
+    // Open unless it starts folded; a click flips that, remembered in FoldState so it survives the screen switching away and back.
+    private string Key => "items:" + (FoldKey ?? Title);
+
+    private bool _open => !Collapsible || Folds.IsOpen(Key, !StartCollapsed);
 
     private void Toggle()
     {
         if (Collapsible)
-            _open = !_open;
+            Folds.Flip(Key);
     }
 
     private IEnumerable<ItemData> Sorted => Data!.Items.OrderBy(i => i.Label, StringComparer.CurrentCultureIgnoreCase);
