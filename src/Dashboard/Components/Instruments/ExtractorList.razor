@@ -1,6 +1,7 @@
 @* Every extractor, grouped: ore by what it mines, then gas, water and algae. Each shows how full it is, where it is and
    which way from the player. Ported from RRSOS-PCC's Extractors card. When NearestId is set (the map is open and
    nothing specific is picked), that one extractor is also pinned to the top, and moves live as the player walks. *@
+@inject FoldState Folds
 <div class="extractors @(Dim ? "is-dim" : "")">
 
     @if (Groups.Count == 0)
@@ -119,16 +120,10 @@
     </div>;
 
     // What the user has clicked. The five kinds (ore, gas, water, toxic water, algae) start open and the ore or gas under each starts folded;
-    // a click flips that, and the choice survives new readings.
-    private readonly HashSet<string> _flipped = new();
+    // a click flips that, and the choice survives new readings and the screen switching away and back (FoldState lives as long as the dashboard).
+    private bool IsOpen(string key, bool defaultOpen) => Folds.IsOpen("extractors:" + key, defaultOpen);
 
-    private bool IsOpen(string key, bool defaultOpen) => _flipped.Contains(key) ? !defaultOpen : defaultOpen;
-
-    private void Toggle(string key)
-    {
-        if (!_flipped.Remove(key))
-            _flipped.Add(key);
-    }
+    private void Toggle(string key) => Folds.Flip("extractors:" + key);
 
     private sealed class Row
     {

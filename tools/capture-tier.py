@@ -1,9 +1,14 @@
 """
 Captures one of the owner's tier bases from a save into src/Dashboard/Assets/main-base-tier<N>.json.
 
-Run: python tools/capture-tier.py <save.json> <tier number> [--lamp NORTH,WEST] [--out out.json]
+Run: python tools/capture-tier.py <save.json> <tier number> [--lamp NORTH,WEST] [--out out.json] [--full] [--skip-box X0,X1,Z0,Z1]
   --lamp  the position (any two of the lamp's coordinates, x and z as saved) of the outdoor lamp the tier was built around, when the save has more than one
           (several bases built side by side); without it there must be exactly one lamp standing on a foundation
+  --full  the final base instead of a tier (use tier number 6, it only names the file): written to main-base-template.json as "Full base", with the drone network
+          kept as a marker (a supply-everything list becomes "*", crates labelled Misc* supply nothing), the drone stations filled with T3 drones, an optimizer's
+          fuses always built, and never heaters or drills (Base Building > Boosters builds those)
+  --skip-box  leave out everything standing in this box of the save's own world coordinates (x north, z west): the warehouse, which has its own builder.
+          Only foundations, chests and the signs hung on them may be in it, or the capture stops
 Then add the tier to BaseBuildingService.MainBaseTiers (key, label, file name).
 
 The same format as the full base (tools/capture-main-base.py): every object's position is an offset from the foundation under the anchor, here the one
@@ -31,12 +36,16 @@ if len(ARGS) < 2 or not ARGS[1].isdigit():
     sys.exit(__doc__)
 SRC, TIER = ARGS[0], int(ARGS[1])
 LAMP = None
-OUT = os.path.join(os.path.dirname(__file__), '..', 'src', 'Dashboard', 'Assets', 'main-base-tier%d.json' % TIER)
+FULL = '--full' in ARGS
+SKIP_BOX = None
+OUT = os.path.join(os.path.dirname(__file__), '..', 'src', 'Dashboard', 'Assets', 'main-base-template.json' if FULL else 'main-base-tier%d.json' % TIER)
 for i, a in enumerate(ARGS):
     if a == '--lamp':
         LAMP = [float(v) for v in ARGS[i + 1].split(',')]
     elif a == '--out':
         OUT = ARGS[i + 1]
+    elif a == '--skip-box':
+        SKIP_BOX = [float(v) for v in ARGS[i + 1].split(',')]
 UNLOCKS = os.path.expandvars(r'%LOCALAPPDATA%\RRSOS-PCC-Live\unlocks.json')
 
 RECORD = re.compile(r'\{(?:[^{}"]|"(?:[^"\\]|\\.)*")*\}')
@@ -104,12 +113,35 @@ def csv(s):
     return [x for x in str(s or '').split(',') if x]
 
 
-template_objects, skipped = [], {}
+# the final base only: what Base Building > Boosters builds is never part of it, the drone network stays a marker, a "supply everything" list is the save's own
+# (written as "*" and expanded again at build time, from the target save's own list or the dashboard's)
+FULL_NEVER = ('Heater1', 'Heater2', 'Heater3', 'Heater4', 'Heater5', 'Drill0', 'Drill1', 'Drill2', 'Drill3', 'Drill4')
+everything = None
+if FULL:
+    for _inv in invs.values():
+        _s = csv(_inv.get('supplyGrps'))
+        if len(_s) >= 100:
+            everything = _s
+            break
+    assert everything, 'no supply-everything list found in the save'
+    _cs = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'Dashboard', 'Classes', 'DroneNetworkEverything.cs'), encoding='utf-8-sig').read()
+    _fallback = [f for f in re.findall(r'"([^"]+)"', _cs[_cs.index('FallbackEverything'):]) if re.match(r'^[A-Za-z0-9_\-]+$', f)]
+    print('supply-everything list:', len(everything), 'items; the dashboard fallback list matches it:', _fallback == everything)
+
+template_objects, skipped, warehouse = [], {}, {}
 planet = lamp.get('planet')
 for o in objs.values():
     g = o['gId']
     # butterfly farms and beehives are built by Base Building > Boosters, and the algae generators, harvesting robot and lake water collectors stand out in the world:
     # none of them is part of a base template (the tiers do keep their own heaters)
+    if SKIP_BOX is not None:
+        _x, _, _z = pos(o)
+        if SKIP_BOX[0] <= _x <= SKIP_BOX[1] and SKIP_BOX[2] <= _z <= SKIP_BOX[3] and o.get('planet') == planet:
+            assert g in ('Foundation', 'Sign') or g.startswith('Container'), 'something other than the warehouse stands in the skipped box: %s at %s' % (g, o['pos'])
+            warehouse[g] = warehouse.get(g, 0) + 1
+            continue
+    if FULL and g in FULL_NEVER:
+        continue
     if o['id'] == lamp['id'] or g in ('Beacon', 'EscapePod', 'ButterflyFarm1', 'ButterflyFarm2', 'ButterflyFarm3', 'Beehive1', 'Beehive2', 'AlgaeGenerator1', 'AlgaeGenerator2', 'HarvestingRobot1', 'WaterCollector2') or o.get('planet') != planet:
         continue
     x, y, z = pos(o)
@@ -131,6 +163,11 @@ for o in objs.values():
             spec['demand'] = inv['demandGrps']
             spec['supply'] = inv['supplyGrps']
             spec['priority'] = inv['priority']
+            if FULL:
+                if csv(spec['supply']) == everything:
+                    spec['supply'] = '*'
+                if g in ('Container2', 'Container3') and (o.get('text') or '').lower().startswith('misc'):
+                    spec['supply'] = ''
         held = {}
         for w in csv(inv['woIds']):
             r = allrec.get(int(w))
@@ -141,6 +178,12 @@ for o in objs.values():
                 spec['stock'] = held
             else:
                 spec['held'] = held
+        if FULL and g == 'DroneStation1':
+            spec['fill'] = {'Drone3': inv['size']}
+            spec.pop('held', None)
+        if FULL and g.startswith('Optimizer') and held:
+            spec['keep'] = dict(held)   # an optimizer's fuses are its setup: always built
+            spec.pop('held', None)
         if g.startswith('Vegetube'):
             spec['stock'] = {'Seed4': inv['size']}   # every vegetube is built with its tuska seed
             spec.pop('held', None)
@@ -159,17 +202,19 @@ for t in template_objects:
 
 doc = {
     'schema': 1,
-    'name': 'Tier %d base' % TIER,
+    'name': 'Full base' if FULL else 'Tier %d base' % TIER,
     'capturedFrom': '%s, %s, the outdoor lamp on Prime' % (os.path.basename(SRC), __import__('datetime').date.today().isoformat()),
     'beacon': {'text': 'Base', 'dirX': dir_x, 'dirZ': dir_z},
-    'excluded': 'loose items on the ground (%d) and the escape pod' % sum(skipped.values()),
+    'excluded': ('loose items on the ground (%d) and the escape pod' % sum(skipped.values()))
+                + ('; never heaters, drills, butterfly farms, beehives, algae generators, the harvesting robot or lake water collectors' if FULL else '')
+                + ('; not the warehouse (%d objects)' % sum(warehouse.values()) if SKIP_BOX is not None else ''),
     'counts': counts,
     'objects': template_objects,
 }
 os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
 with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
     json.dump(doc, f, separators=(',', ':'))
-print('objects in the template:', len(template_objects), '| left out as items:', skipped)
+print('objects in the template:', len(template_objects), '| left out as items:', skipped, '| warehouse left out:', warehouse)
 print('written', os.path.abspath(OUT), os.path.getsize(OUT), 'bytes')
 
 # every crate for a real item is built completely full (see tools/fill-crates.py)

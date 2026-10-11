@@ -55,7 +55,7 @@
 
                 @if (info.Loose.Count > 0)
                 {
-                    <div class="contents-list loose"><ItemList Title="@BoneyardTitle" Data="@ByName(info.Loose)" Columns="1" MaxRows="10" Collapsible="true" /></div>
+                    <div class="contents-list loose"><ItemList Title="@BoneyardTitle" Data="@ByName(info.Loose)" Columns="1" MaxRows="10" Collapsible="true" FoldKey="Boneyard" /></div>
                 }
                 else if (LiveOnly)
                 {
@@ -65,11 +65,6 @@
 
             <BaseFloorPlan Plan="@info.Plan" BaseId="@info.Id" PlayerPosition="@PlayerPosition"
                            PlayerHeading="@PlayerHeading" Dim="@Dim" EmptyText="@PlanEmptyText" />
-
-            @if (info.HasFactory)
-            {
-                <FactoryCard Info="@info" Dim="@Dim" />
-            }
         </div>
     }
 </div>
