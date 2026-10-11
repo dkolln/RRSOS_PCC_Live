@@ -9,8 +9,8 @@
 <div class="bt">
     <p class="hint">
         Place a <strong>beacon</strong> where the booster should stand and save. Any name will do: if it holds a word like <code>heat</code>, <code>pressure</code>, <code>butterfly</code>,
-        <code>bees</code>, <code>eco</code>, <code>frog</code> or <code>tree</code> the booster is picked for you, otherwise pick it here. <strong>Heat</strong> and <strong>Pressure</strong> stack eight T5
-        machines at the beacon's own spot and height (one on top of the other) with the optimizers @BaseBuildingEngine.BoosterOptimizerDistance.ToString("0") m on, turned the way the beacon
+        <code>bees</code>, <code>eco</code>, <code>frog</code> or <code>tree</code> the booster is picked for you, otherwise pick it here. <strong>Heat</strong> and <strong>Pressure</strong> stack machines (eight by default; pick the tier, T1 to T5, and
+        how many) at the beacon's own spot and height (one on top of the other) with the optimizers @BaseBuildingEngine.BoosterOptimizerDistance.ToString("0") m on, turned the way the beacon
         points. The others hold things you must reach (larvae, honey, eggs, seeds), so nothing is stacked: the optimizers (one per fuse, side by side) stand on the beacon and eight machines
         surround them in a ring, each with its own inventory, as tight as the spacing below. Each part can be changed below. The beacon is left as it is. Building writes into the save
         (with a backup first), so do it with the game at the main menu. <strong>Nothing is checked for room, and neither is the ground.</strong>
@@ -91,6 +91,13 @@
                     </label>
                 }
 
+                @if (chosen is { Ring: false })
+                {
+                    <label>Stack of
+                        <input class="bt-name bt-num" type="number" min="1" max="@BaseBuildingEngine.MaxStack" step="1" value="@CountText" @onchange="OnCount" />
+                    </label>
+                }
+
                 @if (chosen is { Ring: true })
                 {
                     <label>Spacing (m)
@@ -156,11 +163,11 @@
                 <p class="bb-summary">
                     @if (_plan.MachinesToAdd > 0)
                     {
-                        <span><strong>@_plan.MachinesToAdd</strong> @machine.Label @(kind.Ring ? $"in a ring {_plan.Spacing.ToString("0.#")} m apart around the beacon" : "at the beacon")@(_plan.Populate is not null ? $", each filled with {_plan.Populate.Label}" : "")@(_plan.MachinesFound > 0 ? $" ({_plan.MachinesFound} already there, to make {kind.Count})" : "")</span>
+                        <span><strong>@_plan.MachinesToAdd</strong> @machine.Label @(kind.Ring ? $"in a ring {_plan.Spacing.ToString("0.#")} m apart around the beacon" : "at the beacon")@(_plan.Populate is not null ? $", each filled with {_plan.Populate.Label}" : "")@(_plan.MachinesFound > 0 ? $" ({_plan.MachinesFound} already there, to make {_plan.Count})" : "")</span>
                     }
                     else
                     {
-                        <span>All @kind.Count @machine.Label already stand @(kind.Ring ? "around" : "at") the beacon.</span>
+                        <span>All @_plan.Count @machine.Label already stand @(kind.Ring ? "around" : "at") the beacon.</span>
                     }
 
                     @if (_plan.Optimizers.Count == 0)
@@ -221,6 +228,7 @@
     private string? _machine;               // a tier of its machine; null is the preset's
     private string? _populate;              // what fills each machine; null is the preset's
     private double? _spacing;               // for a ring; null uses the kind's own
+    private int? _count;                    // for a stack; null uses the kind's own
     private bool _optimizers = true;
     private string? _optimizerGId;          // null is the T2
     private HashSet<string> _fuses = new(StringComparer.Ordinal);
@@ -230,10 +238,12 @@
     private string? _message;
     private bool _ok;
 
+    private string CountText => (_count ?? _plan?.Count ?? 8).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     private string SpacingText => (_spacing ?? _plan?.Kind?.Spacing ?? 0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
     private BoosterOptions Options() => new(_kindKey, _spacing, _machine, _populate, _optimizers, _optimizerGId,
-        BaseBuildingEngine.Fuses.Where(f => _fuses.Contains(f.GId)).Select(f => f.GId).ToList());
+        BaseBuildingEngine.Fuses.Where(f => _fuses.Contains(f.GId)).Select(f => f.GId).ToList(), _count);
 
     // A different booster starts from its own preset: its machine, fill, spacing and fuses.
     private void ResetChoices()
@@ -241,6 +251,7 @@
         _machine = null;
         _populate = null;
         _spacing = null;
+        _count = null;
         _optimizers = true;
         _optimizerGId = null;
         _fuses = new HashSet<string>(BaseBuildingEngine.BoosterByKey(_kindKey)?.DefaultFuses ?? Array.Empty<string>(), StringComparer.Ordinal);
@@ -269,6 +280,12 @@
         else
             _fuses.Remove(gId);
 
+        await Replan();
+    }
+
+    private async Task OnCount(ChangeEventArgs e)
+    {
+        _count = int.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var v) && v > 0 ? Math.Min(v, BaseBuildingEngine.MaxStack) : null;
         await Replan();
     }
 
@@ -375,6 +392,7 @@
             var keepMachine = _machine;
             var keepPopulate = _populate;
             var keepSpacing = _spacing;
+            var keepCount = _count;
             var keepOptimizers = _optimizers;
             var keepTier = _optimizerGId;
             var keepFuses = new HashSet<string>(_fuses, StringComparer.Ordinal);
@@ -386,6 +404,7 @@
                 _machine = keepMachine;
                 _populate = keepPopulate;
                 _spacing = keepSpacing;
+                _count = keepCount;
                 _optimizers = keepOptimizers;
                 _optimizerGId = keepTier;
                 _fuses = keepFuses;

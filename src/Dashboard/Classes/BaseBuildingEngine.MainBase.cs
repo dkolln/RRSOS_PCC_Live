@@ -106,6 +106,11 @@ namespace RRSOS.PCC.Dashboard
 
         public const string SupplyEverythingMarker = "*";
 
+        /// <summary>The seeds a pre-filled base plants in its outdoor farms (<c>Farm1</c>, one seed in its main slot): eggplant, mushroom, bean, squash, cocoa, wheat. Each goes in two farms,
+        /// in the order the farms come in the template (twelve farms use all six, two each).</summary>
+        public static readonly IReadOnlyList<string> FarmSeeds = new[] { "Vegetable0Seed", "Vegetable3Seed", "Vegetable2Seed", "Vegetable1Seed", "CookCocoaSeed", "CookWheatSeed" };
+        private const string OutdoorFarmGId = "Farm1";
+
         /// <summary>
         /// The second kind of anchor for the Main Base, for the start of a game, before beacons are unlocked: an outdoor lamp standing on a foundation. Like the
         /// beacon it gives the foundation to build from (the one under it) and the direction (its facing), and it is left exactly as it is.
@@ -367,6 +372,8 @@ namespace RRSOS.PCC.Dashboard
                 return id;
             }
 
+            var farms = plan.Objects.Where(o => o.Source.G == OutdoorFarmGId).ToList();
+
             foreach (var p in plan.Objects.Where(o => !o.Exists))
             {
                 var t = p.Source;
@@ -378,7 +385,18 @@ namespace RRSOS.PCC.Dashboard
                 sb.Append("{\"id\":").Append(id).Append(",\"gId\":").Append(Q(t.G));
 
                 if (t.Inv is { } inv)
+                {
+                    // Every auto-crafter supplies what it makes to the drones, whatever the capture had on it (most had nothing, a few had another item).
+                    if (t.G == CrafterGId && !string.IsNullOrEmpty(t.LiGrps))
+                        inv = new MainBaseInventory { Size = inv.Size, Demand = "", Supply = t.LiGrps, Priority = 0, Held = inv.Held, Fill = inv.Fill, Stock = inv.Stock, Keep = inv.Keep, Gear = inv.Gear };
+
+                    // A pre-filled base plants its outdoor farms: one seed in each farm's main slot, two farms per kind of seed.
+                    if (prefill && t.G == OutdoorFarmGId && inv.Size >= 1 && inv.Stock is null)
+                        inv = new MainBaseInventory { Size = inv.Size, Demand = inv.Demand, Supply = inv.Supply, Priority = inv.Priority, Held = inv.Held, Fill = inv.Fill,
+                            Stock = new Dictionary<string, int> { [FarmSeeds[farms.IndexOf(p) / 2 % FarmSeeds.Count]] = 1 }, Keep = inv.Keep, Gear = inv.Gear };
+
                     sb.Append(",\"liId\":").Append(AddInventory(inv, inv.Size, inv.Demand is not null));
+                }
 
                 if (t.LiGrps is not null)
                     sb.Append(",\"liGrps\":").Append(Q(t.LiGrps));

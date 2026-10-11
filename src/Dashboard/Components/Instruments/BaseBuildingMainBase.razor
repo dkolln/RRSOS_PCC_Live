@@ -283,9 +283,12 @@
             if (DroneCount > 0) parts.Add($"{DroneCount} T3 drones in the drone stations");
             if (FuseCount > 0) parts.Add($"{FuseCount} fuses in the optimizers");
             if (StockCount > 0) parts.Add($"{StockCount} items in the crates, food growers and vegetubes");
+            if (FarmCount > 0) parts.Add($"a seed in each of the {FarmCount} outdoor farms");
             return string.Join(", ", parts);
         }
     }
+
+    private int FarmCount => _template?.Objects.Count(o => o.G == "Farm1" && o.Inv is { Size: >= 1 }) ?? 0;
 
     private int FuseCount => _template?.Objects.Where(o => o.Inv?.Keep is not null).Sum(o => o.Inv!.Keep!.Values.Sum()) ?? 0;
 
