@@ -123,6 +123,10 @@ vehicle is stowed (pocket) or in a portal, because it then has no place in the w
   - `tiers`: the building groups unlocked by a blueprint chip, per tier (`unlockingData.tier1..10GroupToUnlock`).
   - `messages`: groups unlocked by a message (toxicity items), not by chips.
   - `loot`: groups whose deconstruction drops a chip linked to that group (`Group.GetLootRecipeOnDeconstruct`).
+  - `itemUnlocks` (plugin 0.18.0): `[{ "item", "group" }]`, every item whose use unlocks one group outright (`GroupItem.GetUnlocksGroup`), e.g.
+    `BlueprintContainer3` -> `Container3`.
+  - `storyUnlocks` (plugin 0.18.0): `[{ "event", "planet", "group" }]`, every story event of every planet in the build that unlocks a group
+    when it is received (`StoryEventData.unlockGroupOnReceive`).
 - A chip is `{"id","gId":"BlueprintT1","liGrps":"<group>"}` in the save; `liGrps` names the building it unlocks.
 
 ## The planet name catalog (`planets.json`, added in plugin 0.10.3)
@@ -238,6 +242,7 @@ Two things used to pool every planet in a save together, which only mattered onc
 
 ## Changes
 
+- **Plugin 0.18.0**: `blueprints.json` gains `itemUnlocks` and `storyUnlocks` (see above). Nothing else changes.
 - **Plugin 0.17.0**: `extractors[]` also lists harvesting robots (kind `harvester`, with the item they are set to), and each entry gains `supply` (the group ids its drone settings supply). The Factory tab counts an ore, gas or water source as supplied only when its product is on that list.
 - **Plugin 0.16.0**: `planet.power` gains `consumers[]` (what draws power, by kind) and a `name` on each generator and consumer. The dashboard shows both when the power gauge is clicked.
 - **Plugin 0.14.0**: new `planet.toxicity` in `live.json`, and Toxic Water Collectors in `extractors[]` (kind `toxicwater`). See above.
