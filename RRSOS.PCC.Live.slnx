@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Dashboard/Dashboard.csproj" />
+    <Project Path="src/Build/Build.csproj" />
     <Project Path="src/Live/Live.csproj" />
   </Folder>
 </Solution>

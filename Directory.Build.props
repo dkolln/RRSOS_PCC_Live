@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <!-- Say clearly why the build cannot find the game's assemblies, instead of a wall of missing-type errors. -->
-  <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences" Condition="'$(MSBuildProjectName)' == 'Live' And !Exists('$(GameManaged)Assembly-CSharp.dll')">
+  <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences" Condition="('$(MSBuildProjectName)' == 'Live' Or '$(MSBuildProjectName)' == 'Build') And !Exists('$(GameManaged)Assembly-CSharp.dll')">
     <Error Text="The Planet Crafter was not found at '$(GameDir)'. Run tools\setup.ps1 (it finds the game in any Steam library and writes solution_private.targets), or pass -p:GameDir=&quot;&lt;the game's folder&gt;\&quot;." />
   </Target>
 

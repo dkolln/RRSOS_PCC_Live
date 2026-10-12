@@ -257,8 +257,10 @@ page keeps the last reading, dimmed, and says so.
 ## The read-only cutoff
 
 From the version after v0.17.1 the project is allowed to grow a **live-write** side: a plugin that places things in the
-running game, for example building the main base piece by piece as the matching things unlock. Nothing of that is built
-yet; this section records the decision so the line is clear.
+running game, for example building the main base piece by piece as the matching things unlock. The first spike exists
+(`src/Build`, plugin `RRSOS.PCC.Build` 0.1.0, off unless enabled in its config): at planetfall, or when a request file asks,
+it places the first stage of the base (anchor lamp, two foundations, a pod) at the Prime template location, once per save and
+only on an empty site. Everything else is still to come; this section records the decision so the line is clear.
 
 - **Last read-only version:** tag `v0.17.1` (plugin 0.17.1). The `read-only-maintenance` branch starts at that tag, is
   protected like `master`, and only receives fixes needed for game updates.
