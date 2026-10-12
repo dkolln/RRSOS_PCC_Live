@@ -251,6 +251,12 @@ See `test-plan.md` (tick items off as they are done).
 
 ## Working rules that emerged (from the owner)
 
+- **Cutoff (2026-10-12):** the rule below describes everything up to and including release **v0.17.1**, the last read-only
+  version; the `read-only-maintenance` branch (protected, starts at tag `v0.17.1`) keeps it alive with fixes for game
+  updates only. `master` moves on and may add a live-write plugin (its own name and plugin id; opt-in, logged, with undo;
+  planned, not built). Reason the owner gave for the old rule: a plugin that writes into the live game is burdensome to
+  maintain across game updates, which is why the live-write side is a separate plugin. Do not write live-write code
+  on the maintenance branch, and ask before starting it on `master`.
 - Read-only toward the running game, awareness not shortcuts. Never change live game state — the plugin only
   observes. Cheats/Resupply is a deliberate, separate exception scoped to editing the save file on disk while the
   game is not in a world; it does not touch the running game.
