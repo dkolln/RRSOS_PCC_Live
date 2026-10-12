@@ -256,19 +256,18 @@ page keeps the last reading, dimmed, and says so.
 
 ## The read-only cutoff
 
-From the version after v0.17.1 the project is allowed to grow a **live-write** side: a plugin that places things in the
-running game, for example building the main base piece by piece as the matching things unlock. The first spike exists
-(`src/Build`, plugin `RRSOS.PCC.Build` 0.1.0, off unless enabled in its config): at planetfall, or when a request file asks,
-it places the first stage of the base (anchor lamp, two foundations, a pod) at the Prime template location, once per save and
-only on an empty site. Everything else is still to come; this section records the decision so the line is clear.
+From the version after v0.17.1 the live-write side grows: mods that place things in the running game, for example building
+the main base piece by piece as the matching things unlock. **Those mods live in their own repository,
+[RRSOS-PCC-Mods](https://github.com/dkolln/RRSOS-PCC-Mods)**, completely separate from this one. This repository (the dashboard
+and the read-only plugin) keeps the read-only rule; this section records the decision so the line is clear.
 
 - **Last read-only version:** tag `v0.17.1` (plugin 0.17.1). The `read-only-maintenance` branch starts at that tag, is
   protected like `master`, and only receives fixes needed for game updates.
-- **`master` moves on** with the live-write work, through the usual branch and pull request flow.
-- **Live writes will be a separate plugin** with its own name and BepInEx plugin id, so a read-only install and a
-  live-write install can never be mixed up, and the extra game-update upkeep applies to that plugin only.
-- **Live writes will be opt-in:** off by default, every placement logged, and one click to undo what the plugin placed.
-  The offline Cheats page is unchanged.
+- **`master` here** stays the dashboard and the read-only plugin.
+- **Live writes are separate plugins** in RRSOS-PCC-Mods, each with its own name and BepInEx plugin id, so a read-only
+  install and a live-write install can never be mixed up, and the extra game-update upkeep applies to those plugins only.
+- **Live writes are opt-in:** off by default, every placement logged, and a way to undo what a mod placed. The offline
+  Cheats page here is unchanged.
 
 ## Setup
 
