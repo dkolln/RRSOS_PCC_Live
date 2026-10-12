@@ -241,6 +241,8 @@ page keeps the last reading, dimmed, and says so.
 ## Principles
 
 - **Read-only toward the running game.** The plugin observes; it never changes game state, saves, items or settings.
+  This holds for every release up to and including **v0.17.1**, the last read-only version. It is kept alive on the
+  `read-only-maintenance` branch, which only gets fixes for game updates (see "The read-only cutoff" below).
 - **One deliberate exception, and it never touches the running game.** The Cheats page (Resupply, Drone Network, Base
   Building, Factory, Travel, Storage) edits a save file on disk, only while the game is at the main menu or closed. It backs the save up first, and refuses to write unless
   undoing its edit would give back the original file exactly.
@@ -251,6 +253,20 @@ page keeps the last reading, dimmed, and says so.
   game's decompiled source, are never copied into this repo.
 - **Nothing is trusted blindly.** Every section of the files is read on its own; if one fails it becomes `null` and the
   rest still arrive, and the dashboard copes with any of them missing.
+
+## The read-only cutoff
+
+From the version after v0.17.1 the project is allowed to grow a **live-write** side: a plugin that places things in the
+running game, for example building the main base piece by piece as the matching things unlock. Nothing of that is built
+yet; this section records the decision so the line is clear.
+
+- **Last read-only version:** tag `v0.17.1` (plugin 0.17.1). The `read-only-maintenance` branch starts at that tag, is
+  protected like `master`, and only receives fixes needed for game updates.
+- **`master` moves on** with the live-write work, through the usual branch and pull request flow.
+- **Live writes will be a separate plugin** with its own name and BepInEx plugin id, so a read-only install and a
+  live-write install can never be mixed up, and the extra game-update upkeep applies to that plugin only.
+- **Live writes will be opt-in:** off by default, every placement logged, and one click to undo what the plugin placed.
+  The offline Cheats page is unchanged.
 
 ## Setup
 
