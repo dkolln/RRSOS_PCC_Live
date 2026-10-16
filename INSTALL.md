@@ -111,7 +111,7 @@ A release zip has the plugin already built and the dashboard already published, 
    `dashboard\appsettings.Local.json` (see "Settings for this PC" below).
 
 To update: close the game, copy the new plugin DLL over the old one, replace the `dashboard` folder (keep your
-`appsettings.Local.json`), and restart both. Your notes, base names and Cheats configs live in
+`appsettings.Local.json`), and restart both. Your notes and base names live in
 `%LOCALAPPDATA%\RRSOS-PCC-Live` and are not touched.
 ## Updating
 
@@ -138,8 +138,7 @@ one defaults to, is in [src/Dashboard/appsettings.json](src/Dashboard/appsetting
 | Setting | What it changes | Default |
 |---|---|---|
 | `Urls` | The dashboard's address and port | `http://localhost:5320` |
-| `LiveFolder` | Where the plugin's files are, and where the dashboard keeps base names, notes, resupply configs and save backups | `%LOCALAPPDATA%\RRSOS-PCC-Live` |
-| `SaveSettings:SavePath` | The save folder the Cheats page edits | `%USERPROFILE%\AppData\LocalLow\MijuGames\Planet Crafter` |
+| `LiveFolder` | Where the plugin's files are, and where the dashboard keeps base names, notes | `%LOCALAPPDATA%\RRSOS-PCC-Live` |
 | `Game:LaunchUri` | What **LAUNCH PC** opens | `steam://rungameid/1284190` |
 | `Game:ProcessName` | The process that means the game is running | `Planet Crafter` |
 
@@ -159,7 +158,6 @@ Any of them can also be given on the command line, which wins over the file:
 | The dashboard will not start, or the page shows an error and drops you | Another dashboard is already running on the same port. Close it, or give this one another `Urls`. |
 | Changes to the plugin do not show up | Restart the game fully: the plugin is only loaded when the game starts. |
 | You want a different voice for the spoken alerts | They use Windows' default text-to-speech voice: **Settings > Time & language > Speech**, then restart the dashboard. They play on the PC running the dashboard. (Narrator's own voice setting is separate and not used.) |
-| The Boneyard is empty or out of date | It comes from the last save, not live: save the game (or wait for an autosave) and it updates within 10 seconds. Its title shows the save's time. |
 
 ## Uninstalling
 

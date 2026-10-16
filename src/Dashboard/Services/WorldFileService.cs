@@ -5,8 +5,7 @@ namespace RRSOS.PCC.Dashboard
     /// <summary>
     /// Watches the plugin's world file (bases, containers, extractors: it changes every few seconds, not every second)
     /// and keeps the latest reading, with the bases already worked out from it. Like <see cref="LiveFileService"/>, it
-    /// does not care whether the game or this app started first. The bases' boneyards come from the last save instead
-    /// (see <see cref="SaveLooseService"/>), so the bases are worked out again when either changes.
+    /// does not care whether the game or this app started first.
     /// </summary>
     public sealed class WorldFileService : BackgroundService
     {
@@ -29,7 +28,6 @@ namespace RRSOS.PCC.Dashboard
         private readonly ILogger<WorldFileService> _log;
         private readonly BaseNames _names;
         private readonly ItemCatalog _catalog;
-        private readonly SaveLooseService _save;
         private readonly FactoryService _factory;
         private readonly SpeechService _speech;
         private readonly string _path;
@@ -41,26 +39,14 @@ namespace RRSOS.PCC.Dashboard
         // from "this is the first time we've looked". Cleared of ids the current reading no longer has.
         private readonly Dictionary<int, bool> _rocketOnSite = new();
 
-        public WorldFileService(ILogger<WorldFileService> log, IConfiguration config, BaseNames names, ItemCatalog catalog, SaveLooseService save, FactoryService factory, SpeechService speech)
+        public WorldFileService(ILogger<WorldFileService> log, IConfiguration config, BaseNames names, ItemCatalog catalog, FactoryService factory, SpeechService speech)
         {
             _log = log;
             _names = names;
             _catalog = catalog;
-            _save = save;
             _factory = factory;
             _speech = speech;
             _path = LivePaths.WorldFile(config);
-            _save.Changed += OnSaveRead;
-        }
-
-        // A newer save was read: the same world reading, with the boneyards from that save.
-        private void OnSaveRead()
-        {
-            if (Data is { } data)
-            {
-                SetBases(data);
-                Changed?.Invoke();
-            }
         }
 
         private void SetBases(WorldData data)
@@ -70,7 +56,7 @@ namespace RRSOS.PCC.Dashboard
             var watch = System.Diagnostics.Stopwatch.StartNew();
 
             lock (_buildLock)
-                Bases = data.InWorld ? BaseDirectory.Build(data, _save.Objects, _names, _catalog, _factory.Book()) : BaseDirectory.Empty;
+                Bases = data.InWorld ? BaseDirectory.Build(data, _names, _catalog, _factory.Book()) : BaseDirectory.Empty;
 
             watch.Stop();
             _log.LogDebug("Bases worked out in {Ms} ms ({Containers} containers, {Structures} building pieces)", watch.ElapsedMilliseconds, data.Containers.Count, data.Structures.Count);

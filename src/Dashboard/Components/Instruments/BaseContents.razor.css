@@ -84,11 +84,6 @@
     vertical-align: middle;
 }
 
-.boneyard-off {
-    color: #5f7d99;
-    font-style: italic;
-    font-size: 0.8rem;
-}
 
 .contents-list.ready {
     border-color: #245a3c;
