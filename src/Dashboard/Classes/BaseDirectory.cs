@@ -40,8 +40,6 @@ namespace RRSOS.PCC.Dashboard
         /// <summary>Crops in growers that have finished growing.</summary>
         public IReadOnlyList<ItemCount> Ready { get; init; } = Array.Empty<ItemCount>();
 
-        /// <summary>Loose ore, alloy, quartz and rods lying on the ground (the "boneyard").</summary>
-        public IReadOnlyList<ItemCount> Loose { get; init; } = Array.Empty<ItemCount>();
 
         /// <summary>The base drawn from above, floor by floor. Null when the world file has no building pieces for it.</summary>
         public FloorPlan? Plan { get; init; }
@@ -60,7 +58,7 @@ namespace RRSOS.PCC.Dashboard
     /// <summary>
     /// Works out the bases from the plugin's raw facts, the way RRSOS-PCC does from a save:
     /// a base is a living compartment (a pod) that has an entrance panel (a door); with a connection panel as well it is a
-    /// "Base", without one an "Outpost". Everything (containers, loose items) belongs to the nearest base within 100 m.
+    /// "Base", without one an "Outpost". Everything (containers) belongs to the nearest base within 100 m.
     /// </summary>
     public sealed class BaseDirectory
     {
@@ -80,9 +78,8 @@ namespace RRSOS.PCC.Dashboard
 
         private BaseDirectory(List<BaseInfo> bases) => Bases = bases;
 
-        /// <param name="saveObjects">What the last save says lies in the world (see <see cref="SaveLooseService"/>): the boneyard's source.</param>
         /// <param name="book">The game's recipes (plugin 0.9.0's <c>recipes.json</c>), for working out which crafters are short an ingredient. Null skips that (older plugin, or the file is not there yet).</param>
-        public static BaseDirectory Build(WorldData world, IEnumerable<SaveObject> saveObjects, BaseNames names, ItemCatalog catalog, RecipeBook? book = null)
+        public static BaseDirectory Build(WorldData world, BaseNames names, ItemCatalog catalog, RecipeBook? book = null)
         {
             // Sorted by id so that the first time names are handed out, the order does not depend on the game's.
             var pods = world.Pods
@@ -135,17 +132,6 @@ namespace RRSOS.PCC.Dashboard
                     if (!string.IsNullOrWhiteSpace(container.Label))
                         owner.Crafters.Add((container.Id, container.Label!, LabelName(container, catalog)));
                 }
-            }
-
-            foreach (var loose in saveObjects)
-            {
-                // Only this planet's (a save holds every planet, and their coordinates overlap).
-                if (world.PlanetHash != 0 && loose.PlanetHash != 0 && loose.PlanetHash != world.PlanetHash)
-                    continue;
-
-                // The boneyard is raw material lying around the base (ore, ice, super alloy, quartz, rods). Buildings, plants, drones, vehicles and the like are left out.
-                if (IsBoneyardMaterial(catalog, loose.GId) && Nearest(found, loose.Position) is { } owner)
-                    Add(owner.Loose, loose.GId, catalog.NameOf(loose.GId), 1);
             }
 
             // Building pieces go to their nearest base too, for its floor plan.
@@ -209,10 +195,6 @@ namespace RRSOS.PCC.Dashboard
             return best;
         }
 
-        /// <summary>What may lie in the boneyard: ores (which includes ice and uranium), super alloy, quartz and rods. Types are those of RRSOS-PCC's table.</summary>
-        private static bool IsBoneyardMaterial(ItemCatalog catalog, string id) =>
-            catalog.TypeOf(id) is ItemType.Ore or ItemType.Alloy or ItemType.Quartz or ItemType.Rod;
-
         private static bool IsMachineOrBuildingPart(ItemCatalog catalog, string id) =>
             catalog.CategoryOf(id) is ItemCategory.Machine or ItemCategory.BasePart;
 
@@ -247,7 +229,6 @@ namespace RRSOS.PCC.Dashboard
             public Dictionary<string, (string Name, int Count)> StoredPlain { get; } = new(); // Stored without the Container3 full of one item
             public int FullSingle { get; set; }
             public Dictionary<string, (string Name, int Count)> Ready { get; } = new();
-            public Dictionary<string, (string Name, int Count)> Loose { get; } = new();
             public List<StructureData> Pieces { get; } = new();
             public List<(Vec3 Position, string? Item)> Spots { get; } = new();
             public List<(long Id, string Label, string Name)> Crafters { get; } = new();
@@ -273,7 +254,6 @@ namespace RRSOS.PCC.Dashboard
                     StoredWithoutFull = ToList(StoredPlain),
                     FullSingleContainers = FullSingle,
                     Ready = ToList(Ready),
-                    Loose = ToList(Loose),
                     Plan = FloorPlan.Build(Pieces, Spots),
                     Crafters = crafters,
                     CrafterCount = CrafterCount

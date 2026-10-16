@@ -6,7 +6,7 @@
     var ids = Ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
-@if (ids.Length == 1 && ids[0] == DroneNetworkEngine.Everything)
+@if (ids.Length == 1 && ids[0] == "*")
 {
     @:everything
 }

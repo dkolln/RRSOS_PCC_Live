@@ -24,12 +24,8 @@ builder.Services.AddSingleton<FoldState>();
 builder.Services.AddSingleton<TerraformersService>();
 builder.Services.AddSingleton<ItemCatalog>();
 builder.Services.AddSingleton<IconCatalog>();
-builder.Services.AddSingleton<ProducerDefaults>();
 builder.Services.AddSingleton<BaseNames>();
 builder.Services.AddSingleton<PlanetNames>();
-// The boneyards come from the newest save, read again whenever the game writes it (checked every 10 seconds).
-builder.Services.AddSingleton<SaveLooseService>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<SaveLooseService>());
 builder.Services.AddSingleton<WorldFileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<WorldFileService>());
 builder.Services.AddSingleton<NotebookService>();
@@ -37,19 +33,8 @@ builder.Services.AddSingleton<NotebookService>();
 builder.Services.AddSingleton<ShoppingListService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ShoppingListService>());
 
-// Cheats page: save-file editing while the game is not in a world (see docs/contract.md's read-only principle —
-// this never touches the running game, only the save on disk).
-builder.Services.AddSingleton<ResupplyConfigStore>();
-builder.Services.AddSingleton<SaveResupplyService>();
 builder.Services.AddScoped<ToastService>();
-// Base Building: platform templates kept beside the plugin's files, and the read-only reader of beacons and row plans.
-builder.Services.AddSingleton<BuildTemplateStore>();
-builder.Services.AddSingleton<BaseBuildingService>();
 builder.Services.AddSingleton<FactoryService>();
-builder.Services.AddSingleton<PlayerTravelService>();
-builder.Services.AddSingleton<StorageService>();
-// Reads the newest saves ahead of the Storage tab whenever the game is not in a world.
-builder.Services.AddHostedService<StorageWarmupService>();
 
 var app = builder.Build();
 

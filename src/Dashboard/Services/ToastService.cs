@@ -15,7 +15,7 @@ namespace RRSOS.PCC.Dashboard
     /// <summary>
     /// Short flash messages that fade away on their own. One per browser session (scoped), so a toast only ever
     /// shows in the page that caused it. The fade itself is CSS; this just keeps the list and removes each toast
-    /// once it has finished. Ported from RRSOS-PCC for the Cheats page's Resupply results.
+    /// once it has finished. Ported from RRSOS-PCC.
     /// </summary>
     public sealed class ToastService
     {

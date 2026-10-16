@@ -111,12 +111,15 @@ namespace RRSOS.PCC.Dashboard
         FactorySpot? Best, IReadOnlyList<string> Reached, IReadOnlyList<string> Missing, double BestFarthest, string Note);
 
     /// <summary>
-    /// The Cheats page's Factory, read-only part. For each wanted product it looks up the recipe and asks from which warehouse platforms an autocrafter, standing
+    /// The Factory planner: the read-only part. For each wanted product it looks up the recipe and asks from which warehouse platforms an autocrafter, standing
     /// <c>height</c> metres above the warehouse foundations, has every ingredient chest inside its range (the game measures range as a 3D sphere). Where no
     /// platform reaches everything, it records the platform that reaches the most and the ingredients left over, for a local chest to demand later.
     /// </summary>
     public static class FactoryPlanner
     {
+        /// <summary>How far above a foundation's position things placed on it stand (chests, in the save).</summary>
+        private const double OnFoundation = 2.519;
+
         /// <summary>How far above a chest's pivot its body reaches on average, so the sphere test aims at the middle of the chest, not its base.</summary>
         public const double ChestMiddle = 1.0;
 
@@ -150,7 +153,7 @@ namespace RRSOS.PCC.Dashboard
                         || !double.TryParse(pos[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var z))
                         continue;
 
-                    if (x < minX || x > maxX || z < minZ || z > maxZ || Math.Abs(y - platformY - BaseBuildingEngine.OnFoundation) > 0.8)
+                    if (x < minX || x > maxX || z < minZ || z > maxZ || Math.Abs(y - platformY - OnFoundation) > 0.8)
                         continue;
 
                     var item = root.TryGetProperty("liGrps", out var g) ? g.GetString() : null;
@@ -173,7 +176,7 @@ namespace RRSOS.PCC.Dashboard
             IEnumerable<string> products, double margin = 0.5)
         {
             var range = book.AutoCrafter?.Range ?? 0;
-            var crafterY = platformY + height + BaseBuildingEngine.OnFoundation;
+            var crafterY = platformY + height + OnFoundation;
             var byItem = chests.Where(c => c.Item is not null).GroupBy(c => c.Item!, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
             var result = new List<ProductReach>();
 
@@ -250,7 +253,7 @@ namespace RRSOS.PCC.Dashboard
         public static FactoryPlan Plan(RecipeBook book, IReadOnlyList<FactoryChest> chests, IReadOnlyList<FactorySpot> platforms, double platformY, double height,
             IEnumerable<string> products, double margin = 0.5)
         {
-            var crafterY = platformY + height + BaseBuildingEngine.OnFoundation;
+            var crafterY = platformY + height + OnFoundation;
             var reaches = Evaluate(book, chests, platforms, platformY, height, products, margin);
 
             return new FactoryPlan(book.AutoCrafter?.Range ?? 0, height, reaches.Select(r => new FactoryProduct(r.Product, r.Mode, r.Ingredients,

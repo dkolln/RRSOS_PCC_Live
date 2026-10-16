@@ -83,7 +83,7 @@ namespace RRSOS.PCC.Dashboard
             }
         }
 
-        /// <summary>Every game object with a display name, sorted by that name. The Cheats page's product picker
+        /// <summary>Every game object with a display name, sorted by that name. The product picker
         /// searches this list; nothing here filters it down, since worldobjectdata.json does not know which of
         /// these can actually sit in a storage slot.</summary>
         public IReadOnlyList<(string GId, string Name)> AllProducts => _products;
